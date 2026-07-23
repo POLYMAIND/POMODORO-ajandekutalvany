@@ -210,7 +210,8 @@
   .thumbs { display: flex; flex-wrap: wrap; gap: 12px; }
   .thumb { position: relative; width: 124px; height: 80px; border-radius: 10px; color: #fff; font-size: 12px;
     font-weight: 600; display: flex; align-items: flex-end; padding: 9px; text-shadow: 0 1px 3px rgba(0,0,0,.35);
-    box-shadow: inset 0 0 0 1px rgba(0,0,0,.05); }
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.05); overflow: hidden; }
+  .thumb .tl { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .thumb-x { position: absolute; top: 6px; right: 6px; width: 20px; height: 20px; border: 0; border-radius: 50%;
     background: rgba(0,0,0,.45); color: #fff; cursor: pointer; font-size: 14px; line-height: 1; display: grid;
     place-items: center; padding: 0; }
@@ -289,6 +290,11 @@
       <div class="card-h">
         <h2>Utalványok</h2>
         <span class="sub" id="voucher-count">—</span>
+        <div style="flex:1"></div>
+        <button class="btn" id="export-csv" title="A megjelenített (szűrt) lista exportja — NAV-kimutatás formátum">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+          Export (CSV)
+        </button>
       </div>
       <div class="card-b">
         <div class="toolbar">
@@ -483,12 +489,12 @@
     }).join("");
   }
 
-  // ---- Render: table ----
-  function renderRows(){
+  // ---- Szűrt sorok (a tábla és az export közös forrása) ----
+  function filteredRows(){
     var rows = SEED[state.unit] || [];
     var q = $("#q").value.trim().toLowerCase();
     var fs = $("#f-status").value, fa = $("#f-amount").value;
-    var out = rows.filter(function(r){
+    return rows.filter(function(r){
       if (fs && r[7] !== fs) return false;
       if (fa && String(r[2]) !== fa) return false;
       if (q) {
@@ -497,6 +503,12 @@
       }
       return true;
     });
+  }
+
+  // ---- Render: table ----
+  function renderRows(){
+    var rows = SEED[state.unit] || [];
+    var out = filteredRows();
     $("#voucher-count").textContent = out.length + " / " + rows.length + " tétel";
     if (!out.length) {
       $("#rows").innerHTML = '<tr><td colspan="7" class="muted" style="text-align:center;padding:34px">Nincs a szűrésnek megfelelő utalvány.</td></tr>';
@@ -537,10 +549,15 @@
   }
 
   // ---- Render: settings ----
-  function thumbHtml(label, i){
-    return '<div class="thumb" style="background:'+grad(i)+'">'
+  function thumbHtml(img, i){
+    var name = (typeof img === "string") ? img : (img && img.name ? img.name : "Kép");
+    var src  = (img && typeof img === "object" && img.src) ? img.src : null;
+    var style = src
+      ? "background-image:url('" + src + "');background-size:cover;background-position:center"
+      : "background:" + grad(i);
+    return '<div class="thumb" style="'+style+'">'
       + '<button class="thumb-x" aria-label="Kép törlése">×</button>'
-      + esc(label) + '</div>';
+      + '<span class="tl">' + esc(name) + '</span></div>';
   }
 
   function renderSettings(){
@@ -553,7 +570,7 @@
     var html = Object.keys(UNITS).map(function(slug){
       var u = UNITS[slug];
       var thumbs = (u.images || []).map(thumbHtml).join("")
-        + '<button class="thumb add" data-add="'+slug+'">＋<span>Kép feltöltése</span></button>';
+        + '<label class="thumb add"><input type="file" accept="image/*" data-add="'+slug+'" hidden>＋<span>Kép feltöltése</span></label>';
       return '<div class="unit-block" data-unit-block="'+slug+'">'
         + '<div class="unit-head">'
         +   '<span class="unit-badge">'+u.prefix+'</span>'
@@ -618,6 +635,29 @@
   $("#q").addEventListener("input", renderRows);
   $("#f-status").addEventListener("change", renderRows);
   $("#f-amount").addEventListener("change", renderRows);
+
+  // ---- CSV-export (RESnWEB / NAV-kimutatás formátum) ----
+  var STATUS_EXPORT = { active:"Fizetve", redeemed:"Felhasználva", expired:"Lejárt", pending:"Fizetésre vár" };
+  function csvCell(v){ return '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"'; }
+  function exportCsv(){
+    var cols = ["Azonosító","Státusz","Vásárlás dátuma","Számlázási név","Megajándékozott neve",
+                "Lejárat","Érték","Email","Vendég megjegyzése","Szálláshely megjegyzése"];
+    var out = filteredRows();
+    var lines = [ cols.map(csvCell).join(";") ];
+    out.forEach(function(r){
+      lines.push([ r[0], STATUS_EXPORT[r[7]] || r[7], r[5], r[3], r[4], r[6], r[2], "", "", "" ]
+                 .map(csvCell).join(";"));
+    });
+    var csv = "﻿" + lines.join("\r\n");       // UTF-8 BOM + CRLF (Excel-barát)
+    var blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = state.unit + "_ajandekutalvany_export.csv";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+  $("#export-csv").addEventListener("click", exportCsv);
   $("#add-denom").addEventListener("click", function(){
     var d = document.createElement("div");
     d.className = "denom";
@@ -631,16 +671,6 @@
   document.addEventListener("click", function(e){
     // címlet-sor törlése
     if (e.target.closest(".denom .btn-ghost")) { e.target.closest(".denom").remove(); return; }
-
-    // kép hozzáadása (mock: új gradiens + alapértelmezett név)
-    var add = e.target.closest(".thumb.add");
-    if (add) {
-      var slug = add.getAttribute("data-add");
-      UNITS[slug].images = UNITS[slug].images || [];
-      UNITS[slug].images.push("Új kép " + (UNITS[slug].images.length + 1));
-      renderSettings();
-      return;
-    }
 
     // kép törlése
     var x = e.target.closest(".thumb-x");
@@ -662,6 +692,20 @@
     if (e.target.classList.contains("bill-provider")) {
       var b = e.target.closest("[data-unit-block]");
       if (b) { UNITS[b.getAttribute("data-unit-block")].invoicing = e.target.value; renderSettings(); }
+    }
+    // kép feltöltése (valódi fájl → data URL, bélyegkép)
+    if (e.target.matches && e.target.matches('input[type=file][data-add]')) {
+      var slug = e.target.getAttribute("data-add");
+      var file = e.target.files && e.target.files[0];
+      if (file) {
+        var reader = new FileReader();
+        reader.onload = function(ev){
+          UNITS[slug].images = UNITS[slug].images || [];
+          UNITS[slug].images.push({ name: file.name.replace(/\.[^.]+$/, ""), src: ev.target.result });
+          renderSettings();
+        };
+        reader.readAsDataURL(file);
+      }
     }
   });
 
