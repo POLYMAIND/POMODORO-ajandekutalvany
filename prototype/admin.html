@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ajándékutalvány kezelő — Pomo d'Oro</title>
+<style>*{margin:0}html{-webkit-text-size-adjust:100%}</style>
+</head>
+<body>
+<style>
+  :root {
+    --bg: #f4f4f6;
+    --card: #ffffff;
+    --ink: #1e1e22;
+    --muted: #86868c;
+    --faint: #a9a9b0;
+    --line: #e7e7ea;
+    --line-strong: #d9d9de;
+    --accent: #d95f4c;
+    --accent-ink: #ffffff;
+    --accent-soft: #fbe9e5;
+    --accent-hover: #c44d3c;
+    --good: #1f9d6b;
+    --good-soft: #e5f5ee;
+    --warn: #c98a1b;
+    --warn-soft: #fbf1dc;
+    --info-bar: #1f9d6b;
+    --shadow: 0 1px 2px rgba(20,20,30,.04), 0 8px 24px rgba(20,20,30,.06);
+    --radius: 16px;
+    --radius-sm: 10px;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #131316;
+      --card: #1c1c20;
+      --ink: #f0f0f2;
+      --muted: #9a9aa2;
+      --faint: #77777f;
+      --line: #2a2a30;
+      --line-strong: #37373f;
+      --accent: #e56f5c;
+      --accent-soft: #3a201b;
+      --accent-hover: #ef7d6a;
+      --good: #34c088;
+      --good-soft: #14261e;
+      --warn: #e0a63c;
+      --warn-soft: #2c2312;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f4f6; --card: #ffffff; --ink: #1e1e22; --muted: #86868c; --faint: #a9a9b0;
+    --line: #e7e7ea; --line-strong: #d9d9de; --accent: #d95f4c; --accent-soft: #fbe9e5;
+    --accent-hover: #c44d3c; --good: #1f9d6b; --good-soft: #e5f5ee; --warn: #c98a1b;
+    --warn-soft: #fbf1dc; --shadow: 0 1px 2px rgba(20,20,30,.04), 0 8px 24px rgba(20,20,30,.06);
+  }
+  :root[data-theme="dark"] {
+    --bg: #131316; --card: #1c1c20; --ink: #f0f0f2; --muted: #9a9aa2; --faint: #77777f;
+    --line: #2a2a30; --line-strong: #37373f; --accent: #e56f5c; --accent-soft: #3a201b;
+    --accent-hover: #ef7d6a; --good: #34c088; --good-soft: #14261e; --warn: #e0a63c;
+    --warn-soft: #2c2312; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--font); line-height: 1.5;
+    -webkit-font-smoothing: antialiased; margin: 0; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 24px 64px; }
+
+  /* Header */
+  .top { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; flex-wrap: wrap; }
+  .logo { width: 46px; height: 46px; border-radius: 12px; background: var(--accent-soft);
+    display: grid; place-items: center; font-size: 26px; flex: none; }
+  .brand h1 { font-size: 19px; font-weight: 650; margin: 0; letter-spacing: -.01em; }
+  .brand p { font-size: 13px; color: var(--muted); margin: 2px 0 0; }
+  .top .spacer { flex: 1; }
+
+  /* Unit switcher */
+  .units { display: inline-flex; background: var(--card); border: 1px solid var(--line);
+    border-radius: 999px; padding: 4px; gap: 2px; box-shadow: var(--shadow); }
+  .units button { border: 0; background: transparent; color: var(--muted); font: inherit;
+    font-size: 13px; font-weight: 550; padding: 7px 14px; border-radius: 999px; cursor: pointer;
+    transition: background .15s, color .15s; }
+  .units button:hover { color: var(--ink); }
+  .units button[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: 8px 0 22px; }
+  .tabs button { border: 0; background: transparent; color: var(--muted); font: inherit;
+    font-size: 14px; font-weight: 550; padding: 10px 4px; margin-right: 20px; cursor: pointer;
+    border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color .15s; }
+  .tabs button:hover { color: var(--ink); }
+  .tabs button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* Cards */
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    box-shadow: var(--shadow); }
+  .card + .card { margin-top: 18px; }
+  .card-h { padding: 18px 22px; border-bottom: 1px solid var(--line); display: flex;
+    align-items: center; gap: 12px; }
+  .card-h h2 { font-size: 15px; font-weight: 620; margin: 0; }
+  .card-h .sub { font-size: 13px; color: var(--muted); }
+  .card-b { padding: 20px 22px; }
+
+  /* Stats */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 16px 18px; }
+  .stat .n { font-size: 26px; font-weight: 680; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .stat .l { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .stat .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px;
+    vertical-align: 1px; }
+
+  /* Toolbar */
+  .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+  .search { position: relative; flex: 1; min-width: 220px; }
+  .search input { width: 100%; padding: 9px 12px 9px 34px; border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm); background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+  .search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--faint); }
+  select, .selectlike { padding: 9px 12px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
+    background: var(--card); color: var(--ink); font: inherit; font-size: 14px; cursor: pointer; }
+  input:focus, select:focus, textarea:focus, button:focus-visible { outline: 2px solid var(--accent);
+    outline-offset: 1px; }
+
+  /* Buttons */
+  .btn { border: 1px solid var(--line-strong); background: var(--card); color: var(--ink);
+    font: inherit; font-size: 14px; font-weight: 550; padding: 9px 16px; border-radius: var(--radius-sm);
+    cursor: pointer; transition: background .15s, border-color .15s; display: inline-flex; align-items: center; gap: 7px; }
+  .btn:hover { border-color: var(--faint); }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+  .btn-ghost { border-color: transparent; background: transparent; color: var(--muted); }
+  .btn-ghost:hover { background: var(--bg); color: var(--ink); border-color: transparent; }
+
+  /* Table */
+  .tbl-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th { text-align: left; font-weight: 560; color: var(--muted); font-size: 12px; text-transform: uppercase;
+    letter-spacing: .03em; padding: 0 14px 10px; white-space: nowrap; }
+  td { padding: 13px 14px; border-top: 1px solid var(--line); white-space: nowrap; }
+  tbody tr:hover { background: var(--bg); }
+  .serial { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px; }
+  .legacy-tag { font-size: 10px; color: var(--muted); background: var(--bg); border: 1px solid var(--line);
+    padding: 1px 5px; border-radius: 5px; margin-left: 6px; vertical-align: 1px; }
+  .amt { font-variant-numeric: tabular-nums; font-weight: 560; }
+  .muted { color: var(--muted); }
+
+  /* Status pills */
+  .pill { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 560;
+    padding: 3px 9px; border-radius: 999px; }
+  .pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .9; }
+  .pill.active { color: var(--good); background: var(--good-soft); }
+  .pill.redeemed { color: var(--muted); background: var(--bg); }
+  .pill.expired { color: var(--warn); background: var(--warn-soft); }
+  .pill.pending { color: var(--accent); background: var(--accent-soft); }
+
+  /* Info callout */
+  .callout { border: 1px solid var(--line); border-left: 3px solid var(--info-bar); border-radius: 12px;
+    padding: 14px 18px; font-size: 13.5px; color: var(--ink); background: var(--card); margin-top: 18px; }
+  .callout.warn { border-left-color: var(--warn); }
+  .callout b { font-weight: 620; }
+
+  /* Denomination rows */
+  .denom { display: grid; grid-template-columns: 130px 1fr 90px auto; gap: 12px; align-items: center;
+    padding: 12px 0; border-top: 1px solid var(--line); }
+  .denom:first-child { border-top: 0; }
+  .denom input[type=text], .denom input[type=number] { width: 100%; padding: 8px 11px;
+    border: 1px solid var(--line-strong); border-radius: 8px; background: var(--card); color: var(--ink);
+    font: inherit; font-size: 13.5px; }
+  .denom .amt-in { font-variant-numeric: tabular-nums; }
+
+  /* Toggle */
+  .switch { position: relative; width: 42px; height: 24px; flex: none; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .track { position: absolute; inset: 0; background: var(--line-strong); border-radius: 999px; transition: background .18s; cursor: pointer; }
+  .track::before { content: ""; position: absolute; width: 18px; height: 18px; left: 3px; top: 3px;
+    background: #fff; border-radius: 50%; transition: transform .18s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+  .switch input:checked + .track { background: var(--good); }
+  .switch input:checked + .track::before { transform: translateX(18px); }
+  .switch input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .setting-row { display: flex; align-items: center; gap: 16px; padding: 16px 0; border-top: 1px solid var(--line); }
+  .setting-row:first-child { border-top: 0; }
+  .setting-row .txt { flex: 1; }
+  .setting-row .txt .t { font-size: 14px; font-weight: 560; }
+  .setting-row .txt .d { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 13px; font-weight: 550; margin-bottom: 6px; }
+  .field .hint { font-size: 12px; color: var(--muted); margin-top: 5px; }
+  .field input[type=text], .field input[type=email], .field select, .field textarea {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
+    background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
+  .field textarea { resize: vertical; min-height: 76px; }
+
+  /* Modal */
+  .overlay { position: fixed; inset: 0; background: rgba(15,15,20,.45); display: none; align-items: flex-start;
+    justify-content: center; padding: 40px 20px; z-index: 40; overflow-y: auto; }
+  .overlay.open { display: flex; }
+  .modal { background: var(--card); border-radius: var(--radius); box-shadow: 0 24px 64px rgba(0,0,0,.3);
+    width: 100%; max-width: 560px; }
+  .modal-h { padding: 20px 24px; border-bottom: 1px solid var(--line); display: flex; align-items: center; }
+  .modal-h h3 { margin: 0; font-size: 16px; font-weight: 640; }
+  .modal-b { padding: 22px 24px; }
+  .modal-f { padding: 16px 24px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 10px; }
+  .x { margin-left: auto; border: 0; background: transparent; color: var(--muted); font-size: 22px;
+    line-height: 1; cursor: pointer; padding: 0 4px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  .preview { border: 1px dashed var(--line-strong); border-radius: 12px; padding: 14px; display: flex; gap: 14px;
+    align-items: center; background: var(--bg); }
+  .preview .ph { width: 84px; height: 56px; border-radius: 8px; background: var(--accent-soft); flex: none;
+    display: grid; place-items: center; color: var(--accent); font-size: 22px; }
+  .preview .pt { font-size: 13px; color: var(--muted); }
+
+  /* Footer */
+  footer { text-align: center; color: var(--faint); font-size: 12.5px; margin-top: 34px; }
+  footer a { color: var(--faint); }
+
+  .hidden { display: none !important; }
+
+  @media (max-width: 720px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .denom { grid-template-columns: 1fr 90px; grid-auto-flow: dense; }
+    .grid-2 { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="wrap">
+  <!-- Header -->
+  <div class="top">
+    <div class="logo">🍅</div>
+    <div class="brand">
+      <h1>Ajándékutalvány kezelő</h1>
+      <p>Pomo d'Oro · készítette a Polymaind</p>
+    </div>
+    <div class="spacer"></div>
+    <div class="units" role="tablist" aria-label="Egység választó">
+      <button role="tab" aria-selected="true"  data-unit="casa">Casa</button>
+      <button role="tab" aria-selected="false" data-unit="osteria">Osteria</button>
+      <button role="tab" aria-selected="false" data-unit="pizzabar">Pizzabar</button>
+      <button role="tab" aria-selected="false" data-unit="trattoria">Trattoria</button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs" role="tablist" aria-label="Nézetek">
+    <button role="tab" aria-selected="true"  data-tab="vouchers">Utalványok</button>
+    <button role="tab" aria-selected="false" data-tab="denoms">Címletek</button>
+    <button role="tab" aria-selected="false" data-tab="settings">Beállítások</button>
+  </div>
+
+  <!-- ============ UTALVÁNYOK ============ -->
+  <section data-panel="vouchers">
+    <div class="stats" id="stats"></div>
+
+    <div class="card">
+      <div class="card-h">
+        <h2>Utalványok</h2>
+        <span class="sub" id="voucher-count">—</span>
+        <div style="flex:1"></div>
+        <button class="btn btn-primary" id="new-voucher">＋ Új utalvány</button>
+      </div>
+      <div class="card-b">
+        <div class="toolbar">
+          <div class="search">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg>
+            <input type="text" id="q" placeholder="Keresés sorszám, név vagy e-mail alapján…">
+          </div>
+          <select id="f-status">
+            <option value="">Minden státusz</option>
+            <option value="active">Aktív</option>
+            <option value="redeemed">Beváltott</option>
+            <option value="expired">Lejárt</option>
+            <option value="pending">Fizetésre vár</option>
+          </select>
+          <select id="f-amount"><option value="">Minden címlet</option></select>
+        </div>
+        <div class="tbl-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Sorszám</th><th>Címlet</th><th>Ajándékozó</th><th>Megajándékozott</th>
+                <th>Vásárlás</th><th>Érvényes</th><th>Státusz</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <b>Figyelmeztetés-logika:</b> ha a vásárló bármelyik mezőbe cégnevet (Kft/Bt/Zrt/Nyrt) vagy adószámot ír,
+      a widget jelzi, hogy <b>áfás számla ezen a felületen nem igényelhető</b>. A jelölt rendeléseket itt szűrni lehet majd.
+    </div>
+  </section>
+
+  <!-- ============ CÍMLETEK ============ -->
+  <section data-panel="denoms" class="hidden">
+    <div class="card">
+      <div class="card-h">
+        <h2>Címletek</h2>
+        <span class="sub">Az itt megadott címletek jelennek meg a vásárló widgetben. Egyedileg szerkeszthetők.</span>
+      </div>
+      <div class="card-b">
+        <div id="denom-list"></div>
+        <button class="btn" id="add-denom" style="margin-top:14px">＋ Címlet hozzáadása</button>
+      </div>
+    </div>
+    <div class="callout">
+      A címlet <b>összegét</b> és <b>megnevezését</b> szabadon szerkesztheted. A kikapcsolt címlet nem jelenik meg
+      a vásárlóknál, de a korábban kiadott utalványok érvényben maradnak. Mentés után az új utalványoknál választhatók.
+    </div>
+  </section>
+
+  <!-- ============ BEÁLLÍTÁSOK ============ -->
+  <section data-panel="settings" class="hidden">
+    <div class="card">
+      <div class="card-h"><h2>Egység beállításai</h2><span class="sub" id="unit-name-sub"></span></div>
+      <div class="card-b">
+        <div class="setting-row">
+          <div class="txt">
+            <div class="t">Egységközi beváltás engedélyezése</div>
+            <div class="d">Ha bekapcsolod, ennek az egységnek az utalványai a csoport <b>más egységeiben is</b> beválthatók.
+              Alapértelmezés szerint az utalvány csak a saját egységében váltható be.</div>
+          </div>
+          <label class="switch"><input type="checkbox" id="cross-unit"><span class="track"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="txt">
+            <div class="t">Érvényességi idő</div>
+            <div class="d">Hány hónapig érvényes az utalvány a fizetéstől számítva.</div>
+          </div>
+          <div class="selectlike"><input type="number" id="validity" value="12" min="1" max="60"
+            style="width:56px;border:0;background:transparent;color:var(--ink);font:inherit;font-size:14px;text-align:right"> hónap</div>
+        </div>
+        <div class="setting-row">
+          <div class="txt">
+            <div class="t">Sorszám-előtag</div>
+            <div class="d">Az új utalványok sorszáma ezzel az előtaggal és az évvel képződik.</div>
+          </div>
+          <div class="selectlike serial" id="prefix-demo">CASA-2026-000042</div>
+        </div>
+        <div class="setting-row">
+          <div class="txt">
+            <div class="t">Cég adatai</div>
+            <div class="d">A szigorú számadású kimutatás ehhez a céghez / adószámhoz tartozik.</div>
+          </div>
+          <div class="muted" id="company-demo" style="font-size:13.5px">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="callout">
+      A fizetési szolgáltató (SimplePay / Stripe) bekötése és a NAV-export a következő fázisban kerül ide.
+      Most a felület kinézetén dolgozunk.
+    </div>
+  </section>
+
+  <footer>Polymaind · <a href="#">www.polymaind.com</a> · prototípus — a kinézet jóváhagyásához</footer>
+</div>
+
+<!-- Modal: új utalvány -->
+<div class="overlay" id="ov">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt">
+    <div class="modal-h"><h3 id="mt">Új utalvány létrehozása</h3><button class="x" id="mx" aria-label="Bezárás">×</button></div>
+    <div class="modal-b">
+      <div class="field">
+        <label>Címlet</label>
+        <select id="m-amount"></select>
+      </div>
+      <div class="grid-2">
+        <div class="field"><label>Ajándékozó neve</label><input type="text" placeholder="pl. Kovács Anna"></div>
+        <div class="field"><label>Megajándékozott neve</label><input type="text" placeholder="pl. Nagy Béla"></div>
+      </div>
+      <div class="field"><label>Kézbesítési e-mail</label><input type="email" placeholder="megajandekozott@example.com"></div>
+      <div class="field"><label>Üdvözlő üzenet</label><textarea placeholder="Boldog születésnapot! Élvezzétek a vacsorát…"></textarea></div>
+      <div class="field">
+        <label>Utalvány képe</label>
+        <div class="preview"><div class="ph">🖼️</div><div class="pt">Válassz képet a katalógusból, vagy tölts fel újat.<br>A widgetben és a PDF-en ez a kép jelenik meg.</div></div>
+      </div>
+      <div class="callout warn" style="margin-top:0">
+        A rendszer figyeli a cégnév / adószám beírását — áfás számla itt nem igényelhető.
+      </div>
+    </div>
+    <div class="modal-f">
+      <button class="btn btn-ghost" id="m-cancel">Mégse</button>
+      <button class="btn btn-primary" id="m-save">Létrehozás</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---- Mock adat (a minta exportból származtatott, per-egység) ----
+  var UNITS = {
+    casa:      { name: "Casa Pomo d'Oro",      prefix: "CASA", company: "Casa Pomo d'Oro Kft. · 12345678-2-42",
+                 amounts: [30000,35000,40000,50000], cross:false, validity:12 },
+    osteria:   { name: "Osteria Pomo d'Oro",   prefix: "OST",  company: "Osteria Vendéglátó Kft. · 23456789-2-42",
+                 amounts: [30000,40000,50000], cross:false, validity:12 },
+    pizzabar:  { name: "Pizzabar Pomo d'Oro",  prefix: "PIZ",  company: "Pizzabar Kft. · 34567890-2-42",
+                 amounts: [25000,30000,40000], cross:true, validity:12 },
+    trattoria: { name: "Trattoria Pomo d'Oro", prefix: "TRA",  company: "Trattoria Étterem Kft. · 45678901-2-42",
+                 amounts: [25000,30000,40000,50000,100000], cross:false, validity:12 }
+  };
+
+  // valós mintából vett nevek/összegek/dátumok, státuszokkal kiegészítve
+  var SEED = {
+    trattoria: [
+      ["TRA-2026-000061", false, 50000, "Demeter Karolina", "", "2026-06-24", "2027-06-24", "active"],
+      ["TRA-2026-000060", false, 30000, "Bolvári Krisztina", "Kovács László", "2026-06-24", "2027-06-24", "active"],
+      ["EIZQHA4AKRYF8",    true,  30000, "Sponga Erzsébet", "Gábor", "2025-02-11", "2026-02-11", "redeemed"],
+      ["DRE2Z28MULBS2",    true,  40000, "Tombor Csaba", "Kecső Gábor", "2026-06-22", "2027-06-22", "active"],
+      ["0N1CKHYGIJ1RJ",    true,  50000, "Varga Bernadett", "Magyar Csaba", "2026-06-22", "2027-06-22", "active"],
+      ["8R7KQOBAI227W",    true,  30000, "Sabáli Dóra", "Anya", "2026-06-22", "2027-06-22", "active"],
+      ["KODTMYTQMFUQM",    true,  30000, "Illés László", "Novák Beáta", "2024-05-30", "2025-05-30", "expired"],
+      ["ZAFH2CYHDFDUY",    true,  40000, "Bogdánfi-Medve Nóra", "Barbi", "2026-06-21", "2027-06-21", "active"],
+      ["BR007O48IK1TY",    true,  30000, "Knébel István", "Blanka + Attila", "2026-06-21", "2027-06-21", "active"],
+      ["TRA-2026-000048", false, 100000,"Bernáth András", "Marx Virág", "2026-06-19", "2027-06-19", "redeemed"],
+      ["K1TR8KEQXWZA1",    true,  30000, "Szabó István", "Mészégető Tamás", "2026-06-19", "2027-06-19", "active"],
+      ["TRA-2026-000045", false, 25000, "Tálos Szilvia", "Apa", "2026-06-18", "2027-06-18", "pending"]
+    ],
+    casa: [
+      ["CASA-2026-000042", false, 50000, "Kovács Anna", "Nagy Béla", "2026-05-02", "2027-05-02", "active"],
+      ["CASA-2026-000041", false, 35000, "Tóth Gábor", "Édesanyám", "2026-04-28", "2027-04-28", "redeemed"],
+      ["CASA-2026-000040", false, 30000, "Szabó Réka", "Kis Péter", "2026-04-20", "2027-04-20", "active"],
+      ["QWERTY123LEG",      true,  40000, "Fekete Zsolt", "Fehér Kata", "2025-01-15", "2026-01-15", "expired"],
+      ["CASA-2026-000038", false, 30000, "Molnár Eszter", "", "2026-03-30", "2027-03-30", "pending"]
+    ],
+    osteria: [
+      ["OST-2026-000023", false, 40000, "Balogh Tímea", "Balogh Ádám", "2026-06-01", "2027-06-01", "active"],
+      ["OST-2026-000022", false, 30000, "Nagy László", "Nagy Lászlóné", "2026-05-18", "2027-05-18", "active"],
+      ["ABCLEG99XZ",       true,  50000, "Horváth Judit", "Kolléga", "2025-11-11", "2026-11-11", "redeemed"]
+    ],
+    pizzabar: [
+      ["PIZ-2026-000017", false, 25000, "Farkas Dóra", "Farkas Máté", "2026-06-10", "2027-06-10", "active"],
+      ["PIZ-2026-000016", false, 40000, "Simon Bence", "Csapat", "2026-05-25", "2027-05-25", "active"],
+      ["PIZ-2026-000015", false, 30000, "Lakatos Anita", "", "2026-05-05", "2027-05-05", "pending"]
+    ]
+  };
+
+  var STATUS = { active:"Aktív", redeemed:"Beváltott", expired:"Lejárt", pending:"Fizetésre vár" };
+  var state = { unit: "casa", tab: "vouchers" };
+
+  function ft(n){ return n.toLocaleString("hu-HU"); }
+  function money(n){ return ft(n) + " Ft"; }
+  function esc(s){ return String(s).replace(/[&<>]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c]; }); }
+  function $(s, r){ return (r||document).querySelector(s); }
+  function $all(s, r){ return Array.prototype.slice.call((r||document).querySelectorAll(s)); }
+
+  // ---- Render: stats ----
+  function renderStats(){
+    var rows = SEED[state.unit] || [];
+    var c = { active:0, redeemed:0, expired:0, pending:0 };
+    rows.forEach(function(r){ c[r[7]]++; });
+    var defs = [
+      ["Aktív", c.active, "var(--good)"],
+      ["Beváltott", c.redeemed, "var(--muted)"],
+      ["Lejárt", c.expired, "var(--warn)"],
+      ["Fizetésre vár", c.pending, "var(--accent)"]
+    ];
+    $("#stats").innerHTML = defs.map(function(d){
+      return '<div class="stat"><div class="n">'+d[1]+'</div><div class="l"><span class="dot" style="background:'+d[2]+'"></span>'+d[0]+'</div></div>';
+    }).join("");
+  }
+
+  // ---- Render: table ----
+  function renderRows(){
+    var rows = SEED[state.unit] || [];
+    var q = $("#q").value.trim().toLowerCase();
+    var fs = $("#f-status").value, fa = $("#f-amount").value;
+    var out = rows.filter(function(r){
+      if (fs && r[7] !== fs) return false;
+      if (fa && String(r[2]) !== fa) return false;
+      if (q) {
+        var hay = (r[0]+" "+r[3]+" "+r[4]).toLowerCase();
+        if (hay.indexOf(q) === -1) return false;
+      }
+      return true;
+    });
+    $("#voucher-count").textContent = out.length + " / " + rows.length + " tétel";
+    if (!out.length) {
+      $("#rows").innerHTML = '<tr><td colspan="7" class="muted" style="text-align:center;padding:34px">Nincs a szűrésnek megfelelő utalvány.</td></tr>';
+      return;
+    }
+    $("#rows").innerHTML = out.map(function(r){
+      var legacy = r[1] ? '<span class="legacy-tag">RESnWEB</span>' : '';
+      return '<tr>'
+        + '<td><span class="serial">'+esc(r[0])+'</span>'+legacy+'</td>'
+        + '<td class="amt">'+money(r[2])+'</td>'
+        + '<td>'+esc(r[3])+'</td>'
+        + '<td>'+(r[4] ? esc(r[4]) : '<span class="muted">—</span>')+'</td>'
+        + '<td class="muted">'+r[5]+'</td>'
+        + '<td class="muted">'+r[6]+'</td>'
+        + '<td><span class="pill '+r[7]+'">'+STATUS[r[7]]+'</span></td>'
+        + '</tr>';
+    }).join("");
+  }
+
+  // ---- Render: amount filters + modal select ----
+  function renderAmountOptions(){
+    var amts = UNITS[state.unit].amounts;
+    var optsF = '<option value="">Minden címlet</option>' + amts.map(function(a){ return '<option value="'+a+'">'+money(a)+'</option>'; }).join("");
+    $("#f-amount").innerHTML = optsF;
+    $("#m-amount").innerHTML = amts.map(function(a){ return '<option value="'+a+'">'+money(a)+'</option>'; }).join("");
+  }
+
+  // ---- Render: denominations ----
+  function renderDenoms(){
+    var amts = UNITS[state.unit].amounts;
+    $("#denom-list").innerHTML = amts.map(function(a, i){
+      return '<div class="denom">'
+        + '<input type="number" class="amt-in" value="'+a+'" step="1000">'
+        + '<input type="text" value="'+ft(a)+' Ft értékű ajándékutalvány">'
+        + '<label class="switch" style="justify-self:start"><input type="checkbox" checked><span class="track"></span></label>'
+        + '<button class="btn btn-ghost" aria-label="Törlés">Törlés</button>'
+        + '</div>';
+    }).join("");
+  }
+
+  // ---- Render: settings ----
+  function renderSettings(){
+    var u = UNITS[state.unit];
+    $("#unit-name-sub").textContent = u.name;
+    $("#cross-unit").checked = u.cross;
+    $("#validity").value = u.validity;
+    $("#prefix-demo").textContent = u.prefix + "-2026-000042";
+    $("#company-demo").textContent = u.company;
+  }
+
+  function renderAll(){
+    renderAmountOptions();
+    renderStats();
+    renderRows();
+    renderDenoms();
+    renderSettings();
+  }
+
+  // ---- Tab switching ----
+  function setTab(tab){
+    state.tab = tab;
+    $all(".tabs button").forEach(function(b){ b.setAttribute("aria-selected", b.dataset.tab === tab); });
+    $all("section[data-panel]").forEach(function(s){ s.classList.toggle("hidden", s.dataset.panel !== tab); });
+  }
+
+  // ---- Events ----
+  $all(".units button").forEach(function(b){
+    b.addEventListener("click", function(){
+      state.unit = b.dataset.unit;
+      $all(".units button").forEach(function(x){ x.setAttribute("aria-selected", x === b); });
+      $("#q").value = ""; $("#f-status").value = "";
+      renderAll();
+    });
+  });
+  $all(".tabs button").forEach(function(b){ b.addEventListener("click", function(){ setTab(b.dataset.tab); }); });
+  $("#q").addEventListener("input", renderRows);
+  $("#f-status").addEventListener("change", renderRows);
+  $("#f-amount").addEventListener("change", renderRows);
+  $("#add-denom").addEventListener("click", function(){
+    var d = document.createElement("div");
+    d.className = "denom";
+    d.innerHTML = '<input type="number" class="amt-in" placeholder="pl. 45000" step="1000">'
+      + '<input type="text" placeholder="Megnevezés">'
+      + '<label class="switch" style="justify-self:start"><input type="checkbox" checked><span class="track"></span></label>'
+      + '<button class="btn btn-ghost">Törlés</button>';
+    $("#denom-list").appendChild(d);
+  });
+  document.addEventListener("click", function(e){
+    if (e.target.closest(".denom .btn-ghost")) { e.target.closest(".denom").remove(); }
+  });
+
+  // Modal
+  var ov = $("#ov");
+  function openModal(){ ov.classList.add("open"); }
+  function closeModal(){ ov.classList.remove("open"); }
+  $("#new-voucher").addEventListener("click", openModal);
+  $("#mx").addEventListener("click", closeModal);
+  $("#m-cancel").addEventListener("click", closeModal);
+  $("#m-save").addEventListener("click", closeModal);
+  ov.addEventListener("click", function(e){ if (e.target === ov) closeModal(); });
+  document.addEventListener("keydown", function(e){ if (e.key === "Escape") closeModal(); });
+
+  renderAll();
+})();
+</script>
+
+</body>
+</html>
