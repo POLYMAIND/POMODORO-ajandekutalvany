@@ -452,38 +452,41 @@
   ];
   function grad(i){ return GRAD[i % GRAD.length]; }
 
-  // valós mintából vett nevek/összegek/dátumok, státuszokkal kiegészítve
+  // valós mintából vett nevek/összegek/dátumok, mezőkkel kiegészítve (emailek fiktívek)
+  // mezők: serial, legacy, amount, giver, recipient, purchase (dátum+idő),
+  //        validUntil (dátum), status, email, marketing (bool), redeemed (csak beváltottnál)
+  function V(o){ return o; }
   var SEED = {
     trattoria: [
-      ["TRA-2026-000061", false, 50000, "Demeter Karolina", "", "2026-06-24", "2027-06-24", "active"],
-      ["TRA-2026-000060", false, 30000, "Bolvári Krisztina", "Kovács László", "2026-06-24", "2027-06-24", "active"],
-      ["EIZQHA4AKRYF8",    true,  30000, "Sponga Erzsébet", "Gábor", "2025-02-11", "2026-02-11", "redeemed"],
-      ["DRE2Z28MULBS2",    true,  40000, "Tombor Csaba", "Kecső Gábor", "2026-06-22", "2027-06-22", "active"],
-      ["0N1CKHYGIJ1RJ",    true,  50000, "Varga Bernadett", "Magyar Csaba", "2026-06-22", "2027-06-22", "active"],
-      ["8R7KQOBAI227W",    true,  30000, "Sabáli Dóra", "Anya", "2026-06-22", "2027-06-22", "active"],
-      ["KODTMYTQMFUQM",    true,  30000, "Illés László", "Novák Beáta", "2024-05-30", "2025-05-30", "expired"],
-      ["ZAFH2CYHDFDUY",    true,  40000, "Bogdánfi-Medve Nóra", "Barbi", "2026-06-21", "2027-06-21", "active"],
-      ["BR007O48IK1TY",    true,  30000, "Knébel István", "Blanka + Attila", "2026-06-21", "2027-06-21", "active"],
-      ["TRA-2026-000048", false, 100000,"Bernáth András", "Marx Virág", "2026-06-19", "2027-06-19", "redeemed"],
-      ["K1TR8KEQXWZA1",    true,  30000, "Szabó István", "Mészégető Tamás", "2026-06-19", "2027-06-19", "active"],
-      ["TRA-2026-000045", false, 25000, "Tálos Szilvia", "Apa", "2026-06-18", "2027-06-18", "pending"]
+      V({serial:"TRA-2026-000061", legacy:false, amount:50000, giver:"Demeter Karolina", recipient:"", purchase:"2026-06-24 10:52:02", validUntil:"2027-06-24", status:"active", email:"demeter.karolina@example.com", marketing:true}),
+      V({serial:"TRA-2026-000060", legacy:false, amount:30000, giver:"Bolvári Krisztina", recipient:"Kovács László", purchase:"2026-06-24 10:02:37", validUntil:"2027-06-24", status:"active", email:"bolvari.krisztina@example.com", marketing:false}),
+      V({serial:"EIZQHA4AKRYF8", legacy:true, amount:30000, giver:"Sponga Erzsébet", recipient:"Gábor", purchase:"2025-02-11 09:14:00", validUntil:"2026-02-11", status:"redeemed", redeemed:"2025-08-03 19:20:11", email:"sponga.erzsebet@example.com", marketing:false}),
+      V({serial:"DRE2Z28MULBS2", legacy:true, amount:40000, giver:"Tombor Csaba", recipient:"Kecső Gábor", purchase:"2026-06-22 12:44:52", validUntil:"2027-06-22", status:"active", email:"tombor.csaba@example.com", marketing:true}),
+      V({serial:"0N1CKHYGIJ1RJ", legacy:true, amount:50000, giver:"Varga Bernadett", recipient:"Magyar Csaba", purchase:"2026-06-22 12:08:20", validUntil:"2027-06-22", status:"active", email:"varga.bernadett@example.com", marketing:true}),
+      V({serial:"8R7KQOBAI227W", legacy:true, amount:30000, giver:"Sabáli Dóra", recipient:"Anya", purchase:"2026-06-22 10:34:31", validUntil:"2027-06-22", status:"active", email:"sabali.dora@example.com", marketing:false}),
+      V({serial:"KODTMYTQMFUQM", legacy:true, amount:30000, giver:"Illés László", recipient:"Novák Beáta", purchase:"2024-05-30 14:51:22", validUntil:"2025-05-30", status:"expired", email:"illes.laszlo@example.com", marketing:false}),
+      V({serial:"ZAFH2CYHDFDUY", legacy:true, amount:40000, giver:"Bogdánfi-Medve Nóra", recipient:"Barbi", purchase:"2026-06-21 14:02:03", validUntil:"2027-06-21", status:"active", email:"medve.nora@example.com", marketing:true}),
+      V({serial:"BR007O48IK1TY", legacy:true, amount:30000, giver:"Knébel István", recipient:"Blanka + Attila", purchase:"2026-06-21 12:23:20", validUntil:"2027-06-21", status:"active", email:"knebel.istvan@example.com", marketing:false}),
+      V({serial:"TRA-2026-000048", legacy:false, amount:100000, giver:"Bernáth András", recipient:"Marx Virág", purchase:"2026-06-19 18:10:14", validUntil:"2027-06-19", status:"redeemed", redeemed:"2026-07-10 20:05:00", email:"bernath.andras@example.com", marketing:true}),
+      V({serial:"K1TR8KEQXWZA1", legacy:true, amount:30000, giver:"Szabó István", recipient:"Mészégető Tamás", purchase:"2026-06-19 12:13:24", validUntil:"2027-06-19", status:"active", email:"szabo.istvan@example.com", marketing:false}),
+      V({serial:"TRA-2026-000045", legacy:false, amount:25000, giver:"Tálos Szilvia", recipient:"Apa", purchase:"2026-06-18 09:00:00", validUntil:"2027-06-18", status:"pending", email:"talos.szilvia@example.com", marketing:true})
     ],
     casa: [
-      ["CASA-2026-000042", false, 50000, "Kovács Anna", "Nagy Béla", "2026-05-02", "2027-05-02", "active"],
-      ["CASA-2026-000041", false, 35000, "Tóth Gábor", "Édesanyám", "2026-04-28", "2027-04-28", "redeemed"],
-      ["CASA-2026-000040", false, 30000, "Szabó Réka", "Kis Péter", "2026-04-20", "2027-04-20", "active"],
-      ["QWERTY123LEG",      true,  40000, "Fekete Zsolt", "Fehér Kata", "2025-01-15", "2026-01-15", "expired"],
-      ["CASA-2026-000038", false, 30000, "Molnár Eszter", "", "2026-03-30", "2027-03-30", "pending"]
+      V({serial:"CASA-2026-000042", legacy:false, amount:50000, giver:"Kovács Anna", recipient:"Nagy Béla", purchase:"2026-05-02 11:20:00", validUntil:"2027-05-02", status:"active", email:"kovacs.anna@example.com", marketing:true}),
+      V({serial:"CASA-2026-000041", legacy:false, amount:35000, giver:"Tóth Gábor", recipient:"Édesanyám", purchase:"2026-04-28 15:03:00", validUntil:"2027-04-28", status:"redeemed", redeemed:"2026-06-01 19:30:00", email:"toth.gabor@example.com", marketing:false}),
+      V({serial:"CASA-2026-000040", legacy:false, amount:30000, giver:"Szabó Réka", recipient:"Kis Péter", purchase:"2026-04-20 10:10:00", validUntil:"2027-04-20", status:"active", email:"szabo.reka@example.com", marketing:true}),
+      V({serial:"QWERTY123LEG", legacy:true, amount:40000, giver:"Fekete Zsolt", recipient:"Fehér Kata", purchase:"2025-01-15 13:00:00", validUntil:"2026-01-15", status:"expired", email:"fekete.zsolt@example.com", marketing:false}),
+      V({serial:"CASA-2026-000038", legacy:false, amount:30000, giver:"Molnár Eszter", recipient:"", purchase:"2026-03-30 08:45:00", validUntil:"2027-03-30", status:"pending", email:"molnar.eszter@example.com", marketing:true})
     ],
     osteria: [
-      ["OST-2026-000023", false, 40000, "Balogh Tímea", "Balogh Ádám", "2026-06-01", "2027-06-01", "active"],
-      ["OST-2026-000022", false, 30000, "Nagy László", "Nagy Lászlóné", "2026-05-18", "2027-05-18", "active"],
-      ["ABCLEG99XZ",       true,  50000, "Horváth Judit", "Kolléga", "2025-11-11", "2026-11-11", "redeemed"]
+      V({serial:"OST-2026-000023", legacy:false, amount:40000, giver:"Balogh Tímea", recipient:"Balogh Ádám", purchase:"2026-06-01 12:00:00", validUntil:"2027-06-01", status:"active", email:"balogh.timea@example.com", marketing:true}),
+      V({serial:"OST-2026-000022", legacy:false, amount:30000, giver:"Nagy László", recipient:"Nagy Lászlóné", purchase:"2026-05-18 17:22:00", validUntil:"2027-05-18", status:"active", email:"nagy.laszlo@example.com", marketing:false}),
+      V({serial:"ABCLEG99XZ", legacy:true, amount:50000, giver:"Horváth Judit", recipient:"Kolléga", purchase:"2025-11-11 10:00:00", validUntil:"2026-11-11", status:"redeemed", redeemed:"2026-01-20 18:00:00", email:"horvath.judit@example.com", marketing:false})
     ],
     pizzabar: [
-      ["PIZ-2026-000017", false, 25000, "Farkas Dóra", "Farkas Máté", "2026-06-10", "2027-06-10", "active"],
-      ["PIZ-2026-000016", false, 40000, "Simon Bence", "Csapat", "2026-05-25", "2027-05-25", "active"],
-      ["PIZ-2026-000015", false, 30000, "Lakatos Anita", "", "2026-05-05", "2027-05-05", "pending"]
+      V({serial:"PIZ-2026-000017", legacy:false, amount:25000, giver:"Farkas Dóra", recipient:"Farkas Máté", purchase:"2026-06-10 14:30:00", validUntil:"2027-06-10", status:"active", email:"farkas.dora@example.com", marketing:true}),
+      V({serial:"PIZ-2026-000016", legacy:false, amount:40000, giver:"Simon Bence", recipient:"Csapat", purchase:"2026-05-25 11:11:00", validUntil:"2027-05-25", status:"active", email:"simon.bence@example.com", marketing:false}),
+      V({serial:"PIZ-2026-000015", legacy:false, amount:30000, giver:"Lakatos Anita", recipient:"", purchase:"2026-05-05 09:05:00", validUntil:"2027-05-05", status:"pending", email:"lakatos.anita@example.com", marketing:true})
     ]
   };
 
@@ -500,7 +503,7 @@
   function renderStats(){
     var rows = SEED[state.unit] || [];
     var c = { active:0, redeemed:0, expired:0, pending:0 };
-    rows.forEach(function(r){ c[r[7]]++; });
+    rows.forEach(function(r){ c[r.status]++; });
     var defs = [
       ["Aktív", c.active, "var(--good)"],
       ["Beváltott", c.redeemed, "var(--muted)"],
@@ -518,10 +521,10 @@
     var q = $("#q").value.trim().toLowerCase();
     var fs = $("#f-status").value, fa = $("#f-amount").value;
     return rows.filter(function(r){
-      if (fs && r[7] !== fs) return false;
-      if (fa && String(r[2]) !== fa) return false;
+      if (fs && r.status !== fs) return false;
+      if (fa && String(r.amount) !== fa) return false;
       if (q) {
-        var hay = (r[0]+" "+r[3]+" "+r[4]).toLowerCase();
+        var hay = (r.serial+" "+r.giver+" "+r.recipient+" "+r.email).toLowerCase();
         if (hay.indexOf(q) === -1) return false;
       }
       return true;
@@ -538,15 +541,15 @@
       return;
     }
     $("#rows").innerHTML = out.map(function(r){
-      var legacy = r[1] ? '<span class="legacy-tag">RESnWEB</span>' : '';
+      var legacy = r.legacy ? '<span class="legacy-tag">RESnWEB</span>' : '';
       return '<tr>'
-        + '<td><span class="serial">'+esc(r[0])+'</span>'+legacy+'</td>'
-        + '<td class="amt">'+money(r[2])+'</td>'
-        + '<td>'+esc(r[3])+'</td>'
-        + '<td>'+(r[4] ? esc(r[4]) : '<span class="muted">—</span>')+'</td>'
-        + '<td class="muted">'+r[5]+'</td>'
-        + '<td class="muted">'+r[6]+'</td>'
-        + '<td><span class="pill '+r[7]+'">'+STATUS[r[7]]+'</span></td>'
+        + '<td><span class="serial">'+esc(r.serial)+'</span>'+legacy+'</td>'
+        + '<td class="amt">'+money(r.amount)+'</td>'
+        + '<td>'+esc(r.giver)+'</td>'
+        + '<td>'+(r.recipient ? esc(r.recipient) : '<span class="muted">—</span>')+'</td>'
+        + '<td class="muted">'+esc(r.purchase.split(" ")[0])+'</td>'
+        + '<td class="muted">'+esc(r.validUntil)+'</td>'
+        + '<td><span class="pill '+r.status+'">'+STATUS[r.status]+'</span></td>'
         + '</tr>';
     }).join("");
   }
@@ -663,12 +666,17 @@
   var STATUS_EXPORT = { active:"Fizetve", redeemed:"Felhasználva", expired:"Lejárt", pending:"Fizetésre vár" };
   function csvCell(v){ return '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"'; }
   function buildCsv(){
-    var cols = ["Azonosító","Státusz","Vásárlás dátuma","Számlázási név","Megajándékozott neve",
-                "Lejárat","Érték","Email","Vendég megjegyzése","Szálláshely megjegyzése"];
+    var cols = ["Azonosító","Státusz","Vásárlás dátuma","Fizetés dátuma","Felhasználás dátuma",
+                "Számlázási név","Megajándékozott neve","Email","Marketing feliratkozás",
+                "Lejárat","Érték","Vendég megjegyzése"];
     var out = filteredRows();
     var lines = [ cols.map(csvCell).join(";") ];
     out.forEach(function(r){
-      lines.push([ r[0], STATUS_EXPORT[r[7]] || r[7], r[5], r[3], r[4], r[6], r[2], "", "", "" ]
+      var paid = (r.status === "pending") ? "" : r.purchase;   // fizetés a vásárláskor teljesül
+      var used = r.redeemed || "";                             // csak beváltottnál
+      var mkt  = r.marketing ? "Igen" : "Nem";
+      lines.push([ r.serial, STATUS_EXPORT[r.status] || r.status, r.purchase, paid, used,
+                   r.giver, r.recipient, r.email, mkt, r.validUntil, r.amount, "" ]
                  .map(csvCell).join(";"));
     });
     return { csv: "﻿" + lines.join("\r\n"), count: out.length };   // UTF-8 BOM + CRLF
