@@ -579,9 +579,9 @@
         +       '<option value="billingo"'+(u.invoicing==="billingo"?' selected':'')+'>Billingo</option>'
         +       '<option value="none"'+(u.invoicing==="none"?' selected':'')+'>Nincs (kézi számlázás)</option>'
         +     '</select>'
-        +     (u.invoicing && u.invoicing!=="none"
-        +        ? '<span class="pill active">Összekötve</span>'
-        +        : '<span class="pill pending">Nincs összekötve</span>')
+        +     ((u.invoicing && u.invoicing!=="none")
+                  ? '<span class="pill active">Összekötve</span>'
+                  : '<span class="pill pending">Nincs összekötve</span>')
         +     '<button class="btn">Összekötés…</button>'
         +   '</div>'
         + '</div>'
