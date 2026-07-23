@@ -193,6 +193,34 @@
     background: var(--card); color: var(--ink); font: inherit; font-size: 14px; }
   .field textarea { resize: vertical; min-height: 76px; }
 
+  /* Unit blocks in settings */
+  .unit-block { padding: 22px 0; border-top: 1px solid var(--line); }
+  .unit-block:first-child { border-top: 0; padding-top: 4px; }
+  .unit-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .unit-badge { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; font-weight: 600;
+    color: var(--accent); background: var(--accent-soft); padding: 3px 8px; border-radius: 6px; letter-spacing: .05em; }
+  .unit-head b { font-size: 15px; font-weight: 620; }
+  .unit-head .sp { flex: 1; }
+  .unit-active { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  .unit-grid { display: grid; grid-template-columns: 150px 1fr 180px; gap: 14px; margin-bottom: 18px; }
+  .ufield label { display: block; font-size: 12px; font-weight: 550; color: var(--muted); margin-bottom: 5px; }
+  .ufield input { width: 100%; padding: 8px 11px; border: 1px solid var(--line-strong); border-radius: 8px;
+    background: var(--card); color: var(--ink); font: inherit; font-size: 13.5px; }
+  .uimg-h { font-size: 13px; font-weight: 560; margin-bottom: 11px; }
+  .thumbs { display: flex; flex-wrap: wrap; gap: 12px; }
+  .thumb { position: relative; width: 124px; height: 80px; border-radius: 10px; color: #fff; font-size: 12px;
+    font-weight: 600; display: flex; align-items: flex-end; padding: 9px; text-shadow: 0 1px 3px rgba(0,0,0,.35);
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.05); }
+  .thumb-x { position: absolute; top: 6px; right: 6px; width: 20px; height: 20px; border: 0; border-radius: 50%;
+    background: rgba(0,0,0,.45); color: #fff; cursor: pointer; font-size: 14px; line-height: 1; display: grid;
+    place-items: center; padding: 0; }
+  .thumb-x:hover { background: rgba(0,0,0,.65); }
+  .thumb.add { background: var(--bg); border: 1.5px dashed var(--line-strong); color: var(--muted);
+    flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-shadow: none;
+    box-shadow: none; cursor: pointer; font-weight: 550; font-size: 18px; }
+  .thumb.add span { font-size: 11px; }
+  .thumb.add:hover { border-color: var(--accent); color: var(--accent); }
+
   /* Modal */
   .overlay { position: fixed; inset: 0; background: rgba(15,15,20,.45); display: none; align-items: flex-start;
     justify-content: center; padding: 40px 20px; z-index: 40; overflow-y: auto; }
@@ -258,8 +286,6 @@
       <div class="card-h">
         <h2>Utalványok</h2>
         <span class="sub" id="voucher-count">—</span>
-        <div style="flex:1"></div>
-        <button class="btn btn-primary" id="new-voucher">＋ Új utalvány</button>
       </div>
       <div class="card-b">
         <div class="toolbar">
@@ -316,41 +342,50 @@
 
   <!-- ============ BEÁLLÍTÁSOK ============ -->
   <section data-panel="settings" class="hidden">
+    <!-- Általános (csoportszintű) beállítások -->
     <div class="card">
-      <div class="card-h"><h2>Egység beállításai</h2><span class="sub" id="unit-name-sub"></span></div>
+      <div class="card-h"><h2>Általános beállítások</h2><span class="sub">A teljes Pomo d'Oro csoportra érvényes</span></div>
       <div class="card-b">
         <div class="setting-row">
           <div class="txt">
             <div class="t">Egységközi beváltás engedélyezése</div>
-            <div class="d">Ha bekapcsolod, ennek az egységnek az utalványai a csoport <b>más egységeiben is</b> beválthatók.
+            <div class="d">Ha bekapcsolod, az egységek utalványai <b>egymás közt is</b> beválthatók.
               Alapértelmezés szerint az utalvány csak a saját egységében váltható be.</div>
           </div>
-          <label class="switch"><input type="checkbox" id="cross-unit"><span class="track"></span></label>
+          <label class="switch"><input type="checkbox" id="g-cross"><span class="track"></span></label>
         </div>
         <div class="setting-row">
           <div class="txt">
-            <div class="t">Érvényességi idő</div>
-            <div class="d">Hány hónapig érvényes az utalvány a fizetéstől számítva.</div>
+            <div class="t">Alapértelmezett érvényességi idő</div>
+            <div class="d">Hány hónapig érvényes az utalvány a fizetéstől számítva. Egységenként felülírható.</div>
           </div>
-          <div class="selectlike"><input type="number" id="validity" value="12" min="1" max="60"
+          <div class="selectlike"><input type="number" id="g-validity" value="12" min="1" max="60"
             style="width:56px;border:0;background:transparent;color:var(--ink);font:inherit;font-size:14px;text-align:right"> hónap</div>
         </div>
         <div class="setting-row">
           <div class="txt">
-            <div class="t">Sorszám-előtag</div>
-            <div class="d">Az új utalványok sorszáma ezzel az előtaggal és az évvel képződik.</div>
+            <div class="t">Cégnév / adószám figyelmeztetés</div>
+            <div class="d">A vásárlásnál jelezze, ha valaki cégnevet vagy adószámot ír be
+              (áfás számla itt nem igényelhető).</div>
           </div>
-          <div class="selectlike serial" id="prefix-demo">CASA-2026-000042</div>
+          <label class="switch"><input type="checkbox" id="g-warn" checked><span class="track"></span></label>
         </div>
         <div class="setting-row">
           <div class="txt">
-            <div class="t">Cég adatai</div>
-            <div class="d">A szigorú számadású kimutatás ehhez a céghez / adószámhoz tartozik.</div>
+            <div class="t">Pénznem</div>
+            <div class="d">Az összegek megjelenítéséhez használt pénznem.</div>
           </div>
-          <div class="muted" id="company-demo" style="font-size:13.5px">—</div>
+          <div class="selectlike" id="g-currency">HUF · forint</div>
         </div>
       </div>
     </div>
+
+    <!-- Egységek (csoportszintű felett) -->
+    <div class="card">
+      <div class="card-h"><h2>Egységek</h2><span class="sub">Külön cég, külön adószám, külön sorszám — egységenként</span></div>
+      <div class="card-b" id="unit-list"></div>
+    </div>
+
     <div class="callout">
       A fizetési szolgáltató (SimplePay / Stripe) bekötése és a NAV-export a következő fázisban kerül ide.
       Most a felület kinézetén dolgozunk.
@@ -360,51 +395,30 @@
   <footer>Polymaind · <a href="#">www.polymaind.com</a> · prototípus — a kinézet jóváhagyásához</footer>
 </div>
 
-<!-- Modal: új utalvány -->
-<div class="overlay" id="ov">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt">
-    <div class="modal-h"><h3 id="mt">Új utalvány létrehozása</h3><button class="x" id="mx" aria-label="Bezárás">×</button></div>
-    <div class="modal-b">
-      <div class="field">
-        <label>Címlet</label>
-        <select id="m-amount"></select>
-      </div>
-      <div class="grid-2">
-        <div class="field"><label>Ajándékozó neve</label><input type="text" placeholder="pl. Kovács Anna"></div>
-        <div class="field"><label>Megajándékozott neve</label><input type="text" placeholder="pl. Nagy Béla"></div>
-      </div>
-      <div class="field"><label>Kézbesítési e-mail</label><input type="email" placeholder="megajandekozott@example.com"></div>
-      <div class="field"><label>Üdvözlő üzenet</label><textarea placeholder="Boldog születésnapot! Élvezzétek a vacsorát…"></textarea></div>
-      <div class="field">
-        <label>Utalvány képe</label>
-        <div class="preview"><div class="ph">🖼️</div><div class="pt">Válassz képet a katalógusból, vagy tölts fel újat.<br>A widgetben és a PDF-en ez a kép jelenik meg.</div></div>
-      </div>
-      <div class="callout warn" style="margin-top:0">
-        A rendszer figyeli a cégnév / adószám beírását — áfás számla itt nem igényelhető.
-      </div>
-    </div>
-    <div class="modal-f">
-      <button class="btn btn-ghost" id="m-cancel">Mégse</button>
-      <button class="btn btn-primary" id="m-save">Létrehozás</button>
-    </div>
-  </div>
-</div>
-
 <script>
 (function () {
   "use strict";
 
   // ---- Mock adat (a minta exportból származtatott, per-egység) ----
   var UNITS = {
-    casa:      { name: "Casa Pomo d'Oro",      prefix: "CASA", company: "Casa Pomo d'Oro Kft. · 12345678-2-42",
-                 amounts: [30000,35000,40000,50000], cross:false, validity:12 },
-    osteria:   { name: "Osteria Pomo d'Oro",   prefix: "OST",  company: "Osteria Vendéglátó Kft. · 23456789-2-42",
-                 amounts: [30000,40000,50000], cross:false, validity:12 },
-    pizzabar:  { name: "Pizzabar Pomo d'Oro",  prefix: "PIZ",  company: "Pizzabar Kft. · 34567890-2-42",
-                 amounts: [25000,30000,40000], cross:true, validity:12 },
-    trattoria: { name: "Trattoria Pomo d'Oro", prefix: "TRA",  company: "Trattoria Étterem Kft. · 45678901-2-42",
-                 amounts: [25000,30000,40000,50000,100000], cross:false, validity:12 }
+    casa:      { name: "Casa Pomo d'Oro",      prefix: "CASA", companyName: "Casa Pomo d'Oro Kft.",    tax: "12345678-2-42", amounts: [30000,35000,40000,50000],        active:true, images: ["Klasszikus", "Ünnepi", "Születésnap"] },
+    osteria:   { name: "Osteria Pomo d'Oro",   prefix: "OST",  companyName: "Osteria Vendéglátó Kft.", tax: "23456789-2-42", amounts: [30000,40000,50000],              active:true, images: ["Rusztikus", "Karácsony"] },
+    pizzabar:  { name: "Pizzabar Pomo d'Oro",  prefix: "PIZ",  companyName: "Pizzabar Kft.",           tax: "34567890-2-42", amounts: [25000,30000,40000],              active:true, images: ["Színes", "Baráti"] },
+    trattoria: { name: "Trattoria Pomo d'Oro", prefix: "TRA",  companyName: "Trattoria Étterem Kft.",  tax: "45678901-2-42", amounts: [25000,30000,40000,50000,100000], active:true, images: ["Elegáns", "Valentin", "Anyák napja"] }
   };
+
+  // Csoportszintű (mind a négy egységre érvényes) beállítások
+  var GENERAL = { crossUnit:false, validity:12, warnCorporate:true, currency:"HUF" };
+
+  // Képek háttér-gradiensei (mock — valós rendszerben feltöltött kép)
+  var GRAD = [
+    "linear-gradient(135deg,#e88a5f,#c44d3c)",
+    "linear-gradient(135deg,#3d8a72,#1f9d6b)",
+    "linear-gradient(135deg,#b98a2f,#c98a1b)",
+    "linear-gradient(135deg,#6d5b9e,#8a6dcb)",
+    "linear-gradient(135deg,#3b7d9e,#2f6d9e)"
+  ];
+  function grad(i){ return GRAD[i % GRAD.length]; }
 
   // valós mintából vett nevek/összegek/dátumok, státuszokkal kiegészítve
   var SEED = {
@@ -499,12 +513,11 @@
     }).join("");
   }
 
-  // ---- Render: amount filters + modal select ----
+  // ---- Render: amount filter ----
   function renderAmountOptions(){
     var amts = UNITS[state.unit].amounts;
-    var optsF = '<option value="">Minden címlet</option>' + amts.map(function(a){ return '<option value="'+a+'">'+money(a)+'</option>'; }).join("");
-    $("#f-amount").innerHTML = optsF;
-    $("#m-amount").innerHTML = amts.map(function(a){ return '<option value="'+a+'">'+money(a)+'</option>'; }).join("");
+    $("#f-amount").innerHTML = '<option value="">Minden címlet</option>'
+      + amts.map(function(a){ return '<option value="'+a+'">'+money(a)+'</option>'; }).join("");
   }
 
   // ---- Render: denominations ----
@@ -521,13 +534,42 @@
   }
 
   // ---- Render: settings ----
+  function thumbHtml(label, i){
+    return '<div class="thumb" style="background:'+grad(i)+'">'
+      + '<button class="thumb-x" aria-label="Kép törlése">×</button>'
+      + esc(label) + '</div>';
+  }
+
   function renderSettings(){
-    var u = UNITS[state.unit];
-    $("#unit-name-sub").textContent = u.name;
-    $("#cross-unit").checked = u.cross;
-    $("#validity").value = u.validity;
-    $("#prefix-demo").textContent = u.prefix + "-2026-000042";
-    $("#company-demo").textContent = u.company;
+    // Általános
+    $("#g-cross").checked = GENERAL.crossUnit;
+    $("#g-validity").value = GENERAL.validity;
+    $("#g-warn").checked = GENERAL.warnCorporate;
+
+    // Egységek
+    var html = Object.keys(UNITS).map(function(slug){
+      var u = UNITS[slug];
+      var thumbs = (u.images || []).map(thumbHtml).join("")
+        + '<button class="thumb add" data-add="'+slug+'">＋<span>Kép feltöltése</span></button>';
+      return '<div class="unit-block" data-unit-block="'+slug+'">'
+        + '<div class="unit-head">'
+        +   '<span class="unit-badge">'+u.prefix+'</span>'
+        +   '<b>'+esc(u.name)+'</b>'
+        +   '<span class="sp"></span>'
+        +   '<span class="unit-active"><label class="switch"><input type="checkbox"'+(u.active?' checked':'')+'><span class="track"></span></label>aktív</span>'
+        + '</div>'
+        + '<div class="unit-grid">'
+        +   '<div class="ufield"><label>Sorszám-előtag</label><input type="text" value="'+u.prefix+'"></div>'
+        +   '<div class="ufield"><label>Cég neve</label><input type="text" value="'+esc(u.companyName)+'"></div>'
+        +   '<div class="ufield"><label>Adószám</label><input type="text" value="'+u.tax+'"></div>'
+        + '</div>'
+        + '<div class="uimg">'
+        +   '<div class="uimg-h">Utalványképek <span class="muted">— ezekből választhat a vásárló ennél az egységnél</span></div>'
+        +   '<div class="thumbs" data-thumbs="'+slug+'">'+thumbs+'</div>'
+        + '</div>'
+        + '</div>';
+    }).join("");
+    $("#unit-list").innerHTML = html;
   }
 
   function renderAll(){
@@ -567,20 +609,39 @@
       + '<button class="btn btn-ghost">Törlés</button>';
     $("#denom-list").appendChild(d);
   });
+  // Címlet-sor törlése + képek kezelése (event delegation)
   document.addEventListener("click", function(e){
-    if (e.target.closest(".denom .btn-ghost")) { e.target.closest(".denom").remove(); }
+    // címlet-sor törlése
+    if (e.target.closest(".denom .btn-ghost")) { e.target.closest(".denom").remove(); return; }
+
+    // kép hozzáadása (mock: új gradiens + alapértelmezett név)
+    var add = e.target.closest(".thumb.add");
+    if (add) {
+      var slug = add.getAttribute("data-add");
+      UNITS[slug].images = UNITS[slug].images || [];
+      UNITS[slug].images.push("Új kép " + (UNITS[slug].images.length + 1));
+      renderSettings();
+      return;
+    }
+
+    // kép törlése
+    var x = e.target.closest(".thumb-x");
+    if (x) {
+      var block = x.closest("[data-unit-block]");
+      var wrap = x.closest(".thumbs");
+      var s = wrap.getAttribute("data-thumbs");
+      var idx = Array.prototype.indexOf.call(wrap.querySelectorAll(".thumb:not(.add)"), x.closest(".thumb"));
+      if (idx > -1) { UNITS[s].images.splice(idx, 1); renderSettings(); }
+      return;
+    }
   });
 
-  // Modal
-  var ov = $("#ov");
-  function openModal(){ ov.classList.add("open"); }
-  function closeModal(){ ov.classList.remove("open"); }
-  $("#new-voucher").addEventListener("click", openModal);
-  $("#mx").addEventListener("click", closeModal);
-  $("#m-cancel").addEventListener("click", closeModal);
-  $("#m-save").addEventListener("click", closeModal);
-  ov.addEventListener("click", function(e){ if (e.target === ov) closeModal(); });
-  document.addEventListener("keydown", function(e){ if (e.key === "Escape") closeModal(); });
+  // Általános beállítások állapotának megőrzése (mock)
+  document.addEventListener("change", function(e){
+    if (e.target.id === "g-cross") GENERAL.crossUnit = e.target.checked;
+    if (e.target.id === "g-warn") GENERAL.warnCorporate = e.target.checked;
+    if (e.target.id === "g-validity") GENERAL.validity = e.target.value;
+  });
 
   renderAll();
 })();
