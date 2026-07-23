@@ -220,6 +220,9 @@
     box-shadow: none; cursor: pointer; font-weight: 550; font-size: 18px; }
   .thumb.add span { font-size: 11px; }
   .thumb.add:hover { border-color: var(--accent); color: var(--accent); }
+  .ubill { margin-top: 20px; }
+  .bill { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .bill select { min-width: 210px; }
 
   /* Modal */
   .overlay { position: fixed; inset: 0; background: rgba(15,15,20,.45); display: none; align-items: flex-start;
@@ -401,10 +404,10 @@
 
   // ---- Mock adat (a minta exportból származtatott, per-egység) ----
   var UNITS = {
-    casa:      { name: "Casa Pomo d'Oro",      prefix: "CASA", companyName: "Casa Pomo d'Oro Kft.",    tax: "12345678-2-42", amounts: [30000,35000,40000,50000],        active:true, images: ["Klasszikus", "Ünnepi", "Születésnap"] },
-    osteria:   { name: "Osteria Pomo d'Oro",   prefix: "OST",  companyName: "Osteria Vendéglátó Kft.", tax: "23456789-2-42", amounts: [30000,40000,50000],              active:true, images: ["Rusztikus", "Karácsony"] },
-    pizzabar:  { name: "Pizzabar Pomo d'Oro",  prefix: "PIZ",  companyName: "Pizzabar Kft.",           tax: "34567890-2-42", amounts: [25000,30000,40000],              active:true, images: ["Színes", "Baráti"] },
-    trattoria: { name: "Trattoria Pomo d'Oro", prefix: "TRA",  companyName: "Trattoria Étterem Kft.",  tax: "45678901-2-42", amounts: [25000,30000,40000,50000,100000], active:true, images: ["Elegáns", "Valentin", "Anyák napja"] }
+    casa:      { name: "Casa Pomo d'Oro",      prefix: "CASA", companyName: "", tax: "", amounts: [30000,35000,40000,50000],        active:true, invoicing:"", images: ["Klasszikus", "Ünnepi", "Születésnap"] },
+    osteria:   { name: "Osteria Pomo d'Oro",   prefix: "OST",  companyName: "", tax: "", amounts: [30000,40000,50000],              active:true, invoicing:"", images: ["Rusztikus", "Karácsony"] },
+    pizzabar:  { name: "Pizzabar Pomo d'Oro",  prefix: "PIZ",  companyName: "", tax: "", amounts: [25000,30000,40000],              active:true, invoicing:"", images: ["Színes", "Baráti"] },
+    trattoria: { name: "Trattoria Pomo d'Oro", prefix: "TRA",  companyName: "", tax: "", amounts: [25000,30000,40000,50000,100000], active:true, invoicing:"", images: ["Elegáns", "Valentin", "Anyák napja"] }
   };
 
   // Csoportszintű (mind a négy egységre érvényes) beállítások
@@ -560,12 +563,27 @@
         + '</div>'
         + '<div class="unit-grid">'
         +   '<div class="ufield"><label>Sorszám-előtag</label><input type="text" value="'+u.prefix+'"></div>'
-        +   '<div class="ufield"><label>Cég neve</label><input type="text" value="'+esc(u.companyName)+'"></div>'
-        +   '<div class="ufield"><label>Adószám</label><input type="text" value="'+u.tax+'"></div>'
+        +   '<div class="ufield"><label>Cég neve</label><input type="text" value="'+esc(u.companyName)+'" placeholder="pl. Casa Pomo d\'Oro Kft."></div>'
+        +   '<div class="ufield"><label>Adószám</label><input type="text" value="'+esc(u.tax)+'" placeholder="pl. 12345678-2-42"></div>'
         + '</div>'
         + '<div class="uimg">'
         +   '<div class="uimg-h">Utalványképek <span class="muted">— ezekből választhat a vásárló ennél az egységnél</span></div>'
         +   '<div class="thumbs" data-thumbs="'+slug+'">'+thumbs+'</div>'
+        + '</div>'
+        + '<div class="ubill">'
+        +   '<div class="uimg-h">Számlázás <span class="muted">— ennek az egységnek (cégnek) a saját számlázó fiókja</span></div>'
+        +   '<div class="bill">'
+        +     '<select class="bill-provider">'
+        +       '<option value=""'+(u.invoicing?'':' selected')+'>Válassz szolgáltatót…</option>'
+        +       '<option value="szamlazz"'+(u.invoicing==="szamlazz"?' selected':'')+'>Számlázz.hu</option>'
+        +       '<option value="billingo"'+(u.invoicing==="billingo"?' selected':'')+'>Billingo</option>'
+        +       '<option value="none"'+(u.invoicing==="none"?' selected':'')+'>Nincs (kézi számlázás)</option>'
+        +     '</select>'
+        +     (u.invoicing && u.invoicing!=="none"
+        +        ? '<span class="pill active">Összekötve</span>'
+        +        : '<span class="pill pending">Nincs összekötve</span>')
+        +     '<button class="btn">Összekötés…</button>'
+        +   '</div>'
         + '</div>'
         + '</div>';
     }).join("");
@@ -641,6 +659,10 @@
     if (e.target.id === "g-cross") GENERAL.crossUnit = e.target.checked;
     if (e.target.id === "g-warn") GENERAL.warnCorporate = e.target.checked;
     if (e.target.id === "g-validity") GENERAL.validity = e.target.value;
+    if (e.target.classList.contains("bill-provider")) {
+      var b = e.target.closest("[data-unit-block]");
+      if (b) { UNITS[b.getAttribute("data-unit-block")].invoicing = e.target.value; renderSettings(); }
+    }
   });
 
   renderAll();
