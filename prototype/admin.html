@@ -237,32 +237,83 @@
   .wprev-label { font-size: 12px; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .04em; }
   .wed-preview { position: sticky; top: 16px; }
 
-  /* Mini widget preview (accent = --wa) */
-  .wprev { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--card); }
-  .wp-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
-  .wp-logo { width: 34px; height: 34px; border-radius: 9px; background: var(--wa); display: grid; place-items: center;
-    font-size: 18px; color: #fff; flex: none; }
-  .wp-title { font-size: 14.5px; font-weight: 640; }
-  .wp-sub { font-size: 12px; color: var(--muted); }
-  .wp-steps { display: flex; gap: 6px; padding: 10px 16px; border-bottom: 1px solid var(--line); overflow-x: auto;
+  /* Élő, interaktív widget-előnézet (--wa szín, --wr radius, --wf font) */
+  .lw { --wa:#d95f4c; --wr:14px; --wf:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-family: var(--wf); border: 1px solid var(--line); border-radius: calc(var(--wr) + 2px);
+    overflow: hidden; background: var(--card); color: var(--ink); }
+  .lw-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .lw-logo { width: 34px; height: 34px; border-radius: calc(var(--wr) * .55); background: var(--wa); color: #fff;
+    display: grid; place-items: center; font-size: 18px; flex: none; }
+  .lw-title { font-size: 14.5px; font-weight: 640; }
+  .lw-hsub { font-size: 12px; color: var(--muted); }
+  .lw-steps { display: flex; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); overflow-x: auto;
     font-size: 11px; color: var(--faint); }
-  .wp-steps span { white-space: nowrap; }
-  .wp-steps span.on { color: var(--wa); font-weight: 640; }
-  .wp-body { padding: 16px; }
-  .wp-h { font-size: 16px; font-weight: 680; letter-spacing: -.01em; }
-  .wp-intro { font-size: 12.5px; color: var(--muted); margin: 5px 0 14px; }
-  .wp-denoms { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .wp-denom { border: 1.5px solid var(--line-strong); border-radius: 10px; padding: 10px 12px; }
-  .wp-denom.sel { border-color: var(--wa); }
-  .wp-denom .a { font-size: 15px; font-weight: 700; color: var(--wa); font-variant-numeric: tabular-nums; }
-  .wp-denom .l { font-size: 10.5px; color: var(--muted); }
-  .wp-imgs { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
-  .wp-img { width: 74px; height: 48px; border-radius: 8px; color: #fff; font-size: 10px; font-weight: 600;
-    display: flex; align-items: flex-end; padding: 6px; overflow: hidden; text-shadow: 0 1px 2px rgba(0,0,0,.4); border: 2px solid transparent; }
-  .wp-img.sel { border-color: var(--wa); }
-  .wp-cta { margin-top: 14px; background: var(--wa); color: #fff; text-align: center; font-size: 13px; font-weight: 600;
-    padding: 10px; border-radius: 9px; }
-  .wp-terms { font-size: 11px; color: var(--faint); margin-top: 12px; line-height: 1.5; }
+  .lw-steps span { white-space: nowrap; display: flex; align-items: center; gap: 5px; }
+  .lw-steps .n { width: 17px; height: 17px; border-radius: 50%; background: var(--bg); border: 1px solid var(--line-strong);
+    display: grid; place-items: center; font-size: 10px; font-weight: 600; color: var(--muted); }
+  .lw-steps span.on { color: var(--ink); font-weight: 640; }
+  .lw-steps span.on .n { background: var(--wa); border-color: var(--wa); color: #fff; }
+  .lw-steps span.done .n { background: var(--good); border-color: var(--good); color: #fff; }
+  .lw-body { padding: 16px; }
+  .lw-h { font-size: 16px; font-weight: 680; letter-spacing: -.01em; }
+  .lw-intro { font-size: 12.5px; color: var(--muted); margin: 5px 0 14px; }
+  .lw-lbl { font-size: 12px; font-weight: 550; margin: 14px 0 6px; }
+  .lw-body > .lw-lbl:first-child, .lw-h + .lw-intro + .lw-lbl { margin-top: 0; }
+  .lw-denoms { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .lw-denom { border: 1.5px solid var(--line-strong); border-radius: var(--wr); padding: 10px 12px; cursor: pointer;
+    background: var(--card); text-align: left; font: inherit; color: var(--ink); }
+  .lw-denom.sel { border-color: var(--wa); }
+  .lw-denom .a { font-size: 15px; font-weight: 700; color: var(--wa); font-variant-numeric: tabular-nums; }
+  .lw-denom .l { font-size: 10.5px; color: var(--muted); }
+  .lw-imgs { display: flex; gap: 8px; flex-wrap: wrap; }
+  .lw-img { width: 74px; height: 48px; border-radius: calc(var(--wr) * .7); color: #fff; font-size: 10px; font-weight: 600;
+    display: flex; align-items: flex-end; padding: 6px; overflow: hidden; text-shadow: 0 1px 2px rgba(0,0,0,.4);
+    border: 2px solid transparent; cursor: pointer; }
+  .lw-img.sel { border-color: var(--wa); }
+  .lw-input, .lw-area { width: 100%; padding: 9px 11px; border: 1px solid var(--line-strong); border-radius: calc(var(--wr) * .6);
+    background: var(--card); color: var(--ink); font: inherit; font-size: 13px; }
+  .lw-area { min-height: 60px; resize: vertical; }
+  .lw-opts { display: flex; flex-direction: column; gap: 8px; }
+  .lw-opt { display: flex; gap: 10px; align-items: flex-start; border: 1.5px solid var(--line-strong); border-radius: var(--wr);
+    padding: 11px; cursor: pointer; background: var(--card); text-align: left; font: inherit; color: var(--ink); }
+  .lw-opt.sel { border-color: var(--wa); }
+  .lw-radio { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--line-strong); margin-top: 1px; flex: none; }
+  .lw-opt.sel .lw-radio { border-color: var(--wa); background: radial-gradient(circle at center, var(--wa) 0 4px, transparent 5px); }
+  .lw-opt .t { font-size: 13px; font-weight: 560; display: block; }
+  .lw-opt .d { font-size: 11.5px; color: var(--muted); display: block; }
+  .lw-check { display: flex; gap: 9px; align-items: flex-start; cursor: pointer; font-size: 12.5px; margin-top: 12px; }
+  .lw-check input { width: 16px; height: 16px; margin-top: 2px; accent-color: var(--wa); flex: none; }
+  .lw-warn { display: none; border: 1px solid var(--warn-line); background: var(--warn-soft); border-radius: calc(var(--wr) * .7);
+    padding: 10px 12px; font-size: 12px; margin-top: 12px; }
+  .lw-warn.show { display: block; }
+  .lw-sum { border: 1px solid var(--line); border-radius: var(--wr); padding: 2px 14px; margin-top: 12px; }
+  .lw-srow { display: flex; justify-content: space-between; padding: 9px 0; border-top: 1px solid var(--line); font-size: 13px; }
+  .lw-srow:first-child { border-top: 0; }
+  .lw-srow .k { color: var(--muted); }
+  .lw-srow.tot { font-weight: 700; font-size: 14px; }
+  .lw-srow.tot .v { color: var(--wa); }
+  .lw-qty { display: flex; align-items: center; gap: 12px; }
+  .lw-qty button { width: 34px; height: 34px; border-radius: calc(var(--wr) * .6); border: 1px solid var(--line-strong);
+    background: var(--card); color: var(--ink); font-size: 18px; cursor: pointer; }
+  .lw-qty .v { font-size: 18px; font-weight: 680; min-width: 28px; text-align: center; }
+  .lw-done-ic { width: 54px; height: 54px; border-radius: 50%; background: var(--good-soft); color: var(--good);
+    display: grid; place-items: center; font-size: 26px; margin: 4px auto 12px; }
+  .lw-done-t { text-align: center; font-size: 17px; font-weight: 680; }
+  .lw-done-s { text-align: center; font-size: 12.5px; color: var(--muted); margin: 6px auto 14px; }
+  .lw-ref { text-align: center; font-family: ui-monospace, Menlo, monospace; font-size: 13px; background: var(--bg);
+    border: 1px solid var(--line); border-radius: calc(var(--wr) * .6); padding: 9px; }
+  .lw-nav { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-top: 1px solid var(--line); }
+  .lw-nav .tot { flex: 1; font-size: 12px; color: var(--muted); }
+  .lw-nav .tot b { color: var(--ink); font-size: 14px; font-weight: 700; }
+  .lw-btn { border: 1px solid var(--line-strong); background: var(--card); color: var(--ink); font: inherit; font-size: 13px;
+    font-weight: 560; padding: 9px 16px; border-radius: calc(var(--wr) * .6); cursor: pointer; }
+  .lw-btn.primary { background: var(--wa); border-color: var(--wa); color: #fff; }
+  .lw-btn.ghost { border-color: transparent; background: transparent; color: var(--muted); }
+  .lw-btn[disabled] { opacity: .5; cursor: not-allowed; }
+  .lw-btn[hidden] { display: none; }
+  .rangerow { display: flex; align-items: center; gap: 12px; }
+  .rangerow input[type=range] { flex: 1; accent-color: var(--accent); }
+  .rangerow .rv { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 42px; text-align: right; }
 
   /* Code box */
   .codebox { position: relative; background: #201c19; color: #f2ede7; border-radius: 12px; padding: 16px; overflow-x: auto; }
@@ -512,22 +563,22 @@
   // ---- Mock adat (a minta exportból származtatott, per-egység) ----
   var UNITS = {
     casa:      { name: "Casa Pomo d'Oro",      prefix: "CASA", companyName: "", tax: "", amounts: [30000,35000,40000,50000],        active:true, invoicing:"", images: ["Klasszikus", "Ünnepi", "Születésnap"],
-                 widget: { accent:"#d95f4c", heading:"Ajándékozz élményt",
+                 widget: { accent:"#d95f4c", radius:14, font:"system", heading:"Ajándékozz élményt",
                    intro:"Lepd meg szeretteidet egy felejthetetlen vacsorával a Casa Pomo d'Oro egységben. Az utalványt e-mailben, azonnal kézbesítjük — kinyomtatható és mobilon is bemutatható.",
                    terms:"Az utalvány a vásárlástól számított 12 hónapig érvényes, egyszeri felhasználásra. Készpénzre nem váltható. Beváltáskor kérjük mutasd be nyomtatva vagy telefonon.",
                    contact:"sales@viaitalia.hu" } },
     osteria:   { name: "Osteria Pomo d'Oro",   prefix: "OST",  companyName: "", tax: "", amounts: [30000,40000,50000],              active:true, invoicing:"", images: ["Rusztikus", "Karácsony"],
-                 widget: { accent:"#2f7d5a", heading:"Egy este Itáliában",
+                 widget: { accent:"#2f7d5a", radius:10, font:"humanist", heading:"Egy este Itáliában",
                    intro:"Ajándékozz vacsorát az Osteria Pomo d'Oro egységbe. Az utalványt azonnal, e-mailben küldjük.",
                    terms:"Az utalvány a vásárlástól számított 12 hónapig érvényes, egyszeri felhasználásra. Készpénzre nem váltható.",
                    contact:"sales@viaitalia.hu" } },
     pizzabar:  { name: "Pizzabar Pomo d'Oro",  prefix: "PIZ",  companyName: "", tax: "", amounts: [25000,30000,40000],              active:true, invoicing:"", images: ["Színes", "Baráti"],
-                 widget: { accent:"#e0872e", heading:"Pizza, amit ajándékba adsz",
+                 widget: { accent:"#e0872e", radius:18, font:"geometric", heading:"Pizza, amit ajándékba adsz",
                    intro:"Lepd meg a pizzarajongókat a Pizzabar Pomo d'Oro ajándékutalvánnyal.",
                    terms:"Az utalvány a vásárlástól számított 12 hónapig érvényes, egyszeri felhasználásra. Készpénzre nem váltható.",
                    contact:"sales@viaitalia.hu" } },
     trattoria: { name: "Trattoria Pomo d'Oro", prefix: "TRA",  companyName: "", tax: "", amounts: [25000,30000,40000,50000,100000], active:true, invoicing:"", images: ["Elegáns", "Valentin", "Anyák napja"],
-                 widget: { accent:"#7a2f3f", heading:"A tökéletes ajándék",
+                 widget: { accent:"#7a2f3f", radius:6, font:"serif", heading:"A tökéletes ajándék",
                    intro:"Ajándékozz élményt a Trattoria Pomo d'Oro egységbe. Az utalványt azonnal, e-mailben kézbesítjük.",
                    terms:"Az utalvány a vásárlástól számított 12 hónapig érvényes, egyszeri felhasználásra. Készpénzre nem váltható.",
                    contact:"sales@viaitalia.hu" } }
@@ -728,30 +779,16 @@
   }
 
   // ---- Widget-szerkesztő ----
-  function widgetPreviewHtml(u){
-    var w = u.widget;
-    var denoms = u.amounts.map(function(a, i){
-      return '<div class="wp-denom'+(i===0?' sel':'')+'"><div class="a">'+money(a)+'</div><div class="l">ajándékutalvány</div></div>';
-    }).join("");
-    var imgs = (u.images || []).map(function(name, i){
-      return '<div class="wp-img'+(i===0?' sel':'')+'" style="background:'+grad(i)+'">'+esc(name)+'</div>';
-    }).join("");
-    var steps = ["Utalvány","Mennyiség","Kézbesítés","Fizetés","Kész"].map(function(l, i){
-      return '<span class="'+(i===0?'on':'')+'">'+(i+1)+' '+esc(l)+'</span>';
-    }).join("");
-    return '<div class="wprev" style="--wa:'+esc(w.accent)+'">'
-      + '<div class="wp-head"><span class="wp-logo">🍅</span><div><div class="wp-title">'+esc(u.name)+'</div>'
-      +   '<div class="wp-sub">Ajándékutalvány vásárlás</div></div></div>'
-      + '<div class="wp-steps">'+steps+'</div>'
-      + '<div class="wp-body">'
-      +   '<div class="wp-h">'+esc(w.heading)+'</div>'
-      +   '<div class="wp-intro">'+esc(w.intro)+'</div>'
-      +   '<div class="wp-denoms">'+denoms+'</div>'
-      +   (imgs ? '<div class="wp-imgs">'+imgs+'</div>' : '')
-      +   '<div class="wp-cta">Tovább →</div>'
-      +   '<div class="wp-terms">'+esc(w.terms)+'</div>'
-      + '</div></div>';
-  }
+  var FONT_STACKS = {
+    system:    "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif",
+    humanist:  "'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif",
+    geometric: "'Trebuchet MS',Verdana,sans-serif",
+    serif:     "Georgia,'Times New Roman',serif",
+    mono:      "ui-monospace,Menlo,monospace"
+  };
+  var FONT_LABELS = [["system","Rendszer (alap)"],["humanist","Humanista sans"],["geometric","Geometrikus"],
+                     ["serif","Klasszikus talpas"],["mono","Írógép / mono"]];
+
   function widgetSnippet(slug){
     return '<iframe\n  src="https://utalvany.pomodoro.hu/widget?unit='+slug+'"\n  title="Ajándékutalvány"\n'
       + '  style="width:100%;border:0"\n  id="pomodoro-voucher" scrolling="no"></iframe>\n'
@@ -760,34 +797,151 @@
       + '      document.getElementById("pomodoro-voucher").style.height = e.data.height + "px";\n'
       + '  });\n<\/script>';
   }
+
+  // Teljes, interaktív widget beültetése egy konténerbe. Visszaad egy API-t az
+  // élő újratémázáshoz (a kattintási állapot elvesztése nélkül).
+  var LB = ["Utalvány","Mennyiség","Kézbesítés","Fizetés","Kész"];
+  function mountWidget(root, cfg, unit){
+    var st = { step:0, amount:(unit.amounts[0]||null), image:0, qty:1, delivery:"recipient",
+               marketing:false, recipient:"", buyerName:"", buyerEmail:"" };
+    var RE_CORP = /\b(kft|bt|zrt|nyrt|kkt)\b/i, RE_TAX = /\d{8}/;
+    function total(){ return (st.amount||0) * st.qty; }
+    function stepsBar(){
+      return '<div class="lw-steps">' + LB.map(function(l, i){
+        var c = i===st.step ? "on" : (i<st.step ? "done" : "");
+        return '<span class="'+c+'"><span class="n">'+(i<st.step?"✓":(i+1))+'</span>'+esc(l)+'</span>';
+      }).join("") + '</div>';
+    }
+    function sumHtml(){
+      return '<div class="lw-sum">'
+        + '<div class="lw-srow"><span class="k">Címlet</span><span class="v">'+(st.amount?money(st.amount):"—")+'</span></div>'
+        + '<div class="lw-srow"><span class="k">Mennyiség</span><span class="v">'+st.qty+' db</span></div>'
+        + '<div class="lw-srow tot"><span class="k">Fizetendő</span><span class="v">'+money(total())+'</span></div></div>';
+    }
+    function body(){
+      if (st.step === 0) {
+        return '<div class="lw-h">'+esc(cfg.heading)+'</div><div class="lw-intro">'+esc(cfg.intro)+'</div>'
+          + '<div class="lw-lbl">Címlet</div><div class="lw-denoms">' + unit.amounts.map(function(a){
+              return '<button class="lw-denom'+(st.amount===a?" sel":"")+'" data-a="'+a+'"><div class="a">'+money(a)+'</div><div class="l">ajándékutalvány</div></button>';
+            }).join("") + '</div>'
+          + '<div class="lw-lbl">Utalvány képe</div><div class="lw-imgs">' + (unit.images||[]).map(function(n, i){
+              return '<button class="lw-img'+(st.image===i?" sel":"")+'" data-img="'+i+'" style="background:'+grad(i)+'">'+esc(n)+'</button>';
+            }).join("") + '</div>';
+      }
+      if (st.step === 1) {
+        return '<div class="lw-lbl">Mennyiség</div><div class="lw-qty"><button data-q="-">−</button>'
+          + '<span class="v">'+st.qty+'</span><button data-q="+">+</button></div>' + sumHtml();
+      }
+      if (st.step === 2) {
+        var toR = st.delivery === "recipient";
+        return '<div class="lw-lbl">Kézbesítés módja</div><div class="lw-opts">'
+          + '<button class="lw-opt'+(toR?" sel":"")+'" data-del="recipient"><span class="lw-radio"></span><span><span class="t">A megajándékozottnak</span><span class="d">E-mailben, közvetlenül neki.</span></span></button>'
+          + '<button class="lw-opt'+(!toR?" sel":"")+'" data-del="buyer"><span class="lw-radio"></span><span><span class="t">Nekem küldjétek</span><span class="d">Én adom át.</span></span></button></div>'
+          + '<div class="lw-lbl">Megajándékozott neve</div><input class="lw-input" data-f="recipient" value="'+esc(st.recipient)+'" placeholder="pl. Nagy Béla">'
+          + '<div class="lw-lbl">A Te neved</div><input class="lw-input" data-f="buyerName" value="'+esc(st.buyerName)+'" placeholder="pl. Kovács Anna">'
+          + '<div class="lw-lbl">A Te e-mail címed</div><input class="lw-input" data-f="buyerEmail" value="'+esc(st.buyerEmail)+'" placeholder="te@example.com">'
+          + '<label class="lw-check"><input type="checkbox" data-f="marketing"'+(st.marketing?" checked":"")+'><span>Szeretnék értesülni akciókról, ajánlatokról</span></label>'
+          + '<div class="lw-warn" data-warn><b>Figyelem:</b> céges nevet vagy adószámot adtál meg — áfás számla ezen a felületen nem igényelhető.</div>';
+      }
+      if (st.step === 3) {
+        return '<div class="lw-lbl">Fizetési mód</div><div class="lw-opts">'
+          + '<button class="lw-opt sel"><span class="lw-radio"></span><span><span class="t">Bankkártya (SimplePay)</span><span class="d">Visa / Mastercard.</span></span></button>'
+          + '<button class="lw-opt"><span class="lw-radio"></span><span><span class="t">SZÉP-kártya</span><span class="d">SimplePayen keresztül.</span></span></button></div>' + sumHtml();
+      }
+      var ref = unit.prefix + "-2026-000" + (40 + st.qty * 7);
+      return '<div class="lw-done-ic">✓</div><div class="lw-done-t">Köszönjük a vásárlást!</div>'
+        + '<div class="lw-done-s">Az utalványt e-mailben küldjük (PDF + QR). Beváltás: '+esc(unit.name)+'.</div>'
+        + '<div class="lw-ref">Rendelésazonosító: '+esc(ref)+'</div>' + sumHtml();
+    }
+    function nav(){
+      var backHidden = (st.step === 0 || st.step === 4);
+      var nextLabel = st.step === 4 ? "Új vásárlás" : (st.step === 3 ? "Fizetés →" : "Tovább →");
+      var nextDis = (st.step === 0 && !st.amount);
+      return '<div class="lw-nav">'
+        + '<button class="lw-btn ghost" data-nav="back"'+(backHidden?" hidden":"")+'>← Vissza</button>'
+        + '<div class="tot">'+((st.step<4 && st.amount) ? ("Összesen: <b>"+money(total())+"</b>") : "")+'</div>'
+        + '<button class="lw-btn primary" data-nav="next"'+(nextDis?" disabled":"")+'>'+nextLabel+'</button></div>';
+    }
+    function shell(){
+      return '<div class="lw" style="--wa:'+esc(cfg.accent)+';--wr:'+(cfg.radius||14)+'px;--wf:'+(FONT_STACKS[cfg.font]||FONT_STACKS.system)+'">'
+        + '<div class="lw-head"><span class="lw-logo">🍅</span><div><div class="lw-title">'+esc(unit.name)+'</div><div class="lw-hsub">Ajándékutalvány vásárlás</div></div></div>'
+        + stepsBar() + '<div class="lw-body">'+body()+'</div>' + nav() + '</div>';
+    }
+    function checkCorp(){
+      var w = root.querySelector("[data-warn]"); if (!w) return;
+      w.classList.toggle("show", RE_CORP.test(st.buyerName+" "+st.recipient) || RE_TAX.test(st.buyerName));
+    }
+    function bind(){
+      root.querySelectorAll(".lw-denom").forEach(function(b){ b.onclick = function(){ st.amount = +b.dataset.a; render(); }; });
+      root.querySelectorAll(".lw-img").forEach(function(b){ b.onclick = function(){ st.image = +b.dataset.img; render(); }; });
+      root.querySelectorAll("[data-q]").forEach(function(b){ b.onclick = function(){ st.qty = b.dataset.q === "+" ? Math.min(50, st.qty+1) : Math.max(1, st.qty-1); render(); }; });
+      root.querySelectorAll("[data-del]").forEach(function(b){ b.onclick = function(){ st.delivery = b.dataset.del; render(); }; });
+      root.querySelectorAll("[data-f]").forEach(function(el){
+        var f = el.dataset.f;
+        if (el.type === "checkbox") { el.onchange = function(){ st[f] = el.checked; }; }
+        else { el.oninput = function(){ st[f] = el.value; if (f === "buyerName" || f === "recipient") checkCorp(); }; }
+      });
+      var nx = root.querySelector('[data-nav="next"]'), bk = root.querySelector('[data-nav="back"]');
+      if (nx) nx.onclick = function(){
+        if (st.step === 4) { st.step = 0; st.amount = unit.amounts[0]||null; st.qty = 1; render(); return; }
+        if (st.step === 0 && !st.amount) return;
+        st.step = Math.min(4, st.step + 1); render();
+      };
+      if (bk) bk.onclick = function(){ st.step = Math.max(0, st.step - 1); render(); };
+      checkCorp();
+    }
+    function render(){ root.innerHTML = shell(); bind(); }
+    render();
+    return {
+      applyTheme: function(){
+        var el = root.querySelector(".lw"); if (!el) return;
+        el.style.setProperty("--wa", cfg.accent);
+        el.style.setProperty("--wr", (cfg.radius||14) + "px");
+        el.style.setProperty("--wf", FONT_STACKS[cfg.font] || FONT_STACKS.system);
+      },
+      refreshText: function(){
+        var h = root.querySelector(".lw-h"); if (h) h.textContent = cfg.heading;
+        var i = root.querySelector(".lw-intro"); if (i) i.textContent = cfg.intro;
+      }
+    };
+  }
+
   function renderWidget(){
     var u = UNITS[state.unit], w = u.widget;
     $("#widget-unit-sub").textContent = u.name;
     var swatches = ["#d95f4c","#2f7d5a","#e0872e","#7a2f3f","#3b6d9e","#1e1e22"];
+    var fontOpts = FONT_LABELS.map(function(f){ return '<option value="'+f[0]+'"'+(w.font===f[0]?" selected":"")+'>'+f[1]+'</option>'; }).join("");
     $("#wed-form").innerHTML =
         '<div class="field"><label class="lbl">Kiemelő szín (arculat)</label>'
       +   '<div class="colorrow"><input type="color" id="w-accent" value="'+esc(w.accent)+'">'
       +     '<input type="text" id="w-accent-hex" value="'+esc(w.accent)+'">'
       +     '<div class="swatches">'+swatches.map(function(c){ return '<button class="swatch" data-swatch="'+c+'" style="background:'+c+'" aria-label="'+c+'"></button>'; }).join("")+'</div>'
       +   '</div></div>'
+      + '<div class="field"><label class="lbl">Sarok lekerekítés</label>'
+      +   '<div class="rangerow"><input type="range" id="w-radius" min="0" max="24" step="1" value="'+(w.radius||14)+'">'
+      +   '<span class="rv" id="w-radius-v">'+(w.radius||14)+'px</span></div></div>'
+      + '<div class="field"><label class="lbl">Betűtípus</label><select id="w-font">'+fontOpts+'</select></div>'
       + '<div class="field"><label class="lbl">Fejléc cím</label><input type="text" id="w-heading" value="'+esc(w.heading)+'"></div>'
       + '<div class="field"><label class="lbl">Bevezető szöveg</label><textarea id="w-intro">'+esc(w.intro)+'</textarea></div>'
       + '<div class="field"><label class="lbl">Beváltási feltételek</label><textarea id="w-terms">'+esc(w.terms)+'</textarea></div>'
       + '<div class="field"><label class="lbl">Céges érdeklődés e-mail</label><input type="text" id="w-contact" value="'+esc(w.contact)+'"></div>'
-      + '<p class="hint">Az utalványképeket a <b>Beállítások → Egységek</b> alatt kezeled — azok jelennek meg itt is.</p>';
-    $("#wprev").innerHTML = widgetPreviewHtml(u);
+      + '<p class="hint">Az utalványképeket a <b>Beállítások → Egységek</b> alatt kezeled — azok jelennek meg itt is. '
+      +   'Az előnézet <b>végigkattintható</b>: próbáld ki a teljes vásárlási folyamatot!</p>';
+
+    var api = mountWidget($("#wprev"), w, u);
     $("#wsnippet").textContent = widgetSnippet(state.unit);
 
-    function upd(){ $("#wprev").innerHTML = widgetPreviewHtml(UNITS[state.unit]); }
-    $("#w-accent").addEventListener("input", function(e){ w.accent = e.target.value; $("#w-accent-hex").value = e.target.value; upd(); });
-    $("#w-accent-hex").addEventListener("input", function(e){ w.accent = e.target.value; $("#w-accent").value = e.target.value; upd(); });
-    $("#w-heading").addEventListener("input", function(e){ w.heading = e.target.value; upd(); });
-    $("#w-intro").addEventListener("input", function(e){ w.intro = e.target.value; upd(); });
-    $("#w-terms").addEventListener("input", function(e){ w.terms = e.target.value; upd(); });
+    $("#w-accent").addEventListener("input", function(e){ w.accent = e.target.value; $("#w-accent-hex").value = e.target.value; api.applyTheme(); });
+    $("#w-accent-hex").addEventListener("input", function(e){ w.accent = e.target.value; $("#w-accent").value = e.target.value; api.applyTheme(); });
+    $("#w-radius").addEventListener("input", function(e){ w.radius = +e.target.value; $("#w-radius-v").textContent = w.radius + "px"; api.applyTheme(); });
+    $("#w-font").addEventListener("change", function(e){ w.font = e.target.value; api.applyTheme(); });
+    $("#w-heading").addEventListener("input", function(e){ w.heading = e.target.value; api.refreshText(); });
+    $("#w-intro").addEventListener("input", function(e){ w.intro = e.target.value; api.refreshText(); });
+    $("#w-terms").addEventListener("input", function(e){ w.terms = e.target.value; });
     $("#w-contact").addEventListener("input", function(e){ w.contact = e.target.value; });
     document.querySelectorAll("#wed-form .swatch").forEach(function(b){
       b.addEventListener("click", function(){ w.accent = b.dataset.swatch;
-        $("#w-accent").value = w.accent; $("#w-accent-hex").value = w.accent; upd(); });
+        $("#w-accent").value = w.accent; $("#w-accent-hex").value = w.accent; api.applyTheme(); });
     });
   }
 
