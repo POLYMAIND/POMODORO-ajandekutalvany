@@ -161,13 +161,20 @@
   .callout b { font-weight: 620; }
 
   /* Denomination rows */
-  .denom { display: grid; grid-template-columns: 130px 1fr 90px auto; gap: 12px; align-items: center;
+  .denom { display: grid; grid-template-columns: 110px 1fr 160px 64px auto; gap: 12px; align-items: center;
     padding: 12px 0; border-top: 1px solid var(--line); }
   .denom:first-child { border-top: 0; }
-  .denom input[type=text], .denom input[type=number] { width: 100%; padding: 8px 11px;
+  .denom input[type=text], .denom input[type=number], .denom .denom-img { width: 100%; padding: 8px 11px;
     border: 1px solid var(--line-strong); border-radius: 8px; background: var(--card); color: var(--ink);
     font: inherit; font-size: 13.5px; }
+  .denom .denom-img { cursor: pointer; }
   .denom .amt-in { font-variant-numeric: tabular-nums; }
+  /* Utalványkép-kártyák (Beállítások) */
+  .imgcard { width: 124px; }
+  .imgcard .imgname { width: 100%; margin-top: 7px; padding: 6px 9px; border: 1px solid var(--line-strong);
+    border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 12.5px; }
+  /* Widget címletkép */
+  .lw-denom-img { height: 62px; border-radius: calc(var(--wr) * .55); margin: 0 0 9px; background: var(--bg); }
 
   /* Toggle */
   .switch { position: relative; width: 42px; height: 24px; flex: none; }
@@ -582,22 +589,22 @@
 
   // ---- Mock adat (a minta exportból származtatott, per-egység) ----
   var UNITS = {
-    casa:      { name: "Casa Pomo d'Oro",      prefix: "CASA", companyName: "", tax: "", amounts: [30000,35000,40000,50000],        active:true, invoicing:"", images: ["Klasszikus", "Ünnepi", "Születésnap"],
+    casa:      { name: "Casa Pomo d'Oro",      prefix: "CASA", companyName: "", tax: "", amounts: [30000,35000,40000,50000],        active:true, invoicing:"", images: [{name:"Klasszikus"},{name:"Ünnepi"},{name:"Születésnap"}], denomImage: {30000:0,35000:1,40000:2,50000:0},
                  widget: { accent:"#d95f4c", radius:14, font:"system", heading:"Ajándékozz élményt",
                    intro:"Lepd meg szeretteidet egy felejthetetlen vacsorával a Casa Pomo d'Oro egységben. Az utalványt e-mailben, azonnal kézbesítjük — kinyomtatható és mobilon is bemutatható.",
                    terms:"Az utalvány a vásárlástól számított 12 hónapig érvényes, egyszeri felhasználásra. Készpénzre nem váltható. Beváltáskor kérjük mutasd be nyomtatva vagy telefonon.",
                    contact:"sales@viaitalia.hu" } },
-    osteria:   { name: "Osteria Pomo d'Oro",   prefix: "OST",  companyName: "", tax: "", amounts: [30000,40000,50000],              active:true, invoicing:"", images: ["Rusztikus", "Karácsony"],
+    osteria:   { name: "Osteria Pomo d'Oro",   prefix: "OST",  companyName: "", tax: "", amounts: [30000,40000,50000],              active:true, invoicing:"", images: [{name:"Rusztikus"},{name:"Karácsony"}], denomImage: {30000:0,40000:1,50000:0},
                  widget: { accent:"#2f7d5a", radius:10, font:"humanist", heading:"Egy este Itáliában",
                    intro:"Ajándékozz vacsorát az Osteria Pomo d'Oro egységbe. Az utalványt azonnal, e-mailben küldjük.",
                    terms:"Az utalvány a vásárlástól számított 12 hónapig érvényes, egyszeri felhasználásra. Készpénzre nem váltható.",
                    contact:"sales@viaitalia.hu" } },
-    pizzabar:  { name: "Pizzabar Pomo d'Oro",  prefix: "PIZ",  companyName: "", tax: "", amounts: [25000,30000,40000],              active:true, invoicing:"", images: ["Színes", "Baráti"],
+    pizzabar:  { name: "Pizzabar Pomo d'Oro",  prefix: "PIZ",  companyName: "", tax: "", amounts: [25000,30000,40000],              active:true, invoicing:"", images: [{name:"Színes"},{name:"Baráti"}], denomImage: {25000:0,30000:1,40000:0},
                  widget: { accent:"#e0872e", radius:18, font:"geometric", heading:"Pizza, amit ajándékba adsz",
                    intro:"Lepd meg a pizzarajongókat a Pizzabar Pomo d'Oro ajándékutalvánnyal.",
                    terms:"Az utalvány a vásárlástól számított 12 hónapig érvényes, egyszeri felhasználásra. Készpénzre nem váltható.",
                    contact:"sales@viaitalia.hu" } },
-    trattoria: { name: "Trattoria Pomo d'Oro", prefix: "TRA",  companyName: "", tax: "", amounts: [25000,30000,40000,50000,100000], active:true, invoicing:"", images: ["Elegáns", "Valentin", "Anyák napja"],
+    trattoria: { name: "Trattoria Pomo d'Oro", prefix: "TRA",  companyName: "", tax: "", amounts: [25000,30000,40000,50000,100000], active:true, invoicing:"", images: [{name:"Elegáns"},{name:"Valentin"},{name:"Anyák napja"}], denomImage: {25000:0,30000:1,40000:2,50000:0,100000:1},
                  widget: { accent:"#7a2f3f", radius:6, font:"serif", heading:"A tökéletes ajándék",
                    intro:"Ajándékozz élményt a Trattoria Pomo d'Oro egységbe. Az utalványt azonnal, e-mailben kézbesítjük.",
                    terms:"Az utalvány a vásárlástól számított 12 hónapig érvényes, egyszeri felhasználásra. Készpénzre nem váltható.",
@@ -673,6 +680,10 @@
         maximumFractionDigits: (ccy === "HUF" || ccy === "JPY") ? 0 : 2 }).format(v);
     } catch (e) { return ft(Math.round(v)) + " " + ccy; }
   }
+
+  // Kép helpers (a kép lehet sima név-string vagy {name, src} objektum)
+  function imgName(x){ return (typeof x === "string") ? x : (x && x.name ? x.name : "Kép"); }
+  function imgSrc(x){ return (x && typeof x === "object" && x.src) ? x.src : null; }
   function esc(s){ return String(s).replace(/[&<>]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c]; }); }
   function $(s, r){ return (r||document).querySelector(s); }
   function $all(s, r){ return Array.prototype.slice.call((r||document).querySelectorAll(s)); }
@@ -741,11 +752,18 @@
 
   // ---- Render: denominations ----
   function renderDenoms(){
-    var amts = UNITS[state.unit].amounts;
-    $("#denom-list").innerHTML = amts.map(function(a, i){
+    var u = UNITS[state.unit];
+    if (!u.denomImage) u.denomImage = {};
+    var imgs = u.images || [];
+    $("#denom-list").innerHTML = u.amounts.map(function(a, i){
+      var sel = u.denomImage[a];
+      var opts = '<option value="">— nincs kép —</option>' + imgs.map(function(im, k){
+        return '<option value="'+k+'"'+(String(sel) === String(k) ? " selected" : "")+'>'+esc(imgName(im))+'</option>';
+      }).join("");
       return '<div class="denom">'
         + '<input type="number" class="amt-in" value="'+a+'" step="1000">'
         + '<input type="text" value="'+ft(a)+' Ft értékű ajándékutalvány">'
+        + '<select class="denom-img" data-amount="'+a+'" title="Termékkép">'+opts+'</select>'
         + '<label class="switch" style="justify-self:start"><input type="checkbox" checked><span class="track"></span></label>'
         + '<button class="btn btn-ghost" aria-label="Törlés">Törlés</button>'
         + '</div>';
@@ -753,15 +771,15 @@
   }
 
   // ---- Render: settings ----
-  function thumbHtml(img, i){
-    var name = (typeof img === "string") ? img : (img && img.name ? img.name : "Kép");
-    var src  = (img && typeof img === "object" && img.src) ? img.src : null;
+  function imgCardHtml(img, i){
+    var src = imgSrc(img);
     var style = src
       ? "background-image:url('" + src + "');background-size:cover;background-position:center"
       : "background:" + grad(i);
-    return '<div class="thumb" style="'+style+'">'
-      + '<button class="thumb-x" aria-label="Kép törlése">×</button>'
-      + '<span class="tl">' + esc(name) + '</span></div>';
+    return '<div class="imgcard">'
+      + '<div class="thumb" style="'+style+'"><button class="thumb-x" aria-label="Kép törlése">×</button></div>'
+      + '<input class="imgname" data-imgidx="'+i+'" value="'+esc(imgName(img))+'" placeholder="Kép neve">'
+      + '</div>';
   }
 
   function renderSettings(){
@@ -773,7 +791,7 @@
     // Egységek
     var html = Object.keys(UNITS).map(function(slug){
       var u = UNITS[slug];
-      var thumbs = (u.images || []).map(thumbHtml).join("")
+      var thumbs = (u.images || []).map(imgCardHtml).join("")
         + '<label class="thumb add"><input type="file" accept="image/*" data-add="'+slug+'" hidden>＋<span>Kép feltöltése</span></label>';
       return '<div class="unit-block" data-unit-block="'+slug+'">'
         + '<div class="unit-head">'
@@ -898,6 +916,7 @@
   function mountWidget(root, cfg, unit){
     var st = { step:0, amount:(unit.amounts[0]||null), image:0, qty:1, delivery:"recipient",
                marketing:false, recipient:"", message:"", deliveryEmail:"", buyerName:"", buyerEmail:"" };
+    if (unit.denomImage && st.amount != null && unit.denomImage[st.amount] != null) st.image = unit.denomImage[st.amount];
     function R(){ return cfg.radius == null ? 14 : cfg.radius; }   // 0px is valid!
     var currencies = (cfg.currencies && cfg.currencies.length) ? cfg.currencies.slice() : ["HUF","EUR","USD","GBP","RON"];
     if (currencies.indexOf("HUF") === -1) currencies.unshift("HUF");
@@ -929,10 +948,16 @@
       if (st.step === 0) {
         return '<div class="lw-h">'+esc(cfg.heading)+'</div><div class="lw-intro">'+esc(cfg.intro)+'</div>'
           + '<div class="lw-lbl">'+t("denom")+'</div><div class="lw-denoms">' + unit.amounts.map(function(a){
-              return '<button class="lw-denom'+(st.amount===a?" sel":"")+'" data-a="'+a+'"><div class="a">'+money(a)+'</div><div class="l">'+t("denomSub")+'</div></button>';
+              var di = (unit.denomImage && unit.denomImage[a] != null) ? unit.denomImage[a] : null;
+              var dim = (di != null && unit.images) ? unit.images[di] : null;
+              var dimg = dim ? (imgSrc(dim) ? "background-image:url('"+imgSrc(dim)+"');background-size:cover;background-position:center" : "background:"+grad(di)) : "";
+              return '<button class="lw-denom'+(st.amount===a?" sel":"")+'" data-a="'+a+'">'
+                + (dim ? '<div class="lw-denom-img" style="'+dimg+'"></div>' : '')
+                + '<div class="a">'+money(a)+'</div><div class="l">'+t("denomSub")+'</div></button>';
             }).join("") + '</div>'
           + '<div class="lw-lbl">'+t("imgLbl")+'</div><div class="lw-imgs">' + (unit.images||[]).map(function(n, i){
-              return '<button class="lw-img'+(st.image===i?" sel":"")+'" data-img="'+i+'" style="background:'+grad(i)+'">'+esc(n)+'</button>';
+              var bs = imgSrc(n) ? "background-image:url('"+imgSrc(n)+"');background-size:cover;background-position:center" : "background:"+grad(i);
+              return '<button class="lw-img'+(st.image===i?" sel":"")+'" data-img="'+i+'" style="'+bs+'">'+esc(imgName(n))+'</button>';
             }).join("") + '</div>';
       }
       if (st.step === 1) {
@@ -991,7 +1016,7 @@
       w.classList.toggle("show", RE_CORP.test(st.buyerName+" "+st.recipient) || RE_TAX.test(st.buyerName));
     }
     function bind(){
-      root.querySelectorAll(".lw-denom").forEach(function(b){ b.onclick = function(){ st.amount = +b.dataset.a; render(); }; });
+      root.querySelectorAll(".lw-denom").forEach(function(b){ b.onclick = function(){ st.amount = +b.dataset.a; if (unit.denomImage && unit.denomImage[st.amount] != null) st.image = unit.denomImage[st.amount]; render(); }; });
       root.querySelectorAll(".lw-img").forEach(function(b){ b.onclick = function(){ st.image = +b.dataset.img; render(); }; });
       root.querySelectorAll("[data-q]").forEach(function(b){ b.onclick = function(){ st.qty = b.dataset.q === "+" ? Math.min(50, st.qty+1) : Math.max(1, st.qty-1); render(); }; });
       root.querySelectorAll("[data-del]").forEach(function(b){ b.onclick = function(){ st.delivery = b.dataset.del; render(); }; });
@@ -1262,6 +1287,21 @@
     if (e.target.classList.contains("bill-provider")) {
       var b = e.target.closest("[data-unit-block]");
       if (b) { UNITS[b.getAttribute("data-unit-block")].invoicing = e.target.value; renderSettings(); }
+    }
+    // utalványkép átnevezése
+    if (e.target.classList.contains("imgname")) {
+      var blk = e.target.closest("[data-unit-block]");
+      if (blk) {
+        var s2 = blk.getAttribute("data-unit-block"), idx = +e.target.getAttribute("data-imgidx"), arr = UNITS[s2].images;
+        if (typeof arr[idx] === "string") arr[idx] = { name: arr[idx] };
+        arr[idx].name = e.target.value;
+      }
+    }
+    // címlet termékképe
+    if (e.target.classList.contains("denom-img")) {
+      var uu = UNITS[state.unit]; if (!uu.denomImage) uu.denomImage = {};
+      var am = e.target.getAttribute("data-amount");
+      if (e.target.value === "") delete uu.denomImage[am]; else uu.denomImage[am] = +e.target.value;
     }
     // kép feltöltése (valódi fájl → data URL, bélyegkép)
     if (e.target.matches && e.target.matches('input[type=file][data-add]')) {
