@@ -241,7 +241,8 @@
   .lw { --wa:#d95f4c; --wr:14px; --wf:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
     font-family: var(--wf); border: 1px solid var(--line); border-radius: calc(var(--wr) + 2px);
     overflow: hidden; background: var(--card); color: var(--ink); }
-  .lw-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .lw-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .lw-ctrls { display: flex; gap: 6px; flex: none; }
   .lw-logo { width: 34px; height: 34px; border-radius: calc(var(--wr) * .55); background: var(--wa); color: #fff;
     display: grid; place-items: center; font-size: 18px; flex: none; }
   .lw-title { font-size: 14.5px; font-weight: 640; }
@@ -840,7 +841,60 @@
 
   // Teljes, interaktív widget beültetése egy konténerbe. Visszaad egy API-t az
   // élő újratémázáshoz (a kattintási állapot elvesztése nélkül).
-  var LB = ["Utalvány","Mennyiség","Kézbesítés","Fizetés","Kész"];
+  // Nyelvek + fordítások (a felület-feliratok; a fejléc/bevezető/feltételek egyedi szövegek)
+  var LANG_LIST = ["hu","en","de","it"];
+  var LANGS = { hu:"Magyar", en:"English", de:"Deutsch", it:"Italiano" };
+  var T = {
+    hu: { sub:"Ajándékutalvány vásárlás", steps:["Utalvány","Mennyiség","Kézbesítés","Fizetés","Kész"],
+      denom:"Címlet", denomSub:"ajándékutalvány", imgLbl:"Utalvány képe", qty:"Mennyiség",
+      delLbl:"Kézbesítés módja", delRT:"A megajándékozottnak", delRD:"E-mailben, közvetlenül neki.",
+      delBT:"Nekem küldjétek", delBD:"Én adom át.", recName:"Megajándékozott neve",
+      recEmail:"Megajándékozott e-mail címe", msgLbl:"Személyes üzenet a megajándékozottnak", msgOpt:"(opcionális)",
+      yourName:"A Te neved", yourEmail:"A Te e-mail címed", mkt:"Szeretnék értesülni akciókról, ajánlatokról",
+      warnB:"Figyelem:", warnT:" céges nevet vagy adószámot adtál meg — áfás számla ezen a felületen nem igényelhető.",
+      payLbl:"Fizetési mód", cardT:"Bankkártya (SimplePay)", cardD:"Visa / Mastercard.", szepT:"SZÉP-kártya", szepD:"SimplePayen keresztül.",
+      doneT:"Köszönjük a vásárlást!", doneS:"Az utalványt e-mailben küldjük (PDF + QR). Beváltás: {u}.", ref:"Rendelésazonosító:",
+      sDenom:"Címlet", sQty:"Mennyiség", sUnit:"db", sTotal:"Fizetendő", fx:"Tájékoztató árfolyam · az utalvány értéke forintban kerül rögzítésre.",
+      back:"← Vissza", next:"Tovább →", nextPay:"Fizetés →", nextNew:"Új vásárlás", totalLbl:"Összesen:",
+      phRec:"pl. Nagy Béla", phRecMail:"megajandekozott@example.com", phYourName:"pl. Kovács Anna", phYourMail:"te@example.com", phMsg:"Boldog születésnapot! Élvezd a vacsorát…" },
+    en: { sub:"Buy a gift voucher", steps:["Voucher","Quantity","Delivery","Payment","Done"],
+      denom:"Amount", denomSub:"gift voucher", imgLbl:"Voucher image", qty:"Quantity",
+      delLbl:"Delivery method", delRT:"Send to the recipient", delRD:"By email, directly to them.",
+      delBT:"Send to me", delBD:"I'll hand it over.", recName:"Recipient's name",
+      recEmail:"Recipient's email", msgLbl:"Personal message to the recipient", msgOpt:"(optional)",
+      yourName:"Your name", yourEmail:"Your email", mkt:"I'd like to receive offers and news",
+      warnB:"Note:", warnT:" you entered a company name or tax number — a VAT invoice cannot be requested here.",
+      payLbl:"Payment method", cardT:"Bank card (SimplePay)", cardD:"Visa / Mastercard.", szepT:"SZÉP card", szepD:"via SimplePay.",
+      doneT:"Thank you for your purchase!", doneS:"We'll email the voucher (PDF + QR). Redeemable at: {u}.", ref:"Order reference:",
+      sDenom:"Amount", sQty:"Quantity", sUnit:"pcs", sTotal:"Total", fx:"Indicative rate · the voucher value is recorded in HUF.",
+      back:"← Back", next:"Next →", nextPay:"Pay →", nextNew:"New purchase", totalLbl:"Total:",
+      phRec:"e.g. John Smith", phRecMail:"recipient@example.com", phYourName:"e.g. Jane Doe", phYourMail:"you@example.com", phMsg:"Happy birthday! Enjoy the dinner…" },
+    de: { sub:"Gutschein kaufen", steps:["Gutschein","Menge","Zustellung","Zahlung","Fertig"],
+      denom:"Betrag", denomSub:"Geschenkgutschein", imgLbl:"Gutschein-Bild", qty:"Menge",
+      delLbl:"Zustellart", delRT:"An die beschenkte Person", delRD:"Per E-Mail, direkt an sie.",
+      delBT:"An mich senden", delBD:"Ich übergebe ihn selbst.", recName:"Name der beschenkten Person",
+      recEmail:"E-Mail der beschenkten Person", msgLbl:"Persönliche Nachricht", msgOpt:"(optional)",
+      yourName:"Dein Name", yourEmail:"Deine E-Mail", mkt:"Ich möchte Angebote und Neuigkeiten erhalten",
+      warnB:"Hinweis:", warnT:" Sie haben einen Firmennamen oder eine Steuernummer eingegeben — eine Rechnung mit MwSt. ist hier nicht möglich.",
+      payLbl:"Zahlungsart", cardT:"Bankkarte (SimplePay)", cardD:"Visa / Mastercard.", szepT:"SZÉP-Karte", szepD:"über SimplePay.",
+      doneT:"Vielen Dank für den Kauf!", doneS:"Wir senden den Gutschein per E-Mail (PDF + QR). Einlösbar bei: {u}.", ref:"Bestellnummer:",
+      sDenom:"Betrag", sQty:"Menge", sUnit:"Stk", sTotal:"Gesamt", fx:"Richtkurs · der Gutscheinwert wird in HUF erfasst.",
+      back:"← Zurück", next:"Weiter →", nextPay:"Bezahlen →", nextNew:"Neuer Kauf", totalLbl:"Gesamt:",
+      phRec:"z. B. Max Mustermann", phRecMail:"empfaenger@example.com", phYourName:"z. B. Erika Muster", phYourMail:"du@example.com", phMsg:"Alles Gute zum Geburtstag! Genieße das Essen…" },
+    it: { sub:"Acquista un buono regalo", steps:["Buono","Quantità","Consegna","Pagamento","Fatto"],
+      denom:"Importo", denomSub:"buono regalo", imgLbl:"Immagine del buono", qty:"Quantità",
+      delLbl:"Modalità di consegna", delRT:"Invia al destinatario", delRD:"Via email, direttamente a lui/lei.",
+      delBT:"Invia a me", delBD:"Lo consegno io.", recName:"Nome del destinatario",
+      recEmail:"Email del destinatario", msgLbl:"Messaggio personale per il destinatario", msgOpt:"(facoltativo)",
+      yourName:"Il tuo nome", yourEmail:"La tua email", mkt:"Vorrei ricevere offerte e novità",
+      warnB:"Attenzione:", warnT:" hai inserito una ragione sociale o partita IVA — qui non è possibile richiedere una fattura con IVA.",
+      payLbl:"Metodo di pagamento", cardT:"Carta (SimplePay)", cardD:"Visa / Mastercard.", szepT:"Carta SZÉP", szepD:"tramite SimplePay.",
+      doneT:"Grazie per l'acquisto!", doneS:"Invieremo il buono via email (PDF + QR). Utilizzabile presso: {u}.", ref:"Numero d'ordine:",
+      sDenom:"Importo", sQty:"Quantità", sUnit:"pz", sTotal:"Totale", fx:"Cambio indicativo · il valore del buono è registrato in HUF.",
+      back:"← Indietro", next:"Avanti →", nextPay:"Paga →", nextNew:"Nuovo acquisto", totalLbl:"Totale:",
+      phRec:"es. Mario Rossi", phRecMail:"destinatario@example.com", phYourName:"es. Anna Bianchi", phYourMail:"tu@example.com", phMsg:"Buon compleanno! Goditi la cena…" }
+  };
+
   function mountWidget(root, cfg, unit){
     var st = { step:0, amount:(unit.amounts[0]||null), image:0, qty:1, delivery:"recipient",
                marketing:false, recipient:"", message:"", deliveryEmail:"", buyerName:"", buyerEmail:"" };
@@ -849,74 +903,86 @@
     if (currencies.indexOf("HUF") === -1) currencies.unshift("HUF");
     var showPicker = cfg.currencyPicker !== false;
     st.ccy = "HUF";
+    var languages = (cfg.languages && cfg.languages.length) ? cfg.languages.slice() : ["hu","en","de"];
+    if (languages.indexOf("hu") === -1) languages.unshift("hu");
+    var showLang = cfg.langPicker !== false;
+    st.lang = languages.indexOf("hu") > -1 ? "hu" : languages[0];
+    function t(k){ return (T[st.lang] && T[st.lang][k] != null) ? T[st.lang][k] : T.hu[k]; }
     function money(n){ return fmtMoney(n, st.ccy); }
     var RE_CORP = /\b(kft|bt|zrt|nyrt|kkt)\b/i, RE_TAX = /\d{8}/;
     function total(){ return (st.amount||0) * st.qty; }
     function stepsBar(){
-      return '<div class="lw-steps">' + LB.map(function(l, i){
+      return '<div class="lw-steps">' + t("steps").map(function(l, i){
         var c = i===st.step ? "on" : (i<st.step ? "done" : "");
         return '<span class="'+c+'"><span class="n">'+(i<st.step?"✓":(i+1))+'</span>'+esc(l)+'</span>';
       }).join("") + '</div>';
     }
     function sumHtml(){
       return '<div class="lw-sum">'
-        + '<div class="lw-srow"><span class="k">Címlet</span><span class="v">'+(st.amount?money(st.amount):"—")+'</span></div>'
-        + '<div class="lw-srow"><span class="k">Mennyiség</span><span class="v">'+st.qty+' db</span></div>'
-        + '<div class="lw-srow tot"><span class="k">Fizetendő</span><span class="v">'+money(total())+'</span></div>'
-        + (st.ccy !== "HUF" ? '<div class="lw-fx">Tájékoztató árfolyam · az utalvány értéke forintban kerül rögzítésre.</div>' : '')
+        + '<div class="lw-srow"><span class="k">'+t("sDenom")+'</span><span class="v">'+(st.amount?money(st.amount):"—")+'</span></div>'
+        + '<div class="lw-srow"><span class="k">'+t("sQty")+'</span><span class="v">'+st.qty+' '+t("sUnit")+'</span></div>'
+        + '<div class="lw-srow tot"><span class="k">'+t("sTotal")+'</span><span class="v">'+money(total())+'</span></div>'
+        + (st.ccy !== "HUF" ? '<div class="lw-fx">'+t("fx")+'</div>' : '')
         + '</div>';
     }
     function body(){
       if (st.step === 0) {
         return '<div class="lw-h">'+esc(cfg.heading)+'</div><div class="lw-intro">'+esc(cfg.intro)+'</div>'
-          + '<div class="lw-lbl">Címlet</div><div class="lw-denoms">' + unit.amounts.map(function(a){
-              return '<button class="lw-denom'+(st.amount===a?" sel":"")+'" data-a="'+a+'"><div class="a">'+money(a)+'</div><div class="l">ajándékutalvány</div></button>';
+          + '<div class="lw-lbl">'+t("denom")+'</div><div class="lw-denoms">' + unit.amounts.map(function(a){
+              return '<button class="lw-denom'+(st.amount===a?" sel":"")+'" data-a="'+a+'"><div class="a">'+money(a)+'</div><div class="l">'+t("denomSub")+'</div></button>';
             }).join("") + '</div>'
-          + '<div class="lw-lbl">Utalvány képe</div><div class="lw-imgs">' + (unit.images||[]).map(function(n, i){
+          + '<div class="lw-lbl">'+t("imgLbl")+'</div><div class="lw-imgs">' + (unit.images||[]).map(function(n, i){
               return '<button class="lw-img'+(st.image===i?" sel":"")+'" data-img="'+i+'" style="background:'+grad(i)+'">'+esc(n)+'</button>';
             }).join("") + '</div>';
       }
       if (st.step === 1) {
-        return '<div class="lw-lbl">Mennyiség</div><div class="lw-qty"><button data-q="-">−</button>'
+        return '<div class="lw-lbl">'+t("qty")+'</div><div class="lw-qty"><button data-q="-">−</button>'
           + '<span class="v">'+st.qty+'</span><button data-q="+">+</button></div>' + sumHtml();
       }
       if (st.step === 2) {
         var toR = st.delivery === "recipient";
-        return '<div class="lw-lbl">Kézbesítés módja</div><div class="lw-opts">'
-          + '<button class="lw-opt'+(toR?" sel":"")+'" data-del="recipient"><span class="lw-radio"></span><span><span class="t">A megajándékozottnak</span><span class="d">E-mailben, közvetlenül neki.</span></span></button>'
-          + '<button class="lw-opt'+(!toR?" sel":"")+'" data-del="buyer"><span class="lw-radio"></span><span><span class="t">Nekem küldjétek</span><span class="d">Én adom át.</span></span></button></div>'
-          + '<div class="lw-lbl">Megajándékozott neve</div><input class="lw-input" data-f="recipient" value="'+esc(st.recipient)+'" placeholder="pl. Nagy Béla">'
-          + (toR ? '<div class="lw-lbl">Megajándékozott e-mail címe</div><input class="lw-input" data-f="deliveryEmail" value="'+esc(st.deliveryEmail)+'" placeholder="megajandekozott@example.com">'
-                 + '<div class="lw-lbl">Személyes üzenet a megajándékozottnak <span style="color:var(--faint);font-weight:400">(opcionális)</span></div>'
-                 + '<textarea class="lw-area" data-f="message" placeholder="Boldog születésnapot! Élvezd a vacsorát…">'+esc(st.message)+'</textarea>' : '')
-          + '<div class="lw-lbl">A Te neved</div><input class="lw-input" data-f="buyerName" value="'+esc(st.buyerName)+'" placeholder="pl. Kovács Anna">'
-          + '<div class="lw-lbl">A Te e-mail címed</div><input class="lw-input" data-f="buyerEmail" value="'+esc(st.buyerEmail)+'" placeholder="te@example.com">'
-          + '<label class="lw-check"><input type="checkbox" data-f="marketing"'+(st.marketing?" checked":"")+'><span>Szeretnék értesülni akciókról, ajánlatokról</span></label>'
-          + '<div class="lw-warn" data-warn><b>Figyelem:</b> céges nevet vagy adószámot adtál meg — áfás számla ezen a felületen nem igényelhető.</div>';
+        return '<div class="lw-lbl">'+t("delLbl")+'</div><div class="lw-opts">'
+          + '<button class="lw-opt'+(toR?" sel":"")+'" data-del="recipient"><span class="lw-radio"></span><span><span class="t">'+t("delRT")+'</span><span class="d">'+t("delRD")+'</span></span></button>'
+          + '<button class="lw-opt'+(!toR?" sel":"")+'" data-del="buyer"><span class="lw-radio"></span><span><span class="t">'+t("delBT")+'</span><span class="d">'+t("delBD")+'</span></span></button></div>'
+          + '<div class="lw-lbl">'+t("recName")+'</div><input class="lw-input" data-f="recipient" value="'+esc(st.recipient)+'" placeholder="'+t("phRec")+'">'
+          + (toR ? '<div class="lw-lbl">'+t("recEmail")+'</div><input class="lw-input" data-f="deliveryEmail" value="'+esc(st.deliveryEmail)+'" placeholder="'+t("phRecMail")+'">'
+                 + '<div class="lw-lbl">'+t("msgLbl")+' <span style="color:var(--faint);font-weight:400">'+t("msgOpt")+'</span></div>'
+                 + '<textarea class="lw-area" data-f="message" placeholder="'+t("phMsg")+'">'+esc(st.message)+'</textarea>' : '')
+          + '<div class="lw-lbl">'+t("yourName")+'</div><input class="lw-input" data-f="buyerName" value="'+esc(st.buyerName)+'" placeholder="'+t("phYourName")+'">'
+          + '<div class="lw-lbl">'+t("yourEmail")+'</div><input class="lw-input" data-f="buyerEmail" value="'+esc(st.buyerEmail)+'" placeholder="'+t("phYourMail")+'">'
+          + '<label class="lw-check"><input type="checkbox" data-f="marketing"'+(st.marketing?" checked":"")+'><span>'+t("mkt")+'</span></label>'
+          + '<div class="lw-warn" data-warn><b>'+t("warnB")+'</b>'+t("warnT")+'</div>';
       }
       if (st.step === 3) {
-        return '<div class="lw-lbl">Fizetési mód</div><div class="lw-opts">'
-          + '<button class="lw-opt sel"><span class="lw-radio"></span><span><span class="t">Bankkártya (SimplePay)</span><span class="d">Visa / Mastercard.</span></span></button>'
-          + '<button class="lw-opt"><span class="lw-radio"></span><span><span class="t">SZÉP-kártya</span><span class="d">SimplePayen keresztül.</span></span></button></div>' + sumHtml();
+        return '<div class="lw-lbl">'+t("payLbl")+'</div><div class="lw-opts">'
+          + '<button class="lw-opt sel"><span class="lw-radio"></span><span><span class="t">'+t("cardT")+'</span><span class="d">'+t("cardD")+'</span></span></button>'
+          + '<button class="lw-opt"><span class="lw-radio"></span><span><span class="t">'+t("szepT")+'</span><span class="d">'+t("szepD")+'</span></span></button></div>' + sumHtml();
       }
       var ref = unit.prefix + "-2026-000" + (40 + st.qty * 7);
-      return '<div class="lw-done-ic">✓</div><div class="lw-done-t">Köszönjük a vásárlást!</div>'
-        + '<div class="lw-done-s">Az utalványt e-mailben küldjük (PDF + QR). Beváltás: '+esc(unit.name)+'.</div>'
-        + '<div class="lw-ref">Rendelésazonosító: '+esc(ref)+'</div>' + sumHtml();
+      return '<div class="lw-done-ic">✓</div><div class="lw-done-t">'+t("doneT")+'</div>'
+        + '<div class="lw-done-s">'+t("doneS").replace("{u}", esc(unit.name))+'</div>'
+        + '<div class="lw-ref">'+t("ref")+' '+esc(ref)+'</div>' + sumHtml();
     }
     function nav(){
       var backHidden = (st.step === 0 || st.step === 4);
-      var nextLabel = st.step === 4 ? "Új vásárlás" : (st.step === 3 ? "Fizetés →" : "Tovább →");
+      var nextLabel = st.step === 4 ? t("nextNew") : (st.step === 3 ? t("nextPay") : t("next"));
       var nextDis = (st.step === 0 && !st.amount);
       return '<div class="lw-nav">'
-        + '<button class="lw-btn ghost" data-nav="back"'+(backHidden?" hidden":"")+'>← Vissza</button>'
-        + '<div class="tot">'+((st.step<4 && st.amount) ? ("Összesen: <b>"+money(total())+"</b>") : "")+'</div>'
+        + '<button class="lw-btn ghost" data-nav="back"'+(backHidden?" hidden":"")+'>'+t("back")+'</button>'
+        + '<div class="tot">'+((st.step<4 && st.amount) ? (t("totalLbl")+' <b>'+money(total())+'</b>') : "")+'</div>'
         + '<button class="lw-btn primary" data-nav="next"'+(nextDis?" disabled":"")+'>'+nextLabel+'</button></div>';
     }
     function shell(){
+      var ctrls = '';
+      if (showLang || showPicker) {
+        ctrls = '<div class="lw-ctrls">'
+          + (showLang ? '<select class="lw-ccy" data-lang>'+languages.map(function(l){ return '<option value="'+l+'"'+(l===st.lang?" selected":"")+'>'+(LANGS[l]||l)+'</option>'; }).join("")+'</select>' : '')
+          + (showPicker ? '<select class="lw-ccy" data-ccy>'+currencies.map(function(c){ return '<option'+(c===st.ccy?" selected":"")+'>'+c+'</option>'; }).join("")+'</select>' : '')
+          + '</div>';
+      }
       return '<div class="lw" style="--wa:'+esc(cfg.accent)+';--wr:'+R()+'px;--wf:'+(FONT_STACKS[cfg.font]||FONT_STACKS.system)+'">'
-        + '<div class="lw-head"><span class="lw-logo">🍅</span><div style="flex:1"><div class="lw-title">'+esc(unit.name)+'</div><div class="lw-hsub">Ajándékutalvány vásárlás</div></div>'
-        + (showPicker ? '<select class="lw-ccy" data-ccy>'+currencies.map(function(c){ return '<option'+(c===st.ccy?" selected":"")+'>'+c+'</option>'; }).join("")+'</select>' : '')
+        + '<div class="lw-head"><span class="lw-logo">🍅</span><div style="flex:1"><div class="lw-title">'+esc(unit.name)+'</div><div class="lw-hsub">'+t("sub")+'</div></div>'
+        + ctrls
         + '</div>'
         + stepsBar() + '<div class="lw-body">'+body()+'</div>' + nav() + '</div>';
     }
@@ -942,6 +1008,7 @@
       };
       if (bk) bk.onclick = function(){ st.step = Math.max(0, st.step - 1); render(); };
       var cs = root.querySelector("[data-ccy]"); if (cs) cs.onchange = function(){ st.ccy = cs.value; render(); };
+      var ls = root.querySelector("[data-lang]"); if (ls) ls.onchange = function(){ st.lang = ls.value; render(); };
       checkCorp();
     }
     function render(){ root.innerHTML = shell(); bind(); }
@@ -964,6 +1031,8 @@
     var u = UNITS[state.unit], w = u.widget;
     if (!w.currencies) w.currencies = ["HUF","EUR","USD","GBP","RON"];
     if (w.currencyPicker == null) w.currencyPicker = true;
+    if (!w.languages) w.languages = ["hu","en","de"];
+    if (w.langPicker == null) w.langPicker = true;
     var rad = (w.radius == null ? 14 : w.radius);
     $("#widget-unit-sub").textContent = u.name;
     var fontOpts = FONT_LABELS.map(function(f){ return '<option value="'+f[0]+'"'+(w.font===f[0]?" selected":"")+'>'+f[1]+'</option>'; }).join("");
@@ -971,6 +1040,11 @@
       var on = w.currencies.indexOf(c) > -1;
       var lock = (c === "HUF");   // a HUF az alap, mindig aktív
       return '<button class="ccy-chip" data-ccy-chip="'+c+'" aria-pressed="'+on+'"'+(lock?" disabled":"")+'>'+c+'</button>';
+    }).join("");
+    var langChips = LANG_LIST.map(function(l){
+      var on = w.languages.indexOf(l) > -1;
+      var lock = (l === "hu");   // a magyar az alap, mindig aktív
+      return '<button class="ccy-chip" data-lang-chip="'+l+'" aria-pressed="'+on+'"'+(lock?" disabled":"")+'>'+(LANGS[l]||l)+'</button>';
     }).join("");
 
     $("#wed-form").innerHTML =
@@ -987,6 +1061,10 @@
       +   '<label class="check2"><input type="checkbox" id="w-ccy-toggle"'+(w.currencyPicker?" checked":"")+'> Megjelenjen a vásárlónál</label></div>'
       + '<div class="field"><label class="lbl">Elérhető pénznemek</label><div class="ccy-chips" id="w-ccy-chips">'+ccyChips+'</div>'
       +   '<div class="hint">A HUF az alap; a többi tájékoztató árfolyamon jelenik meg.</div></div>'
+      + '<div class="field"><label class="lbl">Nyelvválasztó a widgetben</label>'
+      +   '<label class="check2"><input type="checkbox" id="w-lang-toggle"'+(w.langPicker?" checked":"")+'> Megjelenjen a vásárlónál</label></div>'
+      + '<div class="field"><label class="lbl">Elérhető nyelvek</label><div class="ccy-chips" id="w-lang-chips">'+langChips+'</div>'
+      +   '<div class="hint">A magyar az alap; a felület feliratai fordulnak (az egyedi szövegek nyelvenkénti megadása később bővíthető).</div></div>'
       + '<div class="field"><label class="lbl">Fejléc cím</label><input type="text" id="w-heading" value="'+esc(w.heading)+'"></div>'
       + '<div class="field"><label class="lbl">Bevezető szöveg</label><textarea id="w-intro">'+esc(w.intro)+'</textarea></div>'
       + '<div class="field"><label class="lbl">Beváltási feltételek</label><textarea id="w-terms">'+esc(w.terms)+'</textarea></div>'
@@ -1045,6 +1123,16 @@
       var c = chip.dataset.ccyChip, i = w.currencies.indexOf(c);
       if (i > -1) w.currencies.splice(i, 1); else w.currencies.push(c);
       chip.setAttribute("aria-pressed", w.currencies.indexOf(c) > -1);
+      remount();
+    });
+
+    // Nyelv-vezérlők
+    $("#w-lang-toggle").addEventListener("change", function(e){ w.langPicker = e.target.checked; remount(); });
+    $("#w-lang-chips").addEventListener("click", function(e){
+      var chip = e.target.closest(".ccy-chip"); if (!chip || chip.disabled) return;
+      var l = chip.dataset.langChip, i = w.languages.indexOf(l);
+      if (i > -1) w.languages.splice(i, 1); else w.languages.push(l);
+      chip.setAttribute("aria-pressed", w.languages.indexOf(l) > -1);
       remount();
     });
   }
