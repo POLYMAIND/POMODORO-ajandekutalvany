@@ -15,10 +15,36 @@ backend-bekötés nélkül). A Supabase / fizetés bekötése egy későbbi fáz
 prototype/
   admin.html            → az admin felület kattintható prototípusa (standalone,
                           böngészőben közvetlenül megnyitható, mock adatokkal)
+  widget.html           → a beágyazható vásárló widget (5 lépéses folyamat),
+                          egységre paraméterezve: widget.html?unit=casa
+  embed-demo.html       → szimulált host weboldal, ami a widgetet iframe-ben
+                          ágyazza be + a másolható beágyazó kód (nyisd meg ezt)
 supabase/
   migrations/
     001_init_schema.sql → az adatbázis-séma (Postgres/Supabase), a projekt-átadóból
 ```
+
+### Widget beágyazás
+
+A widget egy önálló oldal, amit iframe-ben lehet bármelyik weboldalba tenni:
+
+```html
+<iframe src="https://utalvany.pomodoro.hu/widget?unit=casa"
+        title="Ajándékutalvány" style="width:100%;border:0"
+        id="pomodoro-voucher" scrolling="no"></iframe>
+<script>
+  window.addEventListener("message", function (e) {
+    if (e.data && e.data.type === "pomodoro-voucher" && e.data.event === "height") {
+      document.getElementById("pomodoro-voucher").style.height = e.data.height + "px";
+    }
+  });
+</script>
+```
+
+A widget `postMessage`-dzsel jelzi a magasságát, így az iframe automatikusan
+hozzáigazodik (nincs belső görgetés). Éles környezetben per-egység
+`frame-ancestors` korlátozza, mely domain ágyazhatja be. A működést a
+`prototype/embed-demo.html` mutatja be.
 
 ### Prototípus megnyitása
 

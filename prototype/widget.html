@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ajándékutalvány — Pomo d'Oro</title>
+<style>*{margin:0}html{-webkit-text-size-adjust:100%}</style>
+</head>
+<body>
+<style>
+  :root {
+    --bg: #f4f4f6; --card: #ffffff; --ink: #1e1e22; --muted: #86868c; --faint: #a9a9b0;
+    --line: #e7e7ea; --line-strong: #d9d9de; --accent: #d95f4c; --accent-ink: #fff;
+    --accent-soft: #fbe9e5; --accent-hover: #c44d3c; --good: #1f9d6b; --good-soft: #e5f5ee;
+    --warn: #c98a1b; --warn-soft: #fbf1dc; --warn-line: #e0a63c;
+    --shadow: 0 1px 2px rgba(20,20,30,.04), 0 10px 30px rgba(20,20,30,.07);
+    --radius: 16px; --radius-sm: 10px;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#131316; --card:#1c1c20; --ink:#f0f0f2; --muted:#9a9aa2; --faint:#77777f;
+      --line:#2a2a30; --line-strong:#37373f; --accent:#e56f5c; --accent-soft:#3a201b;
+      --accent-hover:#ef7d6a; --good:#34c088; --good-soft:#14261e; --warn:#e0a63c;
+      --warn-soft:#2c2312; --warn-line:#e0a63c; --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.4); }
+  }
+  :root[data-theme="light"] { --bg:#f4f4f6; --card:#fff; --ink:#1e1e22; --muted:#86868c; --faint:#a9a9b0;
+    --line:#e7e7ea; --line-strong:#d9d9de; --accent:#d95f4c; --accent-soft:#fbe9e5; --accent-hover:#c44d3c;
+    --good:#1f9d6b; --good-soft:#e5f5ee; --warn:#c98a1b; --warn-soft:#fbf1dc; --warn-line:#e0a63c; }
+  :root[data-theme="dark"] { --bg:#131316; --card:#1c1c20; --ink:#f0f0f2; --muted:#9a9aa2; --faint:#77777f;
+    --line:#2a2a30; --line-strong:#37373f; --accent:#e56f5c; --accent-soft:#3a201b; --accent-hover:#ef7d6a;
+    --good:#34c088; --good-soft:#14261e; --warn:#e0a63c; --warn-soft:#2c2312; --warn-line:#e0a63c; }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); line-height: 1.5;
+    -webkit-font-smoothing: antialiased; }
+  .w { max-width: 560px; margin: 0 auto; padding: 20px 16px 28px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    box-shadow: var(--shadow); overflow: hidden; }
+
+  /* Header */
+  .wh { display: flex; align-items: center; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--line); }
+  .logo { width: 40px; height: 40px; border-radius: 11px; background: var(--accent-soft); display: grid;
+    place-items: center; font-size: 22px; flex: none; }
+  .wt { font-size: 16px; font-weight: 650; letter-spacing: -.01em; }
+  .ws { font-size: 12.5px; color: var(--muted); }
+
+  /* Stepper */
+  .steps { display: flex; list-style: none; margin: 0; padding: 14px 20px; gap: 6px; border-bottom: 1px solid var(--line);
+    overflow-x: auto; }
+  .steps li { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--faint); white-space: nowrap; flex: none; }
+  .steps li .num { width: 20px; height: 20px; border-radius: 50%; background: var(--bg); border: 1px solid var(--line-strong);
+    display: grid; place-items: center; font-size: 11px; font-weight: 600; color: var(--muted); }
+  .steps li.active { color: var(--ink); font-weight: 600; }
+  .steps li.active .num { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .steps li.done .num { background: var(--good); border-color: var(--good); color: #fff; }
+  .steps li .bar { width: 14px; height: 1px; background: var(--line-strong); }
+  .steps li:last-child .bar { display: none; }
+
+  .body { padding: 22px 20px; }
+  .step-h { font-size: 17px; font-weight: 640; margin: 0 0 4px; letter-spacing: -.01em; }
+  .step-sub { font-size: 13.5px; color: var(--muted); margin: 0 0 18px; }
+
+  /* Denomination cards */
+  .denoms { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .denom-c { border: 1.5px solid var(--line-strong); border-radius: 12px; padding: 16px; cursor: pointer;
+    background: var(--card); transition: border-color .12s, background .12s; text-align: left; font: inherit; }
+  .denom-c:hover { border-color: var(--faint); }
+  .denom-c[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+  .denom-c .a { font-size: 20px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .denom-c .l { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* Image picker */
+  .imgs { display: flex; gap: 10px; flex-wrap: wrap; }
+  .img-c { position: relative; width: 96px; height: 62px; border-radius: 10px; cursor: pointer; color: #fff;
+    font-size: 11px; font-weight: 600; display: flex; align-items: flex-end; padding: 7px; overflow: hidden;
+    text-shadow: 0 1px 3px rgba(0,0,0,.4); border: 2px solid transparent; box-shadow: inset 0 0 0 1px rgba(0,0,0,.05); }
+  .img-c[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .img-c .chk { position: absolute; top: 5px; right: 5px; width: 18px; height: 18px; border-radius: 50%;
+    background: var(--accent); color: #fff; display: none; place-items: center; font-size: 11px; }
+  .img-c[aria-pressed="true"] .chk { display: grid; }
+
+  /* Fields */
+  .field { margin-bottom: 16px; }
+  .field:last-child { margin-bottom: 0; }
+  label.lbl { display: block; font-size: 13px; font-weight: 550; margin-bottom: 6px; }
+  .lbl .opt { color: var(--faint); font-weight: 400; }
+  input[type=text], input[type=email], textarea { width: 100%; padding: 11px 13px; border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm); background: var(--card); color: var(--ink); font: inherit; font-size: 14.5px; }
+  textarea { resize: vertical; min-height: 84px; }
+  input:focus, textarea:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .cc { font-size: 12px; color: var(--faint); margin-top: 6px; text-align: right; }
+
+  /* Quantity */
+  .qty { display: flex; align-items: center; gap: 14px; }
+  .qty button { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--line-strong);
+    background: var(--card); color: var(--ink); font-size: 20px; cursor: pointer; }
+  .qty button:hover { border-color: var(--faint); }
+  .qty .val { font-size: 22px; font-weight: 680; min-width: 34px; text-align: center; font-variant-numeric: tabular-nums; }
+
+  /* Radio options */
+  .opts { display: flex; flex-direction: column; gap: 10px; }
+  .opt-r { display: flex; gap: 12px; align-items: flex-start; border: 1.5px solid var(--line-strong); border-radius: 12px;
+    padding: 14px; cursor: pointer; }
+  .opt-r[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+  .opt-r .radio { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line-strong); margin-top: 1px; flex: none; }
+  .opt-r[aria-pressed="true"] .radio { border-color: var(--accent); background: radial-gradient(circle at center, var(--accent) 0 5px, transparent 6px); }
+  .opt-r .t { font-size: 14px; font-weight: 560; }
+  .opt-r .d { font-size: 12.5px; color: var(--muted); margin-top: 1px; }
+
+  /* Checkbox */
+  .check { display: flex; gap: 11px; align-items: flex-start; cursor: pointer; font-size: 13.5px; }
+  .check input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--accent); flex: none; }
+  .check .d { color: var(--muted); font-size: 12.5px; margin-top: 1px; }
+
+  /* Warning banner */
+  .warn { display: none; border: 1px solid var(--warn-line); background: var(--warn-soft); color: var(--ink);
+    border-radius: 12px; padding: 12px 14px; font-size: 13px; margin-top: 14px; }
+  .warn.show { display: block; }
+  .warn b { font-weight: 640; }
+
+  /* Summary */
+  .sum { border: 1px solid var(--line); border-radius: 12px; padding: 4px 16px; margin-top: 4px; }
+  .sum-row { display: flex; justify-content: space-between; padding: 11px 0; border-top: 1px solid var(--line); font-size: 14px; }
+  .sum-row:first-child { border-top: 0; }
+  .sum-row .k { color: var(--muted); }
+  .sum-row .v { font-weight: 550; text-align: right; }
+  .sum-row.tot { font-size: 16px; font-weight: 700; }
+  .sum-row.tot .v { color: var(--accent); }
+
+  /* Confirmation */
+  .done-ic { width: 62px; height: 62px; border-radius: 50%; background: var(--good-soft); color: var(--good);
+    display: grid; place-items: center; font-size: 32px; margin: 6px auto 16px; }
+  .done-t { text-align: center; font-size: 20px; font-weight: 680; margin: 0 0 6px; }
+  .done-s { text-align: center; font-size: 14px; color: var(--muted); margin: 0 auto 20px; max-width: 380px; }
+  .ref { text-align: center; font-family: ui-monospace, Menlo, monospace; font-size: 15px; background: var(--bg);
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin-bottom: 18px; }
+
+  /* Nav */
+  .nav { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-top: 1px solid var(--line); }
+  .nav .total { flex: 1; font-size: 13px; color: var(--muted); }
+  .nav .total b { color: var(--ink); font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .btn { border: 1px solid var(--line-strong); background: var(--card); color: var(--ink); font: inherit;
+    font-size: 14.5px; font-weight: 560; padding: 11px 20px; border-radius: var(--radius-sm); cursor: pointer; }
+  .btn:hover { border-color: var(--faint); }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+  .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-ghost { border-color: transparent; background: transparent; color: var(--muted); }
+  .btn-ghost:hover { color: var(--ink); border-color: transparent; }
+  .btn-ghost[hidden] { display: none; }
+
+  .foot { text-align: center; font-size: 11.5px; color: var(--faint); margin-top: 14px; }
+</style>
+
+<div class="w">
+  <div class="card">
+    <header class="wh">
+      <div class="logo">🍅</div>
+      <div>
+        <div class="wt" id="unit-name">Casa Pomo d'Oro</div>
+        <div class="ws">Ajándékutalvány vásárlás</div>
+      </div>
+    </header>
+    <ol class="steps" id="steps"></ol>
+    <div class="body" id="body"></div>
+    <div class="nav">
+      <button class="btn btn-ghost" id="back" hidden>← Vissza</button>
+      <div class="total" id="total"></div>
+      <button class="btn btn-primary" id="next">Tovább →</button>
+    </div>
+  </div>
+  <div class="foot">Fizetés: SimplePay · SZÉP kártya elfogadva · a rendelést a Pomo d'Oro dolgozza fel</div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var UNITS = {
+    casa:      { name: "Casa Pomo d'Oro",      amounts: [30000,35000,40000,50000],        images: ["Klasszikus","Ünnepi","Születésnap"] },
+    osteria:   { name: "Osteria Pomo d'Oro",   amounts: [30000,40000,50000],              images: ["Rusztikus","Karácsony"] },
+    pizzabar:  { name: "Pizzabar Pomo d'Oro",  amounts: [25000,30000,40000],              images: ["Színes","Baráti"] },
+    trattoria: { name: "Trattoria Pomo d'Oro", amounts: [25000,30000,40000,50000,100000], images: ["Elegáns","Valentin","Anyák napja"] }
+  };
+  var GRAD = [
+    "linear-gradient(135deg,#e88a5f,#c44d3c)","linear-gradient(135deg,#3d8a72,#1f9d6b)",
+    "linear-gradient(135deg,#b98a2f,#c98a1b)","linear-gradient(135deg,#6d5b9e,#8a6dcb)",
+    "linear-gradient(135deg,#3b7d9e,#2f6d9e)"
+  ];
+  var STEP_LABELS = ["Utalvány","Mennyiség","Kézbesítés","Fizetés","Kész"];
+
+  function $(s, r){ return (r||document).querySelector(s); }
+  function ft(n){ return n.toLocaleString("hu-HU"); }
+  function money(n){ return ft(n) + " Ft"; }
+  function esc(s){ return String(s||"").replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+  function grad(i){ return GRAD[i % GRAD.length]; }
+
+  // Egység a ?unit= paraméterből
+  var params = new URLSearchParams(location.search);
+  var slug = params.get("unit");
+  if (!UNITS[slug]) slug = "casa";
+  var U = UNITS[slug];
+
+  var s = {
+    step: 0,
+    amount: null,
+    image: 0,
+    recipient: "",
+    message: "",
+    qty: 1,
+    delivery: "recipient",   // recipient | buyer
+    buyerName: "",
+    buyerEmail: "",
+    deliveryEmail: "",
+    marketing: false
+  };
+
+  // Cégnév / adószám észlelés
+  var RE_CORP = /\b(kft|bt|zrt|nyrt|kkt|e\.?\s?v\.?)\b/i;
+  var RE_TAX  = /\d{8}[-\s]?\d?[-\s]?\d{0,2}/;
+  function looksCorporate(){
+    var t = (s.buyerName + " " + s.recipient);
+    return RE_CORP.test(t) || RE_TAX.test(s.buyerName);
+  }
+
+  function total(){ return (s.amount || 0) * s.qty; }
+
+  // ---------- Stepper ----------
+  function renderSteps(){
+    $("#steps").innerHTML = STEP_LABELS.map(function(l, i){
+      var cls = i === s.step ? "active" : (i < s.step ? "done" : "");
+      var inner = i < s.step ? "✓" : (i + 1);
+      return '<li class="'+cls+'"><span class="num">'+inner+'</span>'+esc(l)+'<span class="bar"></span></li>';
+    }).join("");
+  }
+
+  // ---------- Steps ----------
+  function stepVoucher(){
+    var denoms = U.amounts.map(function(a){
+      return '<button class="denom-c" data-amount="'+a+'" aria-pressed="'+(s.amount===a)+'">'
+        + '<div class="a">'+money(a)+'</div><div class="l">ajándékutalvány</div></button>';
+    }).join("");
+    var imgs = U.images.map(function(name, i){
+      return '<button class="img-c" data-img="'+i+'" style="background:'+grad(i)+'" aria-pressed="'+(s.image===i)+'">'
+        + '<span class="chk">✓</span>'+esc(name)+'</button>';
+    }).join("");
+    return ''
+      + '<h2 class="step-h">Válaszd ki az utalványt</h2>'
+      + '<p class="step-sub">Fix címletű ajándékutalvány a(z) '+esc(U.name)+' egységhez.</p>'
+      + '<div class="field"><label class="lbl">Címlet</label><div class="denoms">'+denoms+'</div></div>'
+      + '<div class="field"><label class="lbl">Utalvány képe</label><div class="imgs">'+imgs+'</div></div>'
+      + '<div class="field"><label class="lbl">Megajándékozott neve <span class="opt">(opcionális)</span></label>'
+      +   '<input type="text" id="f-recipient" value="'+esc(s.recipient)+'" placeholder="pl. Nagy Béla"></div>'
+      + '<div class="field"><label class="lbl">Üdvözlő üzenet <span class="opt">(opcionális)</span></label>'
+      +   '<textarea id="f-message" placeholder="Boldog születésnapot! Élvezd a vacsorát…">'+esc(s.message)+'</textarea></div>';
+  }
+
+  function stepQty(){
+    return ''
+      + '<h2 class="step-h">Mennyiség</h2>'
+      + '<p class="step-sub">Hány darab utalványt szeretnél ebből? Minden darab külön sorszámot kap.</p>'
+      + '<div class="field"><div class="qty">'
+      +   '<button id="q-minus" aria-label="Kevesebb">−</button>'
+      +   '<span class="val" id="q-val">'+s.qty+'</span>'
+      +   '<button id="q-plus" aria-label="Több">+</button>'
+      + '</div></div>'
+      + summaryHtml();
+  }
+
+  function stepDelivery(){
+    var toRec = s.delivery === "recipient";
+    return ''
+      + '<h2 class="step-h">Kézbesítés</h2>'
+      + '<p class="step-sub">Kinek és hová küldjük az elkészült utalványt (PDF + QR-kód)?</p>'
+      + '<div class="field"><div class="opts">'
+      +   '<button class="opt-r" data-del="recipient" aria-pressed="'+toRec+'"><span class="radio"></span>'
+      +     '<span><span class="t">A megajándékozottnak küldjük</span><span class="d">E-mailben, közvetlenül neki.</span></span></button>'
+      +   '<button class="opt-r" data-del="buyer" aria-pressed="'+(!toRec)+'"><span class="radio"></span>'
+      +     '<span><span class="t">Nekem küldjétek</span><span class="d">Én adom át (kinyomtatva vagy továbbküldve).</span></span></button>'
+      + '</div></div>'
+      + (toRec ? '<div class="field"><label class="lbl">Megajándékozott e-mail címe</label>'
+      +   '<input type="email" id="f-delemail" value="'+esc(s.deliveryEmail)+'" placeholder="megajandekozott@example.com"></div>' : '')
+      + '<div class="field"><label class="lbl">A Te neved</label>'
+      +   '<input type="text" id="f-buyername" value="'+esc(s.buyerName)+'" placeholder="pl. Kovács Anna"></div>'
+      + '<div class="field"><label class="lbl">A Te e-mail címed</label>'
+      +   '<input type="email" id="f-buyeremail" value="'+esc(s.buyerEmail)+'" placeholder="te@example.com">'
+      +   '<div class="hint">Ide küldjük a visszaigazolást és a számlázási értesítőt.</div></div>'
+      + '<label class="check"><input type="checkbox" id="f-mkt" '+(s.marketing?"checked":"")+'>'
+      +   '<span><span class="t">Szeretnék értesülni akciókról, ajánlatokról</span>'
+      +   '<span class="d">Feliratkozás a Pomo d\'Oro hírlevélre. Bármikor leiratkozhatsz.</span></span></label>'
+      + '<div class="warn" id="corp-warn"><b>Figyelem:</b> úgy tűnik, céges nevet vagy adószámot adtál meg. '
+      +   'Ezen a felületen <b>áfás számla nem igényelhető</b> — az ajándékutalvány magánvásárlásként készül.</div>';
+  }
+
+  function stepPay(){
+    return ''
+      + '<h2 class="step-h">Fizetés</h2>'
+      + '<p class="step-sub">Válaszd ki a fizetési módot. Az utalvány sorszáma a sikeres fizetés után jön létre.</p>'
+      + '<div class="field"><div class="opts">'
+      +   '<button class="opt-r" aria-pressed="true"><span class="radio"></span>'
+      +     '<span><span class="t">Bankkártya (SimplePay)</span><span class="d">Visa / Mastercard, biztonságos fizetés.</span></span></button>'
+      +   '<button class="opt-r" aria-pressed="false"><span class="radio"></span>'
+      +     '<span><span class="t">SZÉP-kártya</span><span class="d">Vendéglátás zseb — SimplePayen keresztül.</span></span></button>'
+      + '</div></div>'
+      + summaryHtml()
+      + '<div class="warn show" style="border-color:var(--line);background:var(--bg);color:var(--muted)">'
+      +   'Prototípus: a tényleges fizetés-bekötés (SimplePay) egy későbbi fázisban készül el.</div>';
+  }
+
+  function stepDone(){
+    var ref = slug.toUpperCase().slice(0,3) + "-2026-000" + (40 + Math.floor(s.qty*7)); // demo hivatkozás
+    var target = s.delivery === "recipient" ? (s.deliveryEmail || "a megajándékozott e-mail címére") : (s.buyerEmail || "a Te e-mail címedre");
+    return ''
+      + '<div class="done-ic">✓</div>'
+      + '<h2 class="done-t">Köszönjük a vásárlást!</h2>'
+      + '<p class="done-s">Az utalványt e-mailben küldjük (PDF + QR-kód) ide: <b>'+esc(target)+'</b>. '
+      +   'A beváltás a(z) '+esc(U.name)+' egységben lehetséges.</p>'
+      + '<div class="ref">Rendelésazonosító: '+esc(ref)+'</div>'
+      + summaryHtml();
+  }
+
+  function summaryHtml(){
+    return '<div class="sum">'
+      + '<div class="sum-row"><span class="k">Címlet</span><span class="v">'+(s.amount?money(s.amount):"—")+'</span></div>'
+      + '<div class="sum-row"><span class="k">Mennyiség</span><span class="v">'+s.qty+' db</span></div>'
+      + (s.recipient ? '<div class="sum-row"><span class="k">Megajándékozott</span><span class="v">'+esc(s.recipient)+'</span></div>' : '')
+      + '<div class="sum-row tot"><span class="k">Fizetendő</span><span class="v">'+money(total())+'</span></div>'
+      + '</div>';
+  }
+
+  var STEPS = [stepVoucher, stepQty, stepDelivery, stepPay, stepDone];
+
+  // ---------- Bind (lépésenként) ----------
+  function bind(){
+    if (s.step === 0) {
+      document.querySelectorAll(".denom-c").forEach(function(b){
+        b.addEventListener("click", function(){ s.amount = +b.dataset.amount; render(); });
+      });
+      document.querySelectorAll(".img-c").forEach(function(b){
+        b.addEventListener("click", function(){ s.image = +b.dataset.img; render(); });
+      });
+      $("#f-recipient").addEventListener("input", function(e){ s.recipient = e.target.value; });
+      $("#f-message").addEventListener("input", function(e){ s.message = e.target.value; });
+    }
+    if (s.step === 1) {
+      $("#q-minus").addEventListener("click", function(){ s.qty = Math.max(1, s.qty - 1); render(); });
+      $("#q-plus").addEventListener("click", function(){ s.qty = Math.min(50, s.qty + 1); render(); });
+    }
+    if (s.step === 2) {
+      document.querySelectorAll(".opt-r[data-del]").forEach(function(b){
+        b.addEventListener("click", function(){ s.delivery = b.dataset.del; render(); });
+      });
+      var de = $("#f-delemail"); if (de) de.addEventListener("input", function(e){ s.deliveryEmail = e.target.value; });
+      $("#f-buyername").addEventListener("input", function(e){ s.buyerName = e.target.value; checkCorp(); });
+      $("#f-buyeremail").addEventListener("input", function(e){ s.buyerEmail = e.target.value; });
+      $("#f-mkt").addEventListener("change", function(e){ s.marketing = e.target.checked; });
+      checkCorp();
+    }
+  }
+
+  function checkCorp(){
+    var w = $("#corp-warn"); if (!w) return;
+    w.classList.toggle("show", looksCorporate());
+    postHeight();
+  }
+
+  // ---------- Nav ----------
+  function canNext(){
+    if (s.step === 0) return !!s.amount;
+    return true;
+  }
+  function updateNav(){
+    var back = $("#back"), next = $("#next"), tot = $("#total");
+    back.hidden = (s.step === 0 || s.step === STEPS.length - 1);
+    if (s.step === STEPS.length - 1) { next.textContent = "Új vásárlás"; }
+    else if (s.step === 3) { next.textContent = "Fizetés →"; }
+    else { next.textContent = "Tovább →"; }
+    next.disabled = !canNext();
+    if (s.step < STEPS.length - 1 && s.amount) {
+      tot.innerHTML = "Összesen: <b>" + money(total()) + "</b>";
+    } else { tot.innerHTML = ""; }
+  }
+
+  function render(){
+    renderSteps();
+    $("#body").innerHTML = STEPS[s.step]();
+    bind();
+    updateNav();
+    postHeight();
+  }
+
+  $("#next").addEventListener("click", function(){
+    if (s.step === STEPS.length - 1) {   // Új vásárlás
+      s = { step:0, amount:null, image:0, recipient:"", message:"", qty:1, delivery:"recipient",
+            buyerName:"", buyerEmail:"", deliveryEmail:"", marketing:false };
+      render(); return;
+    }
+    if (!canNext()) return;
+    s.step = Math.min(STEPS.length - 1, s.step + 1);
+    render();
+    scrollTo(0, 0);
+  });
+  $("#back").addEventListener("click", function(){ s.step = Math.max(0, s.step - 1); render(); scrollTo(0,0); });
+
+  // ---------- Iframe auto-magasság (postMessage a beágyazó oldalnak) ----------
+  function postHeight(){
+    var h = Math.ceil(document.querySelector(".w").getBoundingClientRect().height) + 8;
+    try { parent.postMessage({ type: "pomodoro-voucher", event: "height", unit: slug, height: h }, "*"); } catch (e) {}
+  }
+  window.addEventListener("resize", postHeight);
+
+  // Init
+  $("#unit-name").textContent = U.name;
+  document.title = "Ajándékutalvány — " + U.name;
+  render();
+})();
+</script>
+
+</body>
+</html>

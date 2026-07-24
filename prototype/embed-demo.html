@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beágyazási demó — Pomo d'Oro ajándékutalvány widget</title>
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  :root {
+    --bg: #efe9e1; --ink: #241f1b; --muted: #6f665e; --card: #fff; --line: #e3d9cc;
+    --accent: #d95f4c; --code-bg: #201c19; --code-ink: #f2ede7;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  body { background: var(--bg); color: var(--ink); font-family: var(--font); line-height: 1.55; }
+
+  /* Szimulált host weboldal fejléce */
+  .site-top { background: #fff; border-bottom: 1px solid var(--line); }
+  .site-top .in { max-width: 1000px; margin: 0 auto; padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
+  .site-top .brand { font-weight: 700; font-size: 18px; letter-spacing: -.01em; }
+  .site-top .brand .dot { color: var(--accent); }
+  .site-top nav { margin-left: auto; display: flex; gap: 22px; font-size: 14px; color: var(--muted); }
+  .site-top nav span[aria-current] { color: var(--ink); font-weight: 600; }
+
+  .hero { max-width: 1000px; margin: 0 auto; padding: 40px 24px 8px; text-align: center; }
+  .hero .eyebrow { font-size: 12px; text-transform: uppercase; letter-spacing: .14em; color: var(--accent); font-weight: 600; }
+  .hero h1 { font-size: 34px; letter-spacing: -.02em; margin: 8px 0 10px; }
+  .hero p { color: var(--muted); font-size: 16px; max-width: 560px; margin: 0 auto; }
+
+  .stage { max-width: 640px; margin: 26px auto 0; padding: 0 16px; }
+  .stage-label { text-align: center; font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+  .frame-wrap { background: transparent; border-radius: 18px; }
+  iframe#voucher { width: 100%; border: 0; display: block; border-radius: 18px; }
+
+  .banner { max-width: 640px; margin: 8px auto 0; padding: 8px 16px; font-size: 12px; color: var(--muted); text-align: center; }
+
+  /* Beágyazó kód szekció */
+  .embed { max-width: 760px; margin: 40px auto; padding: 0 24px; }
+  .embed h2 { font-size: 20px; letter-spacing: -.01em; margin-bottom: 6px; }
+  .embed p { color: var(--muted); font-size: 14px; margin-bottom: 16px; }
+  .codebox { position: relative; background: var(--code-bg); color: var(--code-ink); border-radius: 12px;
+    padding: 18px 18px; overflow-x: auto; }
+  .codebox pre { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px; line-height: 1.65; white-space: pre; }
+  .copy { position: absolute; top: 12px; right: 12px; border: 0; background: rgba(255,255,255,.12); color: #fff;
+    font: inherit; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 8px; cursor: pointer; }
+  .copy:hover { background: rgba(255,255,255,.2); }
+  .units { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .units button { border: 1px solid var(--line); background: #fff; color: var(--ink); font: inherit; font-size: 13px;
+    font-weight: 550; padding: 8px 14px; border-radius: 999px; cursor: pointer; }
+  .units button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .note { font-size: 12.5px; color: var(--muted); margin-top: 14px; }
+  .note code { background: #0000000d; padding: 1px 5px; border-radius: 5px; font-size: 12px; }
+
+  .site-foot { text-align: center; color: var(--muted); font-size: 12.5px; padding: 30px; }
+</style>
+</head>
+<body>
+  <!-- Szimulált „idegen" weboldal (pl. a Casa WordPress oldala) -->
+  <header class="site-top">
+    <div class="in">
+      <span class="brand">Casa Pomo d<span class="dot">'</span>Oro</span>
+      <nav><span>Étlap</span><span>Foglalás</span><span aria-current="true">Ajándékutalvány</span><span>Kapcsolat</span></nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="eyebrow">Ajándékozz élményt</div>
+    <h1>Ajándékutalvány</h1>
+    <p>Lepd meg szeretteidet egy felejthetetlen vacsorával. Az utalványt e-mailben,
+       azonnal kézbesítjük — kinyomtatható és mobilon is bemutatható.</p>
+  </section>
+
+  <div class="stage">
+    <div class="stage-label">↓ innentől a beágyazott widget (iframe) ↓</div>
+    <div class="frame-wrap">
+      <iframe id="voucher" src="./widget.html?unit=casa" title="Ajándékutalvány vásárlás" scrolling="no"
+              style="height:720px"></iframe>
+    </div>
+  </div>
+  <div class="banner">A widget a saját magasságát <code style="font-size:11px">postMessage</code>-dzsel jelzi, az iframe automatikusan hozzáigazodik.</div>
+
+  <section class="embed">
+    <h2>Beágyazó kód</h2>
+    <p>Ezt az egy blokkot kell bemásolni a weboldalba (WordPress: „Egyéni HTML" blokk). Válaszd ki az egységet:</p>
+    <div class="units" id="unit-picker">
+      <button data-unit="casa" aria-pressed="true">Casa</button>
+      <button data-unit="osteria" aria-pressed="false">Osteria</button>
+      <button data-unit="pizzabar" aria-pressed="false">Pizzabar</button>
+      <button data-unit="trattoria" aria-pressed="false">Trattoria</button>
+    </div>
+    <div class="codebox">
+      <button class="copy" id="copy-btn">Másolás</button>
+      <pre id="snippet"></pre>
+    </div>
+    <p class="note">Éles környezetben a <code>src</code> a valódi domainre mutat (pl.
+       <code>https://utalvany.pomodoro.hu/widget?unit=casa</code>), és a widget csak az adott egység
+       engedélyezett domainjéről ágyazható be (<code>frame-ancestors</code>).</p>
+  </section>
+
+  <footer class="site-foot">Ez egy szimulált host oldal a beágyazás bemutatásához · Polymaind</footer>
+
+<script>
+  var iframe = document.getElementById("voucher");
+  var snippetEl = document.getElementById("snippet");
+  var current = "casa";
+
+  function snippetFor(unit){
+    return '<iframe\n'
+      + '  src="https://utalvany.pomodoro.hu/widget?unit=' + unit + '"\n'
+      + '  title="Ajándékutalvány"\n'
+      + '  style="width:100%;border:0"\n'
+      + '  id="pomodoro-voucher"\n'
+      + '  scrolling="no"></iframe>\n'
+      + '<script>\n'
+      + '  window.addEventListener("message", function (e) {\n'
+      + '    if (e.data && e.data.type === "pomodoro-voucher" && e.data.event === "height") {\n'
+      + '      document.getElementById("pomodoro-voucher").style.height = e.data.height + "px";\n'
+      + '    }\n'
+      + '  });\n'
+      + '<\/script>';
+  }
+  function renderSnippet(){ snippetEl.textContent = snippetFor(current); }
+
+  // Host oldal: az iframe magasságát a widget üzenetéből állítjuk
+  window.addEventListener("message", function (e) {
+    if (e.data && e.data.type === "pomodoro-voucher" && e.data.event === "height") {
+      iframe.style.height = e.data.height + "px";
+    }
+  });
+
+  document.getElementById("unit-picker").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-unit]");
+    if (!b) return;
+    current = b.dataset.unit;
+    Array.prototype.forEach.call(this.children, function (x) { x.setAttribute("aria-pressed", x === b); });
+    iframe.src = "./widget.html?unit=" + current;
+    renderSnippet();
+  });
+
+  document.getElementById("copy-btn").addEventListener("click", function () {
+    var self = this, orig = self.textContent;
+    function flash(){ self.textContent = "Másolva ✓"; setTimeout(function(){ self.textContent = orig; }, 1200); }
+    if (navigator.clipboard) { navigator.clipboard.writeText(snippetEl.textContent).then(flash, flash); }
+  });
+
+  renderSnippet();
+</script>
+</body>
+</html>
