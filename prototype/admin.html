@@ -228,11 +228,11 @@
   /* Widget editor */
   .wed { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }
   .wed-form textarea { min-height: 84px; }
-  .colorrow { display: flex; gap: 10px; align-items: center; }
+  .colorrow { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .colorrow input[type=color] { width: 46px; height: 40px; padding: 3px; border: 1px solid var(--line-strong);
     border-radius: 9px; background: var(--card); cursor: pointer; }
   .colorrow input[type=text] { width: 120px; font-family: ui-monospace, Menlo, monospace; }
-  .swatches { display: flex; gap: 6px; margin-left: 4px; }
+  .swatches { display: flex; gap: 8px; margin-left: 4px; flex-wrap: wrap; }
   .swatch { width: 24px; height: 24px; border-radius: 6px; border: 1px solid rgba(0,0,0,.12); cursor: pointer; padding: 0; }
   .wprev-label { font-size: 12px; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .04em; }
   .wed-preview { position: sticky; top: 16px; }
@@ -314,6 +314,25 @@
   .rangerow { display: flex; align-items: center; gap: 12px; }
   .rangerow input[type=range] { flex: 1; accent-color: var(--accent); }
   .rangerow .rv { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 42px; text-align: right; }
+  .lw-ccy { border: 1px solid var(--line-strong); border-radius: calc(var(--wr) * .5); background: var(--card); color: var(--ink);
+    font: inherit; font-size: 12px; font-weight: 600; padding: 5px 8px; cursor: pointer; flex: none; }
+  .lw-fx { font-size: 10.5px; color: var(--faint); padding: 8px 0 4px; line-height: 1.4; }
+  .swatch.add { display: inline-grid; place-items: center; color: var(--muted); font-size: 18px; font-weight: 400;
+    background: var(--bg) !important; border: 1.5px dashed var(--line-strong); }
+  .swatch.add:hover { border-color: var(--accent); color: var(--accent); }
+  .swatch { position: relative; }
+  .sw-del { position: absolute; top: -6px; right: -6px; width: 16px; height: 16px; border-radius: 50%; background: #33333a;
+    color: #fff; border: 1.5px solid var(--card); font-size: 10px; line-height: 1; cursor: pointer; display: none;
+    align-items: center; justify-content: center; padding: 0; }
+  .swatch:hover .sw-del { display: flex; }
+  .colorrow input[type=text].bad { border-color: var(--accent); background: var(--accent-soft); }
+  .ccy-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ccy-chip { border: 1px solid var(--line-strong); background: var(--card); color: var(--muted); font: inherit; font-size: 12px;
+    font-weight: 550; padding: 5px 10px; border-radius: 999px; cursor: pointer; }
+  .ccy-chip[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .ccy-chip[disabled] { opacity: .65; cursor: default; }
+  .check2 { display: flex; gap: 9px; align-items: center; font-size: 13.5px; cursor: pointer; }
+  .check2 input { width: 17px; height: 17px; accent-color: var(--accent); }
 
   /* Code box */
   .codebox { position: relative; background: #201c19; color: #f2ede7; border-radius: 12px; padding: 16px; overflow-x: auto; }
@@ -640,6 +659,19 @@
 
   function ft(n){ return n.toLocaleString("hu-HU"); }
   function money(n){ return ft(n) + " Ft"; }
+
+  // Pénznemek (HUF az alap; a többi tájékoztató árfolyamon). RATE = 1 egység hány HUF.
+  var CCY_LIST = ["HUF","EUR","USD","GBP","CHF","JPY","RON","RSD","CZK","PLN","DKK","NOK","SEK","RUB"];
+  var CCY_RATE = { HUF:1, EUR:390, USD:360, GBP:460, CHF:410, JPY:2.4, RON:78, RSD:3.3,
+                   CZK:15.5, PLN:90, DKK:52, NOK:34, SEK:34, RUB:4 };
+  function fmtMoney(amountHUF, ccy){
+    ccy = ccy || "HUF";
+    var v = amountHUF / (CCY_RATE[ccy] || 1);
+    try {
+      return new Intl.NumberFormat("hu-HU", { style:"currency", currency:ccy,
+        maximumFractionDigits: (ccy === "HUF" || ccy === "JPY") ? 0 : 2 }).format(v);
+    } catch (e) { return ft(Math.round(v)) + " " + ccy; }
+  }
   function esc(s){ return String(s).replace(/[&<>]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c]; }); }
   function $(s, r){ return (r||document).querySelector(s); }
   function $all(s, r){ return Array.prototype.slice.call((r||document).querySelectorAll(s)); }
@@ -789,6 +821,14 @@
   var FONT_LABELS = [["system","Rendszer (alap)"],["humanist","Humanista sans"],["geometric","Geometrikus"],
                      ["serif","Klasszikus talpas"],["mono","Írógép / mono"]];
 
+  // Mentett arculati színek (a rendszer megőrzi — prototípusban localStorage)
+  var DEFAULT_SWATCHES = ["#d95f4c","#2f7d5a","#e0872e","#7a2f3f","#3b6d9e","#1e1e22"];
+  var SWATCHES;
+  try { SWATCHES = JSON.parse(localStorage.getItem("pomodoro_swatches")); } catch (e) {}
+  if (!Array.isArray(SWATCHES) || !SWATCHES.length) SWATCHES = DEFAULT_SWATCHES.slice();
+  function saveSwatches(){ try { localStorage.setItem("pomodoro_swatches", JSON.stringify(SWATCHES)); } catch (e) {} }
+  function isHex(v){ return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v); }
+
   function widgetSnippet(slug){
     return '<iframe\n  src="https://utalvany.pomodoro.hu/widget?unit='+slug+'"\n  title="Ajándékutalvány"\n'
       + '  style="width:100%;border:0"\n  id="pomodoro-voucher" scrolling="no"></iframe>\n'
@@ -803,7 +843,13 @@
   var LB = ["Utalvány","Mennyiség","Kézbesítés","Fizetés","Kész"];
   function mountWidget(root, cfg, unit){
     var st = { step:0, amount:(unit.amounts[0]||null), image:0, qty:1, delivery:"recipient",
-               marketing:false, recipient:"", buyerName:"", buyerEmail:"" };
+               marketing:false, recipient:"", message:"", deliveryEmail:"", buyerName:"", buyerEmail:"" };
+    function R(){ return cfg.radius == null ? 14 : cfg.radius; }   // 0px is valid!
+    var currencies = (cfg.currencies && cfg.currencies.length) ? cfg.currencies.slice() : ["HUF","EUR","USD","GBP","RON"];
+    if (currencies.indexOf("HUF") === -1) currencies.unshift("HUF");
+    var showPicker = cfg.currencyPicker !== false;
+    st.ccy = "HUF";
+    function money(n){ return fmtMoney(n, st.ccy); }
     var RE_CORP = /\b(kft|bt|zrt|nyrt|kkt)\b/i, RE_TAX = /\d{8}/;
     function total(){ return (st.amount||0) * st.qty; }
     function stepsBar(){
@@ -816,7 +862,9 @@
       return '<div class="lw-sum">'
         + '<div class="lw-srow"><span class="k">Címlet</span><span class="v">'+(st.amount?money(st.amount):"—")+'</span></div>'
         + '<div class="lw-srow"><span class="k">Mennyiség</span><span class="v">'+st.qty+' db</span></div>'
-        + '<div class="lw-srow tot"><span class="k">Fizetendő</span><span class="v">'+money(total())+'</span></div></div>';
+        + '<div class="lw-srow tot"><span class="k">Fizetendő</span><span class="v">'+money(total())+'</span></div>'
+        + (st.ccy !== "HUF" ? '<div class="lw-fx">Tájékoztató árfolyam · az utalvány értéke forintban kerül rögzítésre.</div>' : '')
+        + '</div>';
     }
     function body(){
       if (st.step === 0) {
@@ -838,6 +886,9 @@
           + '<button class="lw-opt'+(toR?" sel":"")+'" data-del="recipient"><span class="lw-radio"></span><span><span class="t">A megajándékozottnak</span><span class="d">E-mailben, közvetlenül neki.</span></span></button>'
           + '<button class="lw-opt'+(!toR?" sel":"")+'" data-del="buyer"><span class="lw-radio"></span><span><span class="t">Nekem küldjétek</span><span class="d">Én adom át.</span></span></button></div>'
           + '<div class="lw-lbl">Megajándékozott neve</div><input class="lw-input" data-f="recipient" value="'+esc(st.recipient)+'" placeholder="pl. Nagy Béla">'
+          + (toR ? '<div class="lw-lbl">Megajándékozott e-mail címe</div><input class="lw-input" data-f="deliveryEmail" value="'+esc(st.deliveryEmail)+'" placeholder="megajandekozott@example.com">'
+                 + '<div class="lw-lbl">Személyes üzenet a megajándékozottnak <span style="color:var(--faint);font-weight:400">(opcionális)</span></div>'
+                 + '<textarea class="lw-area" data-f="message" placeholder="Boldog születésnapot! Élvezd a vacsorát…">'+esc(st.message)+'</textarea>' : '')
           + '<div class="lw-lbl">A Te neved</div><input class="lw-input" data-f="buyerName" value="'+esc(st.buyerName)+'" placeholder="pl. Kovács Anna">'
           + '<div class="lw-lbl">A Te e-mail címed</div><input class="lw-input" data-f="buyerEmail" value="'+esc(st.buyerEmail)+'" placeholder="te@example.com">'
           + '<label class="lw-check"><input type="checkbox" data-f="marketing"'+(st.marketing?" checked":"")+'><span>Szeretnék értesülni akciókról, ajánlatokról</span></label>'
@@ -863,8 +914,10 @@
         + '<button class="lw-btn primary" data-nav="next"'+(nextDis?" disabled":"")+'>'+nextLabel+'</button></div>';
     }
     function shell(){
-      return '<div class="lw" style="--wa:'+esc(cfg.accent)+';--wr:'+(cfg.radius||14)+'px;--wf:'+(FONT_STACKS[cfg.font]||FONT_STACKS.system)+'">'
-        + '<div class="lw-head"><span class="lw-logo">🍅</span><div><div class="lw-title">'+esc(unit.name)+'</div><div class="lw-hsub">Ajándékutalvány vásárlás</div></div></div>'
+      return '<div class="lw" style="--wa:'+esc(cfg.accent)+';--wr:'+R()+'px;--wf:'+(FONT_STACKS[cfg.font]||FONT_STACKS.system)+'">'
+        + '<div class="lw-head"><span class="lw-logo">🍅</span><div style="flex:1"><div class="lw-title">'+esc(unit.name)+'</div><div class="lw-hsub">Ajándékutalvány vásárlás</div></div>'
+        + (showPicker ? '<select class="lw-ccy" data-ccy>'+currencies.map(function(c){ return '<option'+(c===st.ccy?" selected":"")+'>'+c+'</option>'; }).join("")+'</select>' : '')
+        + '</div>'
         + stepsBar() + '<div class="lw-body">'+body()+'</div>' + nav() + '</div>';
     }
     function checkCorp(){
@@ -888,6 +941,7 @@
         st.step = Math.min(4, st.step + 1); render();
       };
       if (bk) bk.onclick = function(){ st.step = Math.max(0, st.step - 1); render(); };
+      var cs = root.querySelector("[data-ccy]"); if (cs) cs.onchange = function(){ st.ccy = cs.value; render(); };
       checkCorp();
     }
     function render(){ root.innerHTML = shell(); bind(); }
@@ -896,7 +950,7 @@
       applyTheme: function(){
         var el = root.querySelector(".lw"); if (!el) return;
         el.style.setProperty("--wa", cfg.accent);
-        el.style.setProperty("--wr", (cfg.radius||14) + "px");
+        el.style.setProperty("--wr", R() + "px");
         el.style.setProperty("--wf", FONT_STACKS[cfg.font] || FONT_STACKS.system);
       },
       refreshText: function(){
@@ -908,19 +962,31 @@
 
   function renderWidget(){
     var u = UNITS[state.unit], w = u.widget;
+    if (!w.currencies) w.currencies = ["HUF","EUR","USD","GBP","RON"];
+    if (w.currencyPicker == null) w.currencyPicker = true;
+    var rad = (w.radius == null ? 14 : w.radius);
     $("#widget-unit-sub").textContent = u.name;
-    var swatches = ["#d95f4c","#2f7d5a","#e0872e","#7a2f3f","#3b6d9e","#1e1e22"];
     var fontOpts = FONT_LABELS.map(function(f){ return '<option value="'+f[0]+'"'+(w.font===f[0]?" selected":"")+'>'+f[1]+'</option>'; }).join("");
+    var ccyChips = CCY_LIST.map(function(c){
+      var on = w.currencies.indexOf(c) > -1;
+      var lock = (c === "HUF");   // a HUF az alap, mindig aktív
+      return '<button class="ccy-chip" data-ccy-chip="'+c+'" aria-pressed="'+on+'"'+(lock?" disabled":"")+'>'+c+'</button>';
+    }).join("");
+
     $("#wed-form").innerHTML =
         '<div class="field"><label class="lbl">Kiemelő szín (arculat)</label>'
       +   '<div class="colorrow"><input type="color" id="w-accent" value="'+esc(w.accent)+'">'
-      +     '<input type="text" id="w-accent-hex" value="'+esc(w.accent)+'">'
-      +     '<div class="swatches">'+swatches.map(function(c){ return '<button class="swatch" data-swatch="'+c+'" style="background:'+c+'" aria-label="'+c+'"></button>'; }).join("")+'</div>'
+      +     '<input type="text" id="w-accent-hex" value="'+esc(w.accent)+'" maxlength="7" spellcheck="false">'
+      +     '<div class="swatches" id="w-swatches"></div>'
       +   '</div></div>'
       + '<div class="field"><label class="lbl">Sarok lekerekítés</label>'
-      +   '<div class="rangerow"><input type="range" id="w-radius" min="0" max="24" step="1" value="'+(w.radius||14)+'">'
-      +   '<span class="rv" id="w-radius-v">'+(w.radius||14)+'px</span></div></div>'
+      +   '<div class="rangerow"><input type="range" id="w-radius" min="0" max="24" step="1" value="'+rad+'">'
+      +   '<span class="rv" id="w-radius-v">'+rad+'px</span></div></div>'
       + '<div class="field"><label class="lbl">Betűtípus</label><select id="w-font">'+fontOpts+'</select></div>'
+      + '<div class="field"><label class="lbl">Pénznem-választó a widgetben</label>'
+      +   '<label class="check2"><input type="checkbox" id="w-ccy-toggle"'+(w.currencyPicker?" checked":"")+'> Megjelenjen a vásárlónál</label></div>'
+      + '<div class="field"><label class="lbl">Elérhető pénznemek</label><div class="ccy-chips" id="w-ccy-chips">'+ccyChips+'</div>'
+      +   '<div class="hint">A HUF az alap; a többi tájékoztató árfolyamon jelenik meg.</div></div>'
       + '<div class="field"><label class="lbl">Fejléc cím</label><input type="text" id="w-heading" value="'+esc(w.heading)+'"></div>'
       + '<div class="field"><label class="lbl">Bevezető szöveg</label><textarea id="w-intro">'+esc(w.intro)+'</textarea></div>'
       + '<div class="field"><label class="lbl">Beváltási feltételek</label><textarea id="w-terms">'+esc(w.terms)+'</textarea></div>'
@@ -930,18 +996,56 @@
 
     var api = mountWidget($("#wprev"), w, u);
     $("#wsnippet").textContent = widgetSnippet(state.unit);
+    function remount(){ api = mountWidget($("#wprev"), w, u); }
 
-    $("#w-accent").addEventListener("input", function(e){ w.accent = e.target.value; $("#w-accent-hex").value = e.target.value; api.applyTheme(); });
-    $("#w-accent-hex").addEventListener("input", function(e){ w.accent = e.target.value; $("#w-accent").value = e.target.value; api.applyTheme(); });
+    // Mentett színek renderelése (törlés + jelenlegi mentése)
+    function renderSwatches(){
+      $("#w-swatches").innerHTML = SWATCHES.map(function(c){
+        return '<span class="swatch" data-swatch="'+c+'" style="background:'+c+'" title="'+c+'"><button class="sw-del" data-del="'+c+'" aria-label="Törlés">×</button></span>';
+      }).join("") + '<button class="swatch add" id="w-swatch-add" title="Jelenlegi szín mentése">+</button>';
+    }
+    renderSwatches();
+
+    function setAccent(c){
+      w.accent = c;
+      $("#w-accent").value = c;
+      $("#w-accent-hex").value = c;
+      $("#w-accent-hex").classList.remove("bad");
+      api.applyTheme();
+    }
+
+    $("#w-accent").addEventListener("input", function(e){ setAccent(e.target.value); });
+    $("#w-accent-hex").addEventListener("input", function(e){
+      var v = e.target.value.trim();
+      if (isHex(v)) { e.target.classList.remove("bad"); w.accent = v; $("#w-accent").value = v; api.applyTheme(); }
+      else { e.target.classList.add("bad"); }   // érvénytelen hex: nem alkalmazzuk
+    });
+    $("#w-swatches").addEventListener("click", function(e){
+      var del = e.target.closest(".sw-del");
+      if (del) { SWATCHES = SWATCHES.filter(function(x){ return x !== del.dataset.del; }); saveSwatches(); renderSwatches(); return; }
+      if (e.target.closest("#w-swatch-add")) {
+        if (isHex(w.accent) && SWATCHES.indexOf(w.accent) === -1) { SWATCHES.push(w.accent); saveSwatches(); renderSwatches(); }
+        return;
+      }
+      var sw = e.target.closest(".swatch[data-swatch]");
+      if (sw) setAccent(sw.dataset.swatch);
+    });
+
     $("#w-radius").addEventListener("input", function(e){ w.radius = +e.target.value; $("#w-radius-v").textContent = w.radius + "px"; api.applyTheme(); });
     $("#w-font").addEventListener("change", function(e){ w.font = e.target.value; api.applyTheme(); });
     $("#w-heading").addEventListener("input", function(e){ w.heading = e.target.value; api.refreshText(); });
     $("#w-intro").addEventListener("input", function(e){ w.intro = e.target.value; api.refreshText(); });
     $("#w-terms").addEventListener("input", function(e){ w.terms = e.target.value; });
     $("#w-contact").addEventListener("input", function(e){ w.contact = e.target.value; });
-    document.querySelectorAll("#wed-form .swatch").forEach(function(b){
-      b.addEventListener("click", function(){ w.accent = b.dataset.swatch;
-        $("#w-accent").value = w.accent; $("#w-accent-hex").value = w.accent; api.applyTheme(); });
+
+    // Pénznem-vezérlők (a fejléc választóját érintik → újramountoljuk az előnézetet)
+    $("#w-ccy-toggle").addEventListener("change", function(e){ w.currencyPicker = e.target.checked; remount(); });
+    $("#w-ccy-chips").addEventListener("click", function(e){
+      var chip = e.target.closest(".ccy-chip"); if (!chip || chip.disabled) return;
+      var c = chip.dataset.ccyChip, i = w.currencies.indexOf(c);
+      if (i > -1) w.currencies.splice(i, 1); else w.currencies.push(c);
+      chip.setAttribute("aria-pressed", w.currencies.indexOf(c) > -1);
+      remount();
     });
   }
 
