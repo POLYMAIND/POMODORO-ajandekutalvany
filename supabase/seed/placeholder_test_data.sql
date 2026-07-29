@@ -12,6 +12,8 @@
 -- (Fiktív, example.com e-mailek.)
 -- ============================================================
 
+set search_path = voucher, public, extensions;
+
 -- ---------- Címletek a többi egységhez ----------
 insert into voucher_denomination (unit_id, amount, label, sort_order)
 select (select id from unit where slug = x.slug), x.amt, x.amt || ' Ft értékű ajándékutalvány', x.ord

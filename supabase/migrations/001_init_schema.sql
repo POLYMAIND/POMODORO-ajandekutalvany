@@ -1,12 +1,18 @@
 -- ============================================================
 -- Ajándékutalvány rendszer — alap séma (multi-tenant, per-unit)
 -- Cél: Supabase / PostgreSQL 15+
--- Egy adatbázis, unitonként (Casa / Osteria / Pizzabar / Trattoria)
--- teljesen elkülönített adat RLS-sel. Szigorú számadás: hézagmentes
--- per-unit sorszám + hézagmentes audit napló, törlés sehol.
+-- IZOLÁLT `voucher` SÉMÁBAN — hogy egy megosztott projekten se keveredjen
+-- a meglévő (public) rendszerrel. Minden objektum a voucher sémába kerül.
+-- Szigorú számadás: hézagmentes per-unit sorszám + hézagmentes audit napló,
+-- törlés sehol.
 -- ============================================================
 
-create extension if not exists pgcrypto;   -- gen_random_uuid()
+create extension if not exists pgcrypto;   -- gen_random_uuid(), digest(), gen_random_bytes()
+create schema if not exists voucher;
+
+-- A migráció alatt minden névtelen objektum a voucher sémába kerüljön.
+-- (Hiányzó séma a search_path-ban nem hiba, egyszerűen kimarad.)
+set search_path = voucher, public, extensions;
 
 -- ---------- Enumok ----------
 create type order_status  as enum ('pending', 'paid', 'cancelled', 'expired');
@@ -17,21 +23,20 @@ create type user_role     as enum ('group_admin', 'unit_admin', 'cashier');
 -- ---------- unit: a bérlő / egység (külön cég, külön adószám) ----------
 create table unit (
   id              uuid primary key default gen_random_uuid(),
-  slug            text not null unique,              -- 'casa', 'osteria', 'pizzabar', 'trattoria'
-  name            text not null,                     -- 'Casa Pomo d''Oro'
-  serial_prefix   text not null,                     -- 'CASA', 'OST', 'PIZ', 'TRA'
-  company_name    text,                              -- üzemeltető cég
-  tax_number      text,                              -- adószám (szigorú számadás cégre szól)
+  slug            text not null unique,
+  name            text not null,
+  serial_prefix   text not null,
+  company_name    text,
+  tax_number      text,
   currency        text not null default 'HUF',
-  validity_months int  not null default 12,          -- érvényesség vásárlástól (RESnWEB: 1 év)
-  allowed_origin  text,                              -- iframe host (CORS / frame-ancestors)
-  payment_config  jsonb not null default '{}'::jsonb,-- per-unit fizetési kulcsok (SimplePay/Stripe)
+  validity_months int  not null default 12,
+  allowed_origin  text,
+  payment_config  jsonb not null default '{}'::jsonb,
   active          bool not null default true,
   created_at      timestamptz not null default now()
 );
 
 -- ---------- app_user: admin / kasszás profil (auth.users kiterjesztése) ----------
--- Supabase: id = auth.users.id. Group_admin: unit_id = null (mind látja).
 create table app_user (
   id         uuid primary key,                       -- = auth.uid()
   unit_id    uuid references unit(id) on delete restrict,
@@ -44,7 +49,7 @@ create table app_user (
 create table voucher_image (
   id           uuid primary key default gen_random_uuid(),
   unit_id      uuid not null references unit(id) on delete cascade,
-  storage_path text not null,                        -- Supabase storage kulcs
+  storage_path text not null,
   title        text,
   sort_order   int  not null default 0,
   active       bool not null default true,
@@ -55,8 +60,8 @@ create table voucher_image (
 create table voucher_denomination (
   id         uuid primary key default gen_random_uuid(),
   unit_id    uuid not null references unit(id) on delete cascade,
-  amount     int  not null check (amount > 0),       -- 30000
-  label      text not null,                          -- '30 000 Ft értékű ajándékutalvány'
+  amount     int  not null check (amount > 0),
+  label      text not null,
   description text,
   image_id   uuid references voucher_image(id) on delete set null,
   sort_order int  not null default 0,
@@ -76,7 +81,7 @@ create table serial_counter (
 create table voucher_order (
   id                uuid primary key default gen_random_uuid(),
   unit_id           uuid not null references unit(id) on delete restrict,
-  order_ref         text not null unique,            -- publikus rendelésazonosító
+  order_ref         text not null unique,
   buyer_name        text,
   buyer_email       text,
   buyer_phone       text,
@@ -86,10 +91,10 @@ create table voucher_order (
   buyer_address     text,
   total_amount      int  not null default 0,
   status            order_status not null default 'pending',
-  payment_provider  text,                            -- 'simplepay' / 'stripe'
-  payment_ref       text,                            -- tranzakció / payment_intent
-  paid_at           timestamptz,                     -- fizetés teljesülése
-  corporate_flagged bool not null default false,     -- céges név/adószám észlelve
+  payment_provider  text,
+  payment_ref       text,
+  paid_at           timestamptz,
+  corporate_flagged bool not null default false,
   raw               jsonb not null default '{}'::jsonb,
   created_at        timestamptz not null default now()
 );
@@ -98,25 +103,24 @@ create table voucher_order (
 create table voucher (
   id             uuid primary key default gen_random_uuid(),
   unit_id        uuid not null references unit(id) on delete restrict,
-  order_id       uuid references voucher_order(id) on delete restrict, -- import esetén null
-  serial         text not null,                      -- új: 'CASA-2026-000042' | legacy: 'EIZQHA4AKRYF8'
-  is_legacy      bool not null default false,        -- RESnWEB-ből importált
+  order_id       uuid references voucher_order(id) on delete restrict,
+  serial         text not null,
+  is_legacy      bool not null default false,
   amount         int  not null check (amount > 0),
-  denomination_label text,                           -- pillanatkép a névről
+  denomination_label text,
   status         voucher_status not null default 'pending',
-  giver_name     text,                               -- ajándékozó neve
-  recipient_name text,                               -- megajándékozott neve
-  message        text,                               -- üzenet a megajándékozottnak
+  giver_name     text,
+  recipient_name text,
+  message        text,
   image_id       uuid references voucher_image(id) on delete set null,
   delivery_email text,
-  pdf_path       text,                               -- generált PDF storage kulcs
-  qr_token       text unique,                        -- QR-beváltás tokenje (új utalványok)
+  pdf_path       text,
+  qr_token       text unique,
   valid_from     date,
   valid_until    date,
   redeemed_at    timestamptz,
   redeemed_by    uuid references app_user(id) on delete set null,
   created_at     timestamptz not null default now(),
-  -- a sorszám unitonként egyedi (legacy és új is beleférjen)
   unique (unit_id, serial)
 );
 
@@ -128,7 +132,7 @@ create table voucher_audit (
   action      audit_action not null,
   from_status voucher_status,
   to_status   voucher_status,
-  actor       text not null default 'system',        -- auth.uid() szövegként, vagy 'webhook'/'import'
+  actor       text not null default 'system',
   detail      jsonb not null default '{}'::jsonb,
   occurred_at timestamptz not null default now()
 );
@@ -150,6 +154,7 @@ create index idx_audit_unit_time on voucher_audit(unit_id, occurred_at);
 create or replace function allocate_serial(p_unit uuid)
 returns text
 language plpgsql
+set search_path = voucher, public, extensions
 as $$
 declare
   v_year   int := extract(year from now())::int;
@@ -161,8 +166,6 @@ begin
     raise exception 'Ismeretlen unit: %', p_unit;
   end if;
 
-  -- A counter sorára szerzett zár garantálja a hézagmentességet
-  -- párhuzamos fizetések esetén is.
   insert into serial_counter (unit_id, year, last_value)
        values (p_unit, v_year, 1)
   on conflict (unit_id, year)
@@ -179,6 +182,7 @@ $$;
 create or replace function log_voucher_change()
 returns trigger
 language plpgsql
+set search_path = voucher, public, extensions
 as $$
 declare
   v_action audit_action;
@@ -210,13 +214,12 @@ for each row execute function log_voucher_change();
 
 -- ============================================================
 -- Fizetés jóváírása (webhookból hívandó, service_role)
--- Beállítja a rendelést fizetettre, minden utalványának sorszámot
--- ad, aktívra állítja és beállítja az érvényességet.
 -- ============================================================
 create or replace function mark_order_paid(p_order uuid, p_paid_at timestamptz, p_ref text)
 returns void
 language plpgsql
 security definer
+set search_path = voucher, public, extensions
 as $$
 declare
   r_unit uuid;
@@ -255,6 +258,7 @@ create or replace function redeem_voucher(p_voucher uuid)
 returns voucher
 language plpgsql
 security definer
+set search_path = voucher, public, extensions
 as $$
 declare
   v voucher;
@@ -279,14 +283,14 @@ end;
 $$;
 
 -- ============================================================
--- Publikus katalógus a widgetnek (anon hívható, RLS-t megkerüli,
--- de csak a nyilvános mezőket adja vissza)
+-- Publikus katalógus a widgetnek (anon hívható, RLS-t megkerüli)
 -- ============================================================
 create or replace function public_catalog(p_slug text)
 returns jsonb
 language sql
 security definer
 stable
+set search_path = voucher, public, extensions
 as $$
   select jsonb_build_object(
     'unit', jsonb_build_object('slug', u.slug, 'name', u.name, 'currency', u.currency),
@@ -308,12 +312,14 @@ $$;
 -- RLS: per-unit izoláció
 -- ============================================================
 create or replace function current_user_unit()
-returns uuid language sql stable as $$
+returns uuid language sql stable
+set search_path = voucher, public, extensions as $$
   select unit_id from app_user where id = auth.uid();
 $$;
 
 create or replace function is_group_admin()
-returns bool language sql stable as $$
+returns bool language sql stable
+set search_path = voucher, public, extensions as $$
   select exists (select 1 from app_user where id = auth.uid() and role = 'group_admin');
 $$;
 
@@ -326,7 +332,6 @@ alter table voucher_order        enable row level security;
 alter table voucher              enable row level security;
 alter table voucher_audit        enable row level security;
 
--- Alap minta: group_admin mindent lát, mindenki más csak a saját unitját.
 create policy unit_read   on unit              for select using (is_group_admin() or id = current_user_unit());
 create policy img_all     on voucher_image        using (is_group_admin() or unit_id = current_user_unit());
 create policy denom_all   on voucher_denomination using (is_group_admin() or unit_id = current_user_unit());
@@ -335,15 +340,12 @@ create policy voucher_all on voucher              using (is_group_admin() or uni
 create policy audit_read  on voucher_audit     for select using (is_group_admin() or unit_id = current_user_unit());
 create policy user_self   on app_user          for select using (is_group_admin() or id = auth.uid());
 
--- Írási jog a katalógusra csak admin szerepnek (kasszás nem ír).
 create policy denom_write on voucher_denomination for all
   using (is_group_admin() or (unit_id = current_user_unit()
          and exists (select 1 from app_user where id = auth.uid() and role in ('group_admin','unit_admin'))));
 
--- serial_counter / audit írása csak SECURITY DEFINER függvényeken keresztül.
-
 -- ============================================================
--- Seed: a négy egység (a címleteket / prefixeket igazítsátok)
+-- Seed: a négy egység + a Casa címletei
 -- ============================================================
 insert into unit (slug, name, serial_prefix, currency, validity_months) values
   ('casa',      'Casa Pomo d''Oro',      'CASA', 'HUF', 12),
@@ -351,7 +353,6 @@ insert into unit (slug, name, serial_prefix, currency, validity_months) values
   ('pizzabar',  'Pizzabar Pomo d''Oro',  'PIZ',  'HUF', 12),
   ('trattoria', 'Trattoria Pomo d''Oro', 'TRA',  'HUF', 12);
 
--- Casa címletek (a screenshot alapján). A többi egységé kitöltendő.
 insert into voucher_denomination (unit_id, amount, label, sort_order)
 select u.id, x.amount, x.amount || ' Ft értékű ajándékutalvány', x.ord
 from unit u,

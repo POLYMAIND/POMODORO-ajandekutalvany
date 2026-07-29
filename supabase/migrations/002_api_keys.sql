@@ -1,6 +1,9 @@
 -- ============================================================
 -- 002 — API-hozzáférés a CRM-nek + inkrementális szinkron
+-- (a `voucher` sémában)
 -- ============================================================
+
+set search_path = voucher, public, extensions;
 
 -- ---------- marketing hozzájárulás a rendelésen ----------
 alter table voucher_order
@@ -11,7 +14,8 @@ alter table voucher_order add column if not exists updated_at timestamptz not nu
 alter table voucher       add column if not exists updated_at timestamptz not null default now();
 
 create or replace function touch_updated_at()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql
+set search_path = voucher, public, extensions as $$
 begin
   new.updated_at := now();
   return new;
@@ -56,6 +60,7 @@ create or replace function create_api_key(p_name text, p_unit uuid default null)
 returns table(api_key_id uuid, raw_key text)
 language plpgsql
 security definer
+set search_path = voucher, public, extensions
 as $$
 declare
   v_raw  text := 'pk_' || encode(gen_random_bytes(24), 'hex');

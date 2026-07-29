@@ -44,7 +44,10 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "GET") return json(405, { error: "Csak GET" });
 
-  const admin = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } });
+  const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
+    db: { schema: "voucher" },            // a voucher sémát olvassuk (nem a public-ot)
+    auth: { persistSession: false },
+  });
 
   // --- API kulcs ---
   const raw = (req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ||

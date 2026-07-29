@@ -27,10 +27,17 @@ supabase link --project-ref <PROJECT_REF>
 
 ## 2. Séma feltöltése (éles + teszt egyaránt)
 A `supabase/migrations/` tartalma (001 = séma + 4 egység + Casa címletek,
-002 = API-kulcsok + inkrementális szinkron mezők):
+002 = API-kulcsok + inkrementális szinkron mezők). **Minden objektum a külön
+`voucher` sémába kerül**, így nem keveredik a projekt meglévő (`public`) rendszerével:
 ```bash
 supabase db push
 ```
+
+## 2b. A `voucher` séma elérhetővé tétele az API-nak
+Mivel a tábláink a `voucher` sémában vannak, a REST/JS klienst (amit az Edge
+Function is használ) engedélyezni kell rájuk:
+Dashboard → **Project Settings → API → Exposed schemas** → add hozzá: `voucher`
+(a `public`, `graphql_public` mellé). Mentés.
 
 ## 3. Teszt-adat — CSAK teszt/staging projekten
 ```bash
@@ -53,12 +60,13 @@ supabase functions deploy crm-api --no-verify-jwt
 ## 5. API-kulcs létrehozása
 Az SQL editorban (vagy psql-lel). A **nyers kulcs csak egyszer** látszik, utána
 csak a hash marad:
+A függvények a `voucher` sémában vannak, ezért séma-minősítve hívd:
 ```sql
 -- teljes hozzáférés (mind a négy egység):
-select * from create_api_key('CRM – teljes', null);
+select * from voucher.create_api_key('CRM – teljes', null);
 
 -- vagy csak egy egységre korlátozva:
-select * from create_api_key('CRM – csak Casa', (select id from unit where slug = 'casa'));
+select * from voucher.create_api_key('CRM – csak Casa', (select id from voucher.unit where slug = 'casa'));
 ```
 Másold ki a `raw_key` értékét (pl. `pk_...`), ezt kapja a CRM.
 
