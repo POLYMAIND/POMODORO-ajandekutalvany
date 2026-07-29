@@ -21,8 +21,26 @@ prototype/
                           ágyazza be + a másolható beágyazó kód (nyisd meg ezt)
 supabase/
   migrations/
-    001_init_schema.sql → az adatbázis-séma (Postgres/Supabase), a projekt-átadóból
+    001_init_schema.sql        → adatbázis-séma + 4 egység + Casa címletek
+    002_api_keys.sql           → CRM API-kulcsok + inkrementális szinkron (updated_at) + marketing-flag
+  seed/
+    placeholder_test_data.sql  → teszt-adat (CSAK teszt/staging projekten!)
+  functions/
+    crm-api/index.ts           → CRM olvasó API (Edge Function, API-kulcsos)
+  SETUP.md                     → beüzemelés lépésről lépésre + teszthívások
 ```
+
+### CRM / Supabase összekötés
+
+A `supabase/SETUP.md` végigvezet: séma feltöltése (`supabase db push`), az
+API (Edge Function) telepítése (`supabase functions deploy crm-api --no-verify-jwt`),
+API-kulcs létrehozása (`select * from create_api_key(...)`) és a teszthívások.
+A CRM `x-api-key` fejléccel hívja a `/crm-api/orders`, `/vouchers`, `/customers`
+végpontokat; a szinkron inkrementális (`updated_since` / `cursor`), a kulcs
+egységre korlátozható. A helyi PostgreSQL 16 validálta a migrációkat + seedet.
+
+> A rendszer szigorú számadású (törlés sehol) — a placeholder seed csak
+> teszt/staging projekten futtatható, éles DB-be soha.
 
 ### Widget beágyazás
 
