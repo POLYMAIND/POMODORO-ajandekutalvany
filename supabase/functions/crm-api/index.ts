@@ -49,9 +49,14 @@ Deno.serve(async (req) => {
     auth: { persistSession: false },
   });
 
-  // --- API kulcs ---
-  const raw = (req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ||
-    req.headers.get("x-api-key") || "").trim();
+  const url = new URL(req.url);
+
+  // --- API kulcs (fejléc VAGY ?api_key= query param böngészős teszthez) ---
+  // Megjegyzés: a query-paraméteres kulcs kényelmes teszthez, de URL-ekben
+  // naplózódhat — élesben inkább az x-api-key fejlécet használd.
+  const raw = (req.headers.get("x-api-key") ||
+    url.searchParams.get("api_key") ||
+    req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || "").trim();
   if (!raw) return json(401, { error: "Hiányzó API kulcs" });
 
   const hash = await sha256hex(raw);
@@ -62,7 +67,6 @@ Deno.serve(async (req) => {
   // last_used_at frissítése (tűz-és-felejtsd)
   admin.from("api_key").update({ last_used_at: new Date().toISOString() }).eq("id", key.id).then(() => {});
 
-  const url = new URL(req.url);
   const resource = url.pathname.split("/").filter(Boolean).pop();
   const sinceParam = url.searchParams.get("updated_since");
   const cursor = url.searchParams.get("cursor");
