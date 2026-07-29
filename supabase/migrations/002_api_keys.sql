@@ -56,6 +56,20 @@ alter table api_key enable row level security;
 --   select * from create_api_key('CRM – teljes', null);
 --   select * from create_api_key('CRM – csak Casa', (select id from unit where slug='casa'));
 -- ============================================================
+-- ============================================================
+-- Jogosultságok a Supabase API-szerepeknek a voucher sémára.
+-- (Egyedi sémán ez nem automatikus, mint a public-nál — kézzel kell.)
+-- A service_role (Edge Function / szerveroldal) teljes hozzáférés;
+-- az anon/authenticated csak USAGE (a táblákhoz RLS + policy szabályoz).
+-- ============================================================
+grant usage on schema voucher to anon, authenticated, service_role;
+grant all privileges on all tables    in schema voucher to service_role;
+grant all privileges on all sequences in schema voucher to service_role;
+grant execute on all routines         in schema voucher to service_role;
+alter default privileges in schema voucher grant all on tables      to service_role;
+alter default privileges in schema voucher grant all on sequences   to service_role;
+alter default privileges in schema voucher grant execute on routines to service_role;
+
 create or replace function create_api_key(p_name text, p_unit uuid default null)
 returns table(api_key_id uuid, raw_key text)
 language plpgsql
