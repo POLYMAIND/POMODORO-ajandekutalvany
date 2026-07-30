@@ -1,0 +1,10 @@
+{
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "rewrites": [
+    { "source": "/", "destination": "/prototype/embed-demo.html" },
+    { "source": "/admin", "destination": "/prototype/admin.html" },
+    { "source": "/widget", "destination": "/prototype/widget.html" },
+    { "source": "/embed", "destination": "/prototype/embed-demo.html" }
+  ]
+}

@@ -1,0 +1,4 @@
+# A Vercel csak a statikus frontendet szolgálja ki.
+# A backend/dokumentumok nem kellenek a webre:
+supabase/
+*.md
