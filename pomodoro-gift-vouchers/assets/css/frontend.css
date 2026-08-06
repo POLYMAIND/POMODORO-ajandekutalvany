@@ -1,0 +1,86 @@
+/* A megjelenést alapvetően a téma adja; itt csak a személyre szabó mezők
+   használható elrendezése és a figyelmeztetés stílusa van. */
+
+.pgv-fields {
+	margin: 1em 0 1.5em;
+}
+
+.pgv-field {
+	margin-bottom: 1em;
+}
+
+.pgv-label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 0.35em;
+}
+
+.pgv-opt {
+	font-weight: 400;
+	opacity: 0.6;
+	font-size: 0.9em;
+}
+
+.pgv-input {
+	width: 100%;
+	max-width: 480px;
+}
+
+/* Képválasztó */
+.pgv-images {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+.pgv-image-choice {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	width: 96px;
+	cursor: pointer;
+	border: 2px solid transparent;
+	border-radius: 8px;
+	padding: 4px;
+	transition: border-color 0.15s ease;
+}
+
+.pgv-image-choice input {
+	position: absolute;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.pgv-image-choice:has( input:checked ) {
+	border-color: #ff6347; /* tomato akcentus */
+}
+
+.pgv-image-thumb img {
+	width: 84px;
+	height: 84px;
+	object-fit: cover;
+	border-radius: 6px;
+	display: block;
+}
+
+.pgv-image-name {
+	font-size: 0.82em;
+	text-align: center;
+	margin-top: 4px;
+}
+
+.pgv-radio {
+	display: block;
+	margin: 0.25em 0;
+}
+
+/* Figyelmeztetés */
+.pgv-corp-warn {
+	margin-top: 0.75em;
+	padding: 0.75em 1em;
+	border-left: 4px solid #ff6347;
+	background: #fff4f1;
+	color: #7a2e1d;
+	border-radius: 4px;
+	font-size: 0.92em;
+}
