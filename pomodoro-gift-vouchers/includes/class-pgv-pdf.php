@@ -71,17 +71,21 @@ class PGV_PDF {
 		$right = $w - 10 * self::MM;
 		$top   = $h - 16 * self::MM;
 
-		// Logó (ha van), a szövegoszlop tetején.
+		// Logó (ha van), a szövegoszlop tetején — arányosan, nagyobb dobozban.
+		$has_logo = false;
 		if ( $logo_path && function_exists( 'imagecreatefromstring' ) ) {
 			$logo = $pdf->add_image_from_file( $logo_path );
 			if ( $logo ) {
-				$pdf->draw_image_fit( $logo, $x, $top - 16 * self::MM, 55 * self::MM, 16 * self::MM, 'left', 'top' );
-				$top -= 22 * self::MM;
+				$logo_box_w = 52 * self::MM;
+				$logo_box_h = 30 * self::MM;
+				$pdf->draw_image_fit( $logo, $x, $top - $logo_box_h, $logo_box_w, $logo_box_h, 'left', 'top' );
+				$top     -= $logo_box_h + 6 * self::MM;
+				$has_logo = true;
 			}
 		}
 
-		// Egység neve (akcent).
-		if ( $unit_name ) {
+		// Egység neve (akcent) — csak akkor, ha NINCS logó.
+		if ( $unit_name && ! $has_logo ) {
 			$pdf->text( $x, $top, $unit_name, 12, true, 0.9, 0.34, 0.26 );
 			$top -= 9 * self::MM;
 		}
@@ -224,7 +228,7 @@ class PGV_PDF {
 		imagefill( $flat, 0, 0, $white );
 		imagecopy( $flat, $im, 0, 0, $sx0, $sy0, $cw, $ch );
 		ob_start();
-		imagejpeg( $flat, null, 86 );
+		imagejpeg( $flat, null, 92 );
 		$jpeg = ob_get_clean();
 		imagedestroy( $im );
 		imagedestroy( $flat );
