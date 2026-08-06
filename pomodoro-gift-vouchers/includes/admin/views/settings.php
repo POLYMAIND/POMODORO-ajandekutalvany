@@ -64,6 +64,24 @@ $api_key = get_option( 'pgv_api_key' );
 				<th><?php esc_html_e( 'Aktív', 'pomodoro-gift-vouchers' ); ?></th>
 				<td><label><input type="checkbox" name="active" value="1" <?php checked( $s['active'], 1 ); ?>> <?php esc_html_e( 'Az egység értékesít utalványt', 'pomodoro-gift-vouchers' ); ?></label></td>
 			</tr>
+			<tr>
+				<th><?php esc_html_e( 'Logó', 'pomodoro-gift-vouchers' ); ?></th>
+				<td>
+					<?php
+					$logo_id  = (int) $s['logo_attachment_id'];
+					$logo_url = $logo_id ? wp_get_attachment_image_url( $logo_id, 'medium' ) : '';
+					?>
+					<input type="hidden" name="logo_attachment_id" id="pgv_logo_id" value="<?php echo esc_attr( $logo_id ); ?>">
+					<div id="pgv-logo-preview" style="margin-bottom:8px">
+						<?php if ( $logo_url ) : ?>
+							<img src="<?php echo esc_url( $logo_url ); ?>" style="max-height:60px;height:auto;background:#f6f7f9;padding:6px;border-radius:6px">
+						<?php endif; ?>
+					</div>
+					<button type="button" class="button" id="pgv-pick-logo"><?php esc_html_e( 'Logó kiválasztása', 'pomodoro-gift-vouchers' ); ?></button>
+					<button type="button" class="button" id="pgv-remove-logo" <?php echo $logo_id ? '' : 'style="display:none"'; ?>><?php esc_html_e( 'Eltávolítás', 'pomodoro-gift-vouchers' ); ?></button>
+					<p class="description"><?php esc_html_e( 'Megjelenik az utalvány PDF-jén (a szövegoszlop tetején).', 'pomodoro-gift-vouchers' ); ?></p>
+				</td>
+			</tr>
 		</table>
 
 		<h2><?php esc_html_e( 'Kézbesítés / e-mail', 'pomodoro-gift-vouchers' ); ?></h2>

@@ -106,6 +106,7 @@ class PGV_Admin {
 				'currency'         => sanitize_text_field( $in['currency'] ?? 'HUF' ),
 				'validity_months'  => max( 1, (int) ( $in['validity_months'] ?? 12 ) ),
 				'active'           => empty( $in['active'] ) ? 0 : 1,
+				'logo_attachment_id' => absint( $in['logo_attachment_id'] ?? 0 ),
 				'from_email'       => sanitize_email( $in['from_email'] ?? '' ),
 				'from_name'        => sanitize_text_field( $in['from_name'] ?? '' ),
 				'marketing_label'  => sanitize_text_field( $in['marketing_label'] ?? '' ),

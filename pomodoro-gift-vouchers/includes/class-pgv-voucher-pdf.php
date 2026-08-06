@@ -46,7 +46,17 @@ class PGV_Voucher_PDF {
 			}
 		}
 
-		return PGV_PDF::voucher_pdf( $voucher, self::qr_data( $voucher ), $unit_name, $image_path );
+		// Logó (egységenként feltölthető a beállításokban).
+		$logo_path = '';
+		$logo_id   = (int) PGV_Settings::get( 'logo_attachment_id', 0 );
+		if ( $logo_id ) {
+			$lp = get_attached_file( $logo_id );
+			if ( $lp && file_exists( $lp ) ) {
+				$logo_path = $lp;
+			}
+		}
+
+		return PGV_PDF::voucher_pdf( $voucher, self::qr_data( $voucher ), $unit_name, $image_path, $logo_path );
 	}
 
 	/**

@@ -47,41 +47,53 @@ class PGV_PDF {
 	 * @param string $image_path Opcionális háttér/illusztráció fájl elérési út.
 	 * @return string PDF bájtok.
 	 */
-	public static function voucher_pdf( array $voucher, $qr_data, $unit_name = '', $image_path = '' ) {
+	public static function voucher_pdf( array $voucher, $qr_data, $unit_name = '', $image_path = '', $logo_path = '' ) {
 		$pdf = new self();
 
-		$w = $pdf->width;
-		$h = $pdf->height;
+		$w    = $pdf->width;
+		$h    = $pdf->height;
+		$half = $w / 2;
 
-		// Halvány keret.
-		$pdf->rect( 8 * self::MM, 8 * self::MM, $w - 16 * self::MM, $h - 16 * self::MM, 0.85, 0.85, 0.85, false );
-
-		// Illusztráció (bal oldali sáv), ha van és betölthető.
-		$img_right = 12 * self::MM;
+		// --- Bal fél: álló, teljes magasságú, padding nélküli (full-bleed) kép ---
 		if ( $image_path && function_exists( 'imagecreatefromstring' ) ) {
-			$name = $pdf->add_image_from_file( $image_path );
+			$target_ar = $half / $h; // A bal fél (álló) képaránya — erre vágjuk középre.
+			$name      = $pdf->add_image_from_file( $image_path, $target_ar );
 			if ( $name ) {
-				$box_w = 62 * self::MM;
-				$box_h = $h - 40 * self::MM;
-				$pdf->draw_image_fit( $name, 14 * self::MM, 20 * self::MM, $box_w, $box_h );
-				$img_right = 14 * self::MM + $box_w + 8 * self::MM;
+				$pdf->draw_image_exact( $name, 0, 0, $half, $h );
+			}
+		} else {
+			// Ha nincs kép: halvány placeholder a bal félen.
+			$pdf->rect( 0, 0, $half, $h, 0.94, 0.94, 0.93, true );
+		}
+
+		// --- Jobb fél: szövegoszlop ---
+		$x     = $half + 10 * self::MM;
+		$right = $w - 10 * self::MM;
+		$top   = $h - 16 * self::MM;
+
+		// Logó (ha van), a szövegoszlop tetején.
+		if ( $logo_path && function_exists( 'imagecreatefromstring' ) ) {
+			$logo = $pdf->add_image_from_file( $logo_path );
+			if ( $logo ) {
+				$pdf->draw_image_fit( $logo, $x, $top - 16 * self::MM, 55 * self::MM, 16 * self::MM, 'left', 'top' );
+				$top -= 22 * self::MM;
 			}
 		}
 
-		$x   = $img_right;
-		$top = $h - 22 * self::MM;
-
-		// Fejléc.
+		// Egység neve (akcent).
 		if ( $unit_name ) {
 			$pdf->text( $x, $top, $unit_name, 12, true, 0.9, 0.34, 0.26 );
+			$top -= 9 * self::MM;
 		}
-		$pdf->text( $x, $top - 9 * self::MM, 'AJÁNDÉKUTALVÁNY', 20, true, 0.13, 0.13, 0.13 );
+
+		$pdf->text( $x, $top, 'AJÁNDÉKUTALVÁNY', 19, true, 0.13, 0.13, 0.13 );
+		$top -= 13 * self::MM;
 
 		// Összeg.
 		$amount = number_format( (int) $voucher['amount'], 0, ',', ' ' ) . ' Ft';
-		$pdf->text( $x, $top - 22 * self::MM, $amount, 30, true, 0.13, 0.13, 0.13 );
+		$pdf->text( $x, $top, $amount, 28, true, 0.13, 0.13, 0.13 );
 
-		$cursor = $top - 33 * self::MM;
+		$cursor = $top - 12 * self::MM;
 
 		// Megajándékozott.
 		if ( ! empty( $voucher['recipient_name'] ) ) {
@@ -89,26 +101,26 @@ class PGV_PDF {
 			$cursor -= 7 * self::MM;
 		}
 
-		// Üzenet (tördelve).
+		// Üzenet (tördelve a keskenyebb oszlopra).
 		if ( ! empty( $voucher['message'] ) ) {
-			$lines = self::wrap( $voucher['message'], 46 );
-			foreach ( array_slice( $lines, 0, 4 ) as $line ) {
+			$lines = self::wrap( $voucher['message'], 34 );
+			foreach ( array_slice( $lines, 0, 5 ) as $line ) {
 				$pdf->text( $x, $cursor, $line, 10.5, false, 0.35, 0.35, 0.35 );
 				$cursor -= 5.5 * self::MM;
 			}
 		}
 
 		// Sorszám + érvényesség (alul).
-		$pdf->text( $x, 20 * self::MM, 'Sorszám: ' . $voucher['serial'], 11, true, 0.13, 0.13, 0.13 );
+		$pdf->text( $x, 22 * self::MM, 'Sorszám: ' . $voucher['serial'], 11, true, 0.13, 0.13, 0.13 );
 		if ( ! empty( $voucher['valid_until'] ) ) {
-			$pdf->text( $x, 14 * self::MM, 'Érvényes: ' . $voucher['valid_until'], 9, false, 0.45, 0.45, 0.45 );
+			$pdf->text( $x, 15 * self::MM, 'Érvényes: ' . $voucher['valid_until'], 9, false, 0.45, 0.45, 0.45 );
 		}
 
 		// QR (jobb-alsó sarok).
 		$qr = PGV_QR::matrix( $qr_data, PGV_QR::EC_M );
 		if ( ! is_wp_error( $qr ) ) {
-			$qr_size = 30 * self::MM;
-			$pdf->draw_qr( $qr, $w - 14 * self::MM - $qr_size, 14 * self::MM, $qr_size );
+			$qr_size = 26 * self::MM;
+			$pdf->draw_qr( $qr, $right - $qr_size, 14 * self::MM, $qr_size );
 		}
 
 		return $pdf->build();
@@ -177,7 +189,11 @@ class PGV_PDF {
 	// Kép (JPEG XObject, GD-vel bármilyen formátumból)
 	// ------------------------------------------------------------
 
-	private function add_image_from_file( $path ) {
+	/**
+	 * Kép betöltése JPEG XObjectként. Ha $target_ar > 0, a képet középre vágjuk erre a
+	 * képarányra (cover-crop), hogy padding nélkül, teljesen kitöltsön egy dobozt.
+	 */
+	private function add_image_from_file( $path, $target_ar = 0 ) {
 		$raw = @file_get_contents( $path ); // phpcs:ignore
 		if ( false === $raw ) {
 			return '';
@@ -186,31 +202,62 @@ class PGV_PDF {
 		if ( ! $im ) {
 			return '';
 		}
-		$w = imagesx( $im );
-		$h = imagesy( $im );
+		$sw = imagesx( $im );
+		$sh = imagesy( $im );
+
+		// Forrás-kivágás középre a cél-képarányhoz (cover).
+		$sx0 = 0;
+		$sy0 = 0;
+		$cw  = $sw;
+		$ch  = $sh;
+		if ( $target_ar > 0 && $sw > 0 && $sh > 0 ) {
+			$src_ar = $sw / $sh;
+			if ( $src_ar > $target_ar ) {
+				// Túl széles → oldalt vágunk.
+				$cw  = (int) round( $sh * $target_ar );
+				$sx0 = (int) round( ( $sw - $cw ) / 2 );
+			} else {
+				// Túl magas → fent/lent vágunk.
+				$ch  = (int) round( $sw / $target_ar );
+				$sy0 = (int) round( ( $sh - $ch ) / 2 );
+			}
+		}
 
 		// Fehér háttérre lapítás (átlátszóság kezelése), majd JPEG.
-		$flat = imagecreatetruecolor( $w, $h );
+		$flat  = imagecreatetruecolor( $cw, $ch );
 		$white = imagecolorallocate( $flat, 255, 255, 255 );
 		imagefill( $flat, 0, 0, $white );
-		imagecopy( $flat, $im, 0, 0, 0, 0, $w, $h );
+		imagecopy( $flat, $im, 0, 0, $sx0, $sy0, $cw, $ch );
 		ob_start();
-		imagejpeg( $flat, null, 82 );
+		imagejpeg( $flat, null, 86 );
 		$jpeg = ob_get_clean();
 		imagedestroy( $im );
 		imagedestroy( $flat );
 
 		$this->image_seq++;
-		$name = 'Im' . $this->image_seq;
+		$name                  = 'Im' . $this->image_seq;
 		$this->images[ $name ] = array(
-			'w'    => $w,
-			'h'    => $h,
+			'w'    => $cw,
+			'h'    => $ch,
 			'data' => $jpeg,
 		);
 		return $name;
 	}
 
-	private function draw_image_fit( $name, $x, $y, $box_w, $box_h ) {
+	/**
+	 * Kép pontos kitöltése egy dobozba (a kép már a doboz képarányára van vágva).
+	 */
+	private function draw_image_exact( $name, $x, $y, $w, $h ) {
+		$this->stream .= sprintf( "q %.2F 0 0 %.2F %.2F %.2F cm /%s Do Q\n", $w, $h, $x, $y, $name );
+	}
+
+	/**
+	 * Kép arányos beillesztése egy dobozba (letterbox), igazítással.
+	 *
+	 * @param string $halign left|center|right
+	 * @param string $valign top|middle|bottom
+	 */
+	private function draw_image_fit( $name, $x, $y, $box_w, $box_h, $halign = 'center', $valign = 'middle' ) {
 		$img = $this->images[ $name ];
 		$ar  = $img['w'] / $img['h'];
 		$bar = $box_w / $box_h;
@@ -221,8 +268,23 @@ class PGV_PDF {
 			$dh = $box_h;
 			$dw = $box_h * $ar;
 		}
-		$dx = $x + ( $box_w - $dw ) / 2;
-		$dy = $y + ( $box_h - $dh ) / 2;
+
+		if ( 'left' === $halign ) {
+			$dx = $x;
+		} elseif ( 'right' === $halign ) {
+			$dx = $x + ( $box_w - $dw );
+		} else {
+			$dx = $x + ( $box_w - $dw ) / 2;
+		}
+
+		if ( 'top' === $valign ) {
+			$dy = $y + ( $box_h - $dh );
+		} elseif ( 'bottom' === $valign ) {
+			$dy = $y;
+		} else {
+			$dy = $y + ( $box_h - $dh ) / 2;
+		}
+
 		$this->stream .= sprintf( "q %.2F 0 0 %.2F %.2F %.2F cm /%s Do Q\n", $dw, $dh, $dx, $dy, $name );
 	}
 

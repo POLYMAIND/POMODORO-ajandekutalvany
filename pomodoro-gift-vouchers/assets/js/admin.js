@@ -27,6 +27,36 @@
 			frame.open();
 		} );
 
+		// --- Logó választó (beállítások) ---
+		var logoFrame;
+		$( '#pgv-pick-logo' ).on( 'click', function ( e ) {
+			e.preventDefault();
+			if ( logoFrame ) {
+				logoFrame.open();
+				return;
+			}
+			logoFrame = wp.media( {
+				title: PGVAdmin.i18n.pickImage,
+				button: { text: PGVAdmin.i18n.pickImage },
+				library: { type: 'image' },
+				multiple: false
+			} );
+			logoFrame.on( 'select', function () {
+				var att = logoFrame.state().get( 'selection' ).first().toJSON();
+				$( '#pgv_logo_id' ).val( att.id );
+				var url = ( att.sizes && att.sizes.medium ) ? att.sizes.medium.url : att.url;
+				$( '#pgv-logo-preview' ).html( '<img src="' + url + '" style="max-height:60px;height:auto;background:#f6f7f9;padding:6px;border-radius:6px">' );
+				$( '#pgv-remove-logo' ).show();
+			} );
+			logoFrame.open();
+		} );
+		$( '#pgv-remove-logo' ).on( 'click', function ( e ) {
+			e.preventDefault();
+			$( '#pgv_logo_id' ).val( '' );
+			$( '#pgv-logo-preview' ).empty();
+			$( this ).hide();
+		} );
+
 		// --- E-mail újraküldés ---
 		$( document ).on( 'click', '.pgv-resend', function () {
 			var $btn = $( this );

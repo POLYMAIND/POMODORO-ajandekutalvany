@@ -172,6 +172,7 @@ function PGV_Settings_Defaults() {
 		'currency'            => 'HUF',
 		'validity_months'     => 12,
 		'active'              => 1,
+		'logo_attachment_id'  => 0,
 		'from_email'          => '',
 		'from_name'           => "Casa Pomo d'Oro",
 		'marketing_label'     => 'Szeretnék értesülni akciókról, újdonságokról.',
