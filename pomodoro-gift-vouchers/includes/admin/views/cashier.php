@@ -12,9 +12,9 @@ defined( 'ABSPATH' ) || exit;
 	<h1 class="pgv-title"><?php esc_html_e( 'Kassza — beváltás', 'pomodoro-gift-vouchers' ); ?></h1>
 
 	<div class="pgv-card pgv-cashier-card">
-		<p class="description"><?php echo esc_html( sprintf( __( 'Egység: %s. Írd be vagy olvasd be (QR) a sorszámot, majd Enter.', 'pomodoro-gift-vouchers' ), PGV_Settings::get( 'unit_name' ) ) ); ?></p>
+		<p class="description"><?php echo esc_html( sprintf( __( 'Egység: %s. Írd be a sorszámot, majd Enter.', 'pomodoro-gift-vouchers' ), PGV_Settings::get( 'unit_name' ) ) ); ?></p>
 		<div class="pgv-cashier-search">
-			<input type="text" id="pgv-cashier-input" class="pgv-cashier-input" autofocus placeholder="<?php esc_attr_e( 'CASA-2026-000042 vagy QR token', 'pomodoro-gift-vouchers' ); ?>">
+			<input type="text" id="pgv-cashier-input" class="pgv-cashier-input" autofocus placeholder="<?php esc_attr_e( 'pl. CASA-2026-000042', 'pomodoro-gift-vouchers' ); ?>">
 			<button type="button" class="button button-primary" id="pgv-cashier-lookup"><?php esc_html_e( 'Keresés', 'pomodoro-gift-vouchers' ); ?></button>
 		</div>
 

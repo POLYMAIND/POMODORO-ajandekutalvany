@@ -32,7 +32,7 @@ kasszás beváltást, NAV-formátumú CSV export/importot és CRM olvasó API-t 
 | 5. Sorszám fizetéskor | `woocommerce_payment_complete` / `_completed` / `_processing` — idempotensen |
 | 5. Legacy + új sorszám | `is_legacy` jelölés; mindkettő beváltható |
 | 6. NAV CSV export | `;` elválasztó, minden mező `"`-ben, UTF-8 BOM, CRLF; a megbeszélt 12 oszlop |
-| 8. E-mail + PDF/QR | **beépített, függőség nélküli PDF-utalvány** (kép + üdvözlő + megajándékozott + sorszám + **QR a sorszámból**) e-mail-csatolással; adminból újraküldés/letöltés; a `pgv_voucher_issued` hook a külső HTML→PDF rendszernek is; a beépített PDF a `pgv_use_builtin_pdf` szűrővel kikapcsolható |
+| 8. E-mail + PDF | **beépített, függőség nélküli PDF-utalvány** (kép + logó + üdvözlő + megajándékozott + sorszám) e-mail-csatolással; adminból újraküldés/letöltés; a `pgv_voucher_issued` hook a külső HTML→PDF rendszernek is; a beépített PDF a `pgv_use_builtin_pdf` szűrővel kikapcsolható |
 | 10. CRM | WooCommerce beépített REST + a plugin `/wp-json/pgv/v1/{vouchers,orders,customers}` olvasó API-ja, API-kulccsal, inkrementális szinkronnal |
 | 11. Legacy import | idempotens CSV import (kulcs: `Azonosító`), legacy ID megtartva, státusz-leképezéssel |
 | 12. Kasszás nézet | sorszám/QR keresés → egy kattintásos beváltás, lejárat-ellenőrzés, audit |
@@ -60,19 +60,17 @@ Hitelesítés: `x-api-key: pk_…` fejléc (vagy `Authorization: Bearer pk_…`,
 (csak a `sha256` hash-ét tároljuk). A válaszok a supabase `CRM_API.md` mezőit tükrözik,
 lapozással (`next_cursor`) és inkrementális szinkronnal.
 
-## PDF + QR (beépített)
+## PDF utalvány (beépített)
 
-- Minden utalványhoz **egyoldalas PDF-kártya** generálódik (A5-fekvő): egység neve,
-  „AJÁNDÉKUTALVÁNY”, a választott kép, összeg, megajándékozott + üzenet, sorszám,
-  érvényesség és **QR-kód a sorszámból**.
-- **Függőség nélküli**: saját QR-kódoló (byte mód, Reed–Solomon, maszk-választás,
-  a Python `qrcode` referenciával bitre ellenőrizve) + saját minimál PDF-író
-  (beépített Helvetica; a magyar **ő/ű** WinAnsi + Differences kódolással helyesen).
-  A kép beágyazása JPEG-ként (GD-vel, ha elérhető).
+- Minden utalványhoz **egyoldalas PDF-kártya** generálódik (A5-fekvő): bal oldalon
+  teljes magasságú (full-bleed) álló kép, jobb oldalon logó, egység neve,
+  „AJÁNDÉKUTALVÁNY”, összeg, megajándékozott + üzenet, sorszám, érvényesség.
+- **Függőség nélküli**: saját minimál PDF-író (beépített Helvetica; a magyar **ő/ű**
+  WinAnsi + Differences kódolással helyesen). A kép beágyazása JPEG-ként (GD-vel).
 - A PDF **determinisztikus** (nincs benne dátum/véletlen), ezért nem tároljuk —
   igény szerint (e-mail csatolás / admin letöltés) újragenerálódik, bit-azonosan.
 - E-mailhez automatikusan csatolódik; az admin utalványlistából és a rendelés-oldalról
-  letölthető; a kasszás a QR-t a sorszámra dekódolva egy kattintással bevált.
+  letölthető; a kasszás a **sorszám** alapján egy kattintással bevált.
 
 ## Kiterjesztési pontok (hookok)
 

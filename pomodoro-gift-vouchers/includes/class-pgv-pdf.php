@@ -111,17 +111,12 @@ class PGV_PDF {
 		}
 
 		// Sorszám + érvényesség (alul).
-		$pdf->text( $x, 22 * self::MM, 'Sorszám: ' . $voucher['serial'], 11, true, 0.13, 0.13, 0.13 );
+		$pdf->text( $x, 22 * self::MM, 'Sorszám: ' . $voucher['serial'], 12, true, 0.13, 0.13, 0.13 );
 		if ( ! empty( $voucher['valid_until'] ) ) {
 			$pdf->text( $x, 15 * self::MM, 'Érvényes: ' . $voucher['valid_until'], 9, false, 0.45, 0.45, 0.45 );
 		}
 
-		// QR (jobb-alsó sarok).
-		$qr = PGV_QR::matrix( $qr_data, PGV_QR::EC_M );
-		if ( ! is_wp_error( $qr ) ) {
-			$qr_size = 26 * self::MM;
-			$pdf->draw_qr( $qr, $right - $qr_size, 14 * self::MM, $qr_size );
-		}
+		unset( $qr_data, $right ); // QR nincs — a beváltás a sorszám alapján történik.
 
 		return $pdf->build();
 	}
