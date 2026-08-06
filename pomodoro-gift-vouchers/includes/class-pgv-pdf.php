@@ -79,7 +79,7 @@ class PGV_PDF {
 				$logo_box_w = 52 * self::MM;
 				$logo_box_h = 30 * self::MM;
 				$pdf->draw_image_fit( $logo, $x, $top - $logo_box_h, $logo_box_w, $logo_box_h, 'left', 'top' );
-				$top     -= $logo_box_h + 6 * self::MM;
+				$top     -= $logo_box_h + 14 * self::MM;
 				$has_logo = true;
 			}
 		}
