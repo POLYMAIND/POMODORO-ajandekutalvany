@@ -190,10 +190,11 @@ class PGV_Order {
 		echo '<div class="pgv-order-vouchers"><h3>' . esc_html__( 'Ajándékutalványok', 'pomodoro-gift-vouchers' ) . '</h3><ul>';
 		foreach ( $vouchers as $v ) {
 			printf(
-				'<li><code>%s</code> — %s Ft — <strong>%s</strong></li>',
+				'<li><code>%s</code> — %s Ft — <strong>%s</strong> — <a href="%s" target="_blank" rel="noopener">PDF</a></li>',
 				esc_html( $v['serial'] ),
 				esc_html( number_format_i18n( (int) $v['amount'] ) ),
-				esc_html( PGV_Vouchers::status_label( $v['status'] ) )
+				esc_html( PGV_Vouchers::status_label( $v['status'] ) ),
+				esc_url( PGV_Admin::pdf_url( (int) $v['id'] ) )
 			);
 		}
 		echo '</ul></div>';

@@ -18,8 +18,9 @@ class PGV_Admin {
 		add_action( 'admin_enqueue_scripts', array( $this, 'assets' ) );
 		add_action( 'admin_init', array( $this, 'handle_actions' ) );
 
-		// Export letöltés + AJAX beváltás/újraküldés.
+		// Export + PDF letöltés + AJAX beváltás/újraküldés.
 		add_action( 'admin_post_pgv_export', array( $this, 'do_export' ) );
+		add_action( 'admin_post_pgv_download_pdf', array( $this, 'do_download_pdf' ) );
 		add_action( 'wp_ajax_pgv_redeem', array( $this, 'ajax_redeem' ) );
 		add_action( 'wp_ajax_pgv_resend', array( $this, 'ajax_resend' ) );
 		add_action( 'wp_ajax_pgv_lookup', array( $this, 'ajax_lookup' ) );
@@ -165,6 +166,34 @@ class PGV_Admin {
 		);
 		$vouchers = $this->query_vouchers( $filters, 0, 100000 );
 		PGV_Export::download( $vouchers['rows'] );
+	}
+
+	/**
+	 * Egy utalvány PDF-jének letöltése (frissen generálva).
+	 */
+	public function do_download_pdf() {
+		if ( ! current_user_can( self::CAP ) || ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ), 'pgv_pdf' ) ) {
+			wp_die( esc_html__( 'Érvénytelen kérés.', 'pomodoro-gift-vouchers' ) );
+		}
+		$id = absint( $_GET['id'] ?? 0 );
+		$v  = PGV_Vouchers::get( $id );
+		if ( ! $v ) {
+			wp_die( esc_html__( 'Nincs ilyen utalvány.', 'pomodoro-gift-vouchers' ) );
+		}
+		PGV_Voucher_PDF::stream( $v );
+	}
+
+	/**
+	 * PDF letöltő URL egy utalványhoz (nonce-olt).
+	 */
+	public static function pdf_url( $voucher_id ) {
+		return wp_nonce_url(
+			add_query_arg(
+				array( 'action' => 'pgv_download_pdf', 'id' => (int) $voucher_id ),
+				admin_url( 'admin-post.php' )
+			),
+			'pgv_pdf'
+		);
 	}
 
 	// ------------------------------------------------------------

@@ -77,6 +77,7 @@ $export_url = wp_nonce_url(
 							<td><?php echo esc_html( $v['delivery_email'] ?: $v['buyer_email'] ); ?></td>
 							<td><?php echo esc_html( $v['valid_until'] ); ?></td>
 							<td class="pgv-row-actions">
+								<a class="button-link" href="<?php echo esc_url( PGV_Admin::pdf_url( (int) $v['id'] ) ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'PDF', 'pomodoro-gift-vouchers' ); ?></a>
 								<button type="button" class="button-link pgv-resend" data-id="<?php echo (int) $v['id']; ?>"><?php esc_html_e( 'E-mail újraküldés', 'pomodoro-gift-vouchers' ); ?></button>
 								<button type="button" class="button-link pgv-toggle-audit" data-id="<?php echo (int) $v['id']; ?>"><?php esc_html_e( 'Előzmény', 'pomodoro-gift-vouchers' ); ?></button>
 							</td>

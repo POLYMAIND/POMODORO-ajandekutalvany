@@ -35,10 +35,14 @@ final class PGV_Plugin {
 		require_once $dir . 'class-pgv-product.php';
 		require_once $dir . 'class-pgv-cart.php';
 		require_once $dir . 'class-pgv-checkout.php';
+		require_once $dir . 'class-pgv-blocks.php';
 		require_once $dir . 'class-pgv-order.php';
 		require_once $dir . 'class-pgv-emails.php';
 		require_once $dir . 'class-pgv-export.php';
 		require_once $dir . 'class-pgv-rest.php';
+		require_once $dir . 'lib/class-pgv-qr.php';
+		require_once $dir . 'class-pgv-pdf.php';
+		require_once $dir . 'class-pgv-voucher-pdf.php';
 
 		if ( is_admin() ) {
 			require_once $dir . 'admin/class-pgv-admin.php';
@@ -61,6 +65,7 @@ final class PGV_Plugin {
 		new PGV_Product();
 		new PGV_Cart();
 		new PGV_Checkout();
+		new PGV_Blocks();
 		new PGV_Order();
 		new PGV_Emails();
 		new PGV_REST();

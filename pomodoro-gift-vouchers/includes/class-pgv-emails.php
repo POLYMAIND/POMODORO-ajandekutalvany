@@ -35,19 +35,50 @@ class PGV_Emails {
 			return;
 		}
 
-		// 1) Vevői visszaigazoló az összes kibocsátott utalványról.
+		// 1) Vevői visszaigazoló az összes kibocsátott utalványról (minden PDF csatolva).
 		if ( is_email( $buyer_email ) ) {
-			$subject = sprintf( __( 'Ajándékutalvány(ok) — %s', 'pomodoro-gift-vouchers' ), PGV_Settings::get( 'unit_name' ) );
-			$body    = self::render_summary( $buyer_name, $issued, true );
-			self::send( $buyer_email, $subject, $body );
+			$subject     = sprintf( __( 'Ajándékutalvány(ok) — %s', 'pomodoro-gift-vouchers' ), PGV_Settings::get( 'unit_name' ) );
+			$body        = self::render_summary( $buyer_name, $issued, true );
+			$attachments = self::pdf_attachments( $issued );
+			self::send( $buyer_email, $subject, $body, $attachments );
+			self::cleanup( $attachments );
 		}
 
-		// 2) A megajándékozottnak kézbesített utalványok külön levélben.
+		// 2) A megajándékozottnak kézbesített utalványok külön levélben (saját PDF-fel).
 		foreach ( $issued as $v ) {
 			if ( 'recipient' === $v['delivery_method'] && is_email( $v['delivery_email'] ) ) {
-				$subject = __( 'Ajándékutalványt kaptál!', 'pomodoro-gift-vouchers' );
-				$body    = self::render_single( $v );
-				self::send( $v['delivery_email'], $subject, $body );
+				$subject     = __( 'Ajándékutalványt kaptál!', 'pomodoro-gift-vouchers' );
+				$body        = self::render_single( $v );
+				$attachments = self::pdf_attachments( array( $v ) );
+				self::send( $v['delivery_email'], $subject, $body, $attachments );
+				self::cleanup( $attachments );
+			}
+		}
+	}
+
+	/**
+	 * PDF csatolmányok előállítása (ideiglenes fájlokként), ha a beépített PDF aktív.
+	 *
+	 * @return string[] Fájl-útvonalak.
+	 */
+	private static function pdf_attachments( array $vouchers ) {
+		if ( ! class_exists( 'PGV_Voucher_PDF' ) || ! PGV_Voucher_PDF::enabled() ) {
+			return array();
+		}
+		$paths = array();
+		foreach ( $vouchers as $v ) {
+			$p = PGV_Voucher_PDF::to_temp_file( $v );
+			if ( ! is_wp_error( $p ) ) {
+				$paths[] = $p;
+			}
+		}
+		return $paths;
+	}
+
+	private static function cleanup( array $paths ) {
+		foreach ( $paths as $p ) {
+			if ( $p && file_exists( $p ) ) {
+				@unlink( $p ); // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions
 			}
 		}
 	}
@@ -64,14 +95,16 @@ class PGV_Emails {
 		if ( ! is_email( $to ) ) {
 			return new WP_Error( 'pgv_noemail', __( 'Nincs érvényes címzett e-mail cím.', 'pomodoro-gift-vouchers' ) );
 		}
-		$ok = self::send( $to, __( 'Ajándékutalvány', 'pomodoro-gift-vouchers' ), self::render_single( $v ) );
+		$attachments = self::pdf_attachments( array( $v ) );
+		$ok          = self::send( $to, __( 'Ajándékutalvány', 'pomodoro-gift-vouchers' ), self::render_single( $v ), $attachments );
+		self::cleanup( $attachments );
 		return $ok ? true : new WP_Error( 'pgv_send', __( 'Az e-mail küldése sikertelen.', 'pomodoro-gift-vouchers' ) );
 	}
 
 	/**
 	 * Levélküldés a beállított feladóval (per-egység).
 	 */
-	public static function send( $to, $subject, $html ) {
+	public static function send( $to, $subject, $html, $attachments = array() ) {
 		$from_name  = PGV_Settings::get( 'from_name' ) ?: get_bloginfo( 'name' );
 		$from_email = PGV_Settings::get( 'from_email' );
 
@@ -81,7 +114,7 @@ class PGV_Emails {
 		}
 
 		$html = apply_filters( 'pgv_email_html', $html, $to, $subject );
-		return wp_mail( $to, $subject, $html, $headers );
+		return wp_mail( $to, $subject, $html, $headers, $attachments );
 	}
 
 	private static function render_summary( $buyer_name, array $vouchers, $for_buyer ) {

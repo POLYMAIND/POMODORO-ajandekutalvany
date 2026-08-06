@@ -33,8 +33,9 @@ add_action(
 		if ( class_exists( \Automattic\WooCommerce\Utilities\FeaturesUtil::class ) ) {
 			// HPOS (custom order tables): a plugin CRUD-on keresztül dolgozik, kompatibilis.
 			\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', __FILE__, true );
-			// A klasszikus (shortcode) kosár/checkout a támogatott — a blokk-checkout
-			// marketing/cégnév-mezőihez külön integráció szükséges (lásd README).
+			// Kosár/checkout blokkok: a marketing-mező az Additional Checkout Fields
+			// API-val, a cégnév-ellenőrzés a Store API-val — kompatibilis.
+			\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'cart_checkout_blocks', __FILE__, true );
 		}
 	}
 );
