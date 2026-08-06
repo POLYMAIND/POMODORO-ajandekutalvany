@@ -3,7 +3,13 @@
 > Ez a dokumentum összefoglalja a projekt célját és **az eddig megfogalmazott
 > összes elvárást**, hogy átvihető legyen egy új, **WooCommerce-alapú** fejlesztésbe.
 > Az eredeti prototípus (egyedi app + Supabase) **referenciaként** marad meg: a
-> követelmények, a UX és az export-formátum onnan 1:1 átemelhető.
+> követelmények és az export-formátum onnan átemelhető.
+>
+> **Fontos irányváltás:** a vásárlás a **WooCommerce termékoldalon / checkouton**
+> jelenik meg, a **WordPress-téma megjelenésével**. NINCS szükség egyedi, beágyazott
+> „widgetre" és **arculati szerkesztőre** (kiemelő szín / border-radius / betűtípus /
+> fejléc- és bevezető-szöveg / arculati testreszabás) — ezt a téma adja. Ami kell, az a
+> **személyre szabás adatbekérése** a termék-/checkout oldalon.
 
 ---
 
@@ -36,12 +42,14 @@ csoportnál. Online eladható, **személyre szabható** ajándékutalvány, saj�
 
 ## 3. Funkcionális követelmények (a vásárlói oldalon)
 
-A checkout-felülíró plugin ezeket gyűjtse be / támogassa:
+A **termékoldalon / checkouton** (a WordPress-téma megjelenésével) a plugin ezeket
+gyűjtse be / támogassa. **Nincs egyedi arculat/szín/betűtípus** — a téma adja a kinézetet.
 
-1. **Fix címletű** utalványok (mint a jelenlegi rendszerben), egységenként.
+1. **Fix címletű** utalványok (mint a jelenlegi rendszerben), egységenként — WooCommerce
+   termékként.
 2. **Címletenkénti termékkép** — minden címlethez beállítható, melyik kép a terméke;
-   a vásárlónál ez jelenik meg a kártyán.
-3. **Személyre szabás:**
+   a vásárlónál ez jelenik meg (a termék képe).
+3. **Személyre szabás** (a termékoldalon):
    - **utalványkép választása** egy per-egység képkészletből (a képeknek **neve** van),
    - **megajándékozott neve**,
    - **egyedi üzenet** a megajándékozottnak.
@@ -50,21 +58,16 @@ A checkout-felülíró plugin ezeket gyűjtse be / támogassa:
    - „a megajándékozottnak" → ekkor **bekérjük a megajándékozott e-mail címét** és
      lehet **egyedi üzenetet** írni neki,
    - vagy „nekem küldjétek" (a vevő adja át).
-6. **Pénznem-választó** — több pénznem, **HUF az alap**, a többi tájékoztató
-   árfolyamon; adminban állítható, mely pénznemek elérhetők és megjelenjen-e a választó.
-   (A jelenlegi rendszerben is volt pénznem-választó.)
-7. **Nyelvválasztó** — a felület feliratai fordulnak (min. **HU/EN/DE/IT**); adminban
-   állítható, mely nyelvek elérhetők (a magyar az alap). Az egyedi szövegek
-   (fejléc/bevezető/feltételek) nyelvenkénti megadása kívánatos.
-8. **Cégnév / adószám élő figyelmeztetés** — ha a vásárló Kft/Bt/Zrt/Nyrt-t vagy
+6. **Cégnév / adószám élő figyelmeztetés** — ha a vásárló Kft/Bt/Zrt/Nyrt-t vagy
    adószámot (hosszú számsor) ír bármelyik mezőbe → figyelmeztetés, hogy **áfás számla
    ezen a felületen nem igényelhető**. Kétszintű: kliens (regex) + szerver-ellenőrzés.
-9. **Marketing-hozzájárulás** — opcionális checkbox („szeretnék értesülni akciókról");
+7. **Marketing-hozzájárulás** — opcionális checkbox („szeretnék értesülni akciókról");
    GDPR-barát, külön hozzájárulás; ez az adat menjen az exportba és a CRM-be.
-10. **Arculati testreszabás egységenként** (a widget/checkout megjelenése):
-    **kiemelő szín**, **sarok-lekerekítés (border-radius, a 0 legyen tényleg 0)**,
-    **betűtípus**, **fejléc cím**, **bevezető szöveg**, **beváltási feltételek**,
-    **céges érdeklődés e-mail**.
+
+**Opcionális, site-szintű (WooCommerce plugin, nem egyedi widget) — ha kell:**
+- **Több pénznem** (HUF az alap) — multicurrency plugin.
+- **Több nyelv** (HU/EN/DE/IT) — WPML / Polylang. A felület feliratai a téma/plugin
+  fordításából jönnek, nem egyedi widgetből.
 
 ## 4. Elvárások az ADMIN felülettel
 
@@ -79,9 +82,6 @@ A checkout-felülíró plugin ezeket gyűjtse be / támogassa:
 - **Képkészlet egységenként**, a képek **elnevezhetők**.
 - **Általános (csoportszintű) beállítások** + azon felül a **külön egységek**
   beállításai (cégnév, adószám, sorszám-előtag, aktív, számlázás-összekötés, képek).
-- **Widget/checkout-szerkesztő egységenként** (arculat, szövegek) **élő előnézettel**,
-  amely **végigkattintható** (a teljes vásárlási folyamat), és a beállítások
-  (szín/radius/betű/szöveg) **azonnal frissülnek**.
 - **CSV-export** = a NAV-kimutatás (lásd 6. pont).
 - **NEM** kell kézi utalvány-felvitel az adminban — az utalványt a **vásárló hozza
   létre** a vásárlással. (Kézi/„ajándék" kiállítás legfeljebb ritka extra.)
@@ -178,11 +178,10 @@ hasznos a Woo-fejlesztéshez is:
   voucher_image, voucher_denomination, serial_counter, voucher_order, voucher,
   voucher_audit; sorszám-allokálás; audit-trigger; beváltás; RLS. (A Woo-nál ez
   order/product meta + esetleg egyedi tábla formában képződik le.)
-- `prototype/admin.html` — **admin UX/vizuál** (egységváltó, utalványlista+szűrés,
-  címlet+termékkép, képkészlet elnevezéssel, általános + egység-beállítások,
-  widget-szerkesztő élő előnézettel, CSV-export).
-- `prototype/widget.html` + `prototype/embed-demo.html` — a **vásárlói folyamat UX-e**
-  (5 lépés, arculat, pénznem, nyelv, cégnév-figyelmeztetés, marketing-checkbox).
+- `prototype/admin.html` — **admin UX/vizuál referencia** (egységváltó, utalványlista +
+  szűrés, címlet + termékkép-hozzárendelés, képkészlet elnevezéssel, általános +
+  egység-beállítások, CSV-export). *(A widget/arculati szerkesztő rész nem releváns a
+  WooCommerce-irányban — a megjelenést a téma adja.)*
 - `supabase/CRM_API.md` — a **CRM-integráció adatmezői/logikája** (WooCommerce REST-re
   átültethető: milyen mezők, szegmentálás, inkrementális szinkron).
 - Export-formátum leírása (6. pont).
