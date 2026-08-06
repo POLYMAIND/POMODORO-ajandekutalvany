@@ -21,6 +21,7 @@ class PGV_Admin {
 		// Export + PDF letöltés + AJAX beváltás/újraküldés.
 		add_action( 'admin_post_pgv_export', array( $this, 'do_export' ) );
 		add_action( 'admin_post_pgv_download_pdf', array( $this, 'do_download_pdf' ) );
+		add_action( 'admin_post_pgv_test_email', array( $this, 'do_test_email' ) );
 		add_action( 'wp_ajax_pgv_redeem', array( $this, 'ajax_redeem' ) );
 		add_action( 'wp_ajax_pgv_resend', array( $this, 'ajax_resend' ) );
 		add_action( 'wp_ajax_pgv_lookup', array( $this, 'ajax_lookup' ) );
@@ -112,6 +113,17 @@ class PGV_Admin {
 				'corporate_block'  => empty( $in['corporate_block'] ) ? 0 : 1,
 				'gapless_serial'   => empty( $in['gapless_serial'] ) ? 0 : 1,
 				'delivery_default' => in_array( $in['delivery_default'] ?? 'recipient', array( 'recipient', 'buyer' ), true ) ? $in['delivery_default'] : 'recipient',
+
+				// E-mail sablon.
+				'email_accent'            => sanitize_hex_color( $in['email_accent'] ?? '#1f1f1f' ) ?: '#1f1f1f',
+				'email_heading'           => sanitize_text_field( $in['email_heading'] ?? '' ),
+				'email_subject_recipient' => sanitize_text_field( $in['email_subject_recipient'] ?? '' ),
+				'email_subject_buyer'     => sanitize_text_field( $in['email_subject_buyer'] ?? '' ),
+				'email_intro_recipient'   => sanitize_textarea_field( $in['email_intro_recipient'] ?? '' ),
+				'email_intro_buyer'       => sanitize_textarea_field( $in['email_intro_buyer'] ?? '' ),
+				'email_footer'            => sanitize_text_field( $in['email_footer'] ?? '' ),
+				'email_show_image'        => empty( $in['email_show_image'] ) ? 0 : 1,
+				'suppress_wc_emails'      => empty( $in['suppress_wc_emails'] ) ? 0 : 1,
 			)
 		);
 
@@ -181,6 +193,21 @@ class PGV_Admin {
 			wp_die( esc_html__( 'Nincs ilyen utalvány.', 'pomodoro-gift-vouchers' ) );
 		}
 		PGV_Voucher_PDF::stream( $v );
+	}
+
+	/**
+	 * Teszt e-mail küldése a bejelentkezett felhasználónak (a jelenlegi sablonnal).
+	 */
+	public function do_test_email() {
+		if ( ! current_user_can( self::CAP ) || ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ), 'pgv_test_email' ) ) {
+			wp_die( esc_html__( 'Érvénytelen kérés.', 'pomodoro-gift-vouchers' ) );
+		}
+		$user = wp_get_current_user();
+		$to   = $user ? $user->user_email : '';
+		$res  = is_email( $to ) ? PGV_Emails::send_test( $to ) : new WP_Error( 'pgv_noemail', __( 'Nincs érvényes e-mail cím a fiókodhoz.', 'pomodoro-gift-vouchers' ) );
+
+		$notice = is_wp_error( $res ) ? 'test_error' : 'test_sent';
+		$this->redirect_with( self::SLUG . '-settings', $notice );
 	}
 
 	/**
@@ -308,10 +335,12 @@ class PGV_Admin {
 			'images_updated' => __( 'Képek frissítve.', 'pomodoro-gift-vouchers' ),
 			'imported'       => __( 'Import kész.', 'pomodoro-gift-vouchers' ),
 			'import_error'   => __( 'Import hiba: nincs feltöltött fájl.', 'pomodoro-gift-vouchers' ),
+			'test_sent'      => __( 'Teszt e-mail elküldve a fiókod címére.', 'pomodoro-gift-vouchers' ),
+			'test_error'     => __( 'A teszt e-mail küldése nem sikerült (ellenőrizd a levélküldést / feladó címet).', 'pomodoro-gift-vouchers' ),
 		);
 		$key = sanitize_key( wp_unslash( $_GET['pgv_notice'] ) );
 		if ( isset( $map[ $key ] ) ) {
-			$type = 'import_error' === $key ? 'error' : 'success';
+			$type = in_array( $key, array( 'import_error', 'test_error' ), true ) ? 'error' : 'success';
 			printf( '<div class="notice notice-%s is-dismissible"><p>%s</p></div>', esc_attr( $type ), esc_html( $map[ $key ] ) );
 		}
 	}

@@ -179,5 +179,18 @@ function PGV_Settings_Defaults() {
 		'corporate_block'     => 0,
 		'gapless_serial'      => 1,
 		'delivery_default'    => 'recipient',
+
+		// E-mail sablon (szerkeszthető az adminból).
+		'email_accent'            => '#1f1f1f',
+		'email_heading'           => 'Ajándékutalvány',
+		'email_subject_recipient' => 'Ajándékutalványt kaptál!',
+		'email_subject_buyer'     => 'Köszönjük a vásárlást — {egyseg}',
+		'email_intro_recipient'   => "Kedves {megajandekozott}!\n\nAjándékutalványt kaptál a(z) {egyseg} egységbe. Az utalványt PDF-ben mellékeltük, helyben beváltható.\n\n{uzenet}",
+		'email_intro_buyer'       => "Kedves {vasarlo}!\n\nKöszönjük a vásárlást! Az alábbi ajándékutalvány(oka)t bocsátottuk ki, a PDF(ek) mellékelve.",
+		'email_footer'            => '{egyseg}',
+		'email_show_image'        => 1,
+
+		// A WooCommerce saját rendelés-visszaigazolójának elnémítása tiszta utalvány-rendelésnél.
+		'suppress_wc_emails'      => 1,
 	);
 }

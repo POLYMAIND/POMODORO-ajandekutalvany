@@ -90,6 +90,51 @@ $api_key = get_option( 'pgv_api_key' );
 			</tr>
 		</table>
 
+		<h2><?php esc_html_e( 'E-mail sablon', 'pomodoro-gift-vouchers' ); ?></h2>
+		<p class="description">
+			<?php esc_html_e( 'Helykitöltők, amiket a rendszer behelyettesít:', 'pomodoro-gift-vouchers' ); ?>
+			<code>{megajandekozott}</code> <code>{uzenet}</code> <code>{osszeg}</code> <code>{sorszam}</code> <code>{ervenyesseg}</code> <code>{egyseg}</code> <code>{vasarlo}</code>
+		</p>
+		<table class="form-table">
+			<tr>
+				<th><label for="email_accent"><?php esc_html_e( 'Fejléc szín', 'pomodoro-gift-vouchers' ); ?></label></th>
+				<td><input type="color" name="email_accent" id="email_accent" value="<?php echo esc_attr( $s['email_accent'] ); ?>"> <span class="description"><?php esc_html_e( 'Az e-mail fejléc-sávjának háttérszíne.', 'pomodoro-gift-vouchers' ); ?></span></td>
+			</tr>
+			<tr>
+				<th><label for="email_heading"><?php esc_html_e( 'Cím (megajándékozotti levél)', 'pomodoro-gift-vouchers' ); ?></label></th>
+				<td><input type="text" name="email_heading" id="email_heading" class="regular-text" value="<?php echo esc_attr( $s['email_heading'] ); ?>"></td>
+			</tr>
+			<tr>
+				<th><?php esc_html_e( 'Utalványkép a levélben', 'pomodoro-gift-vouchers' ); ?></th>
+				<td><label><input type="checkbox" name="email_show_image" value="1" <?php checked( $s['email_show_image'], 1 ); ?>> <?php esc_html_e( 'A kiválasztott utalványkép jelenjen meg az e-mail törzsében is', 'pomodoro-gift-vouchers' ); ?></label></td>
+			</tr>
+			<tr>
+				<th><label for="email_subject_recipient"><?php esc_html_e( 'Tárgy — megajándékozott', 'pomodoro-gift-vouchers' ); ?></label></th>
+				<td><input type="text" name="email_subject_recipient" id="email_subject_recipient" class="large-text" value="<?php echo esc_attr( $s['email_subject_recipient'] ); ?>"></td>
+			</tr>
+			<tr>
+				<th><label for="email_intro_recipient"><?php esc_html_e( 'Szöveg — megajándékozott', 'pomodoro-gift-vouchers' ); ?></label></th>
+				<td><textarea name="email_intro_recipient" id="email_intro_recipient" class="large-text" rows="4"><?php echo esc_textarea( $s['email_intro_recipient'] ); ?></textarea>
+				<p class="description"><?php esc_html_e( 'Ez jelenik meg az összeg/sorszám fölött. Az {uzenet} a vásárló saját üzenete.', 'pomodoro-gift-vouchers' ); ?></p></td>
+			</tr>
+			<tr>
+				<th><label for="email_subject_buyer"><?php esc_html_e( 'Tárgy — vásárló', 'pomodoro-gift-vouchers' ); ?></label></th>
+				<td><input type="text" name="email_subject_buyer" id="email_subject_buyer" class="large-text" value="<?php echo esc_attr( $s['email_subject_buyer'] ); ?>"></td>
+			</tr>
+			<tr>
+				<th><label for="email_intro_buyer"><?php esc_html_e( 'Szöveg — vásárló', 'pomodoro-gift-vouchers' ); ?></label></th>
+				<td><textarea name="email_intro_buyer" id="email_intro_buyer" class="large-text" rows="3"><?php echo esc_textarea( $s['email_intro_buyer'] ); ?></textarea></td>
+			</tr>
+			<tr>
+				<th><label for="email_footer"><?php esc_html_e( 'Lábléc', 'pomodoro-gift-vouchers' ); ?></label></th>
+				<td><input type="text" name="email_footer" id="email_footer" class="large-text" value="<?php echo esc_attr( $s['email_footer'] ); ?>"></td>
+			</tr>
+			<tr>
+				<th><?php esc_html_e( 'WooCommerce rendelés-visszaigazoló', 'pomodoro-gift-vouchers' ); ?></th>
+				<td><label><input type="checkbox" name="suppress_wc_emails" value="1" <?php checked( $s['suppress_wc_emails'], 1 ); ?>> <?php esc_html_e( 'Ne küldje a WooCommerce saját vevői rendelés-visszaigazolóját, ha a rendelés csak ajándékutalványt tartalmaz (helyette a fenti utalvány-e-mail megy).', 'pomodoro-gift-vouchers' ); ?></label></td>
+			</tr>
+		</table>
+
 		<h2><?php esc_html_e( 'Marketing / céges figyelmeztetés', 'pomodoro-gift-vouchers' ); ?></h2>
 		<table class="form-table">
 			<tr>
@@ -109,7 +154,11 @@ $api_key = get_option( 'pgv_api_key' );
 			</tr>
 		</table>
 
-		<p><button type="submit" class="button button-primary"><?php esc_html_e( 'Mentés', 'pomodoro-gift-vouchers' ); ?></button></p>
+		<p>
+			<button type="submit" class="button button-primary"><?php esc_html_e( 'Mentés', 'pomodoro-gift-vouchers' ); ?></button>
+			<a class="button" href="<?php echo esc_url( wp_nonce_url( add_query_arg( array( 'action' => 'pgv_test_email' ), admin_url( 'admin-post.php' ) ), 'pgv_test_email' ) ); ?>"><?php esc_html_e( 'Teszt e-mail küldése magamnak', 'pomodoro-gift-vouchers' ); ?></a>
+			<span class="description"><?php esc_html_e( '(előbb mentsd a módosításokat)', 'pomodoro-gift-vouchers' ); ?></span>
+		</p>
 	</form>
 
 	<div class="pgv-card">
