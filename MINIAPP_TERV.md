@@ -34,8 +34,16 @@ Döntések (a megrendelővel egyeztetve):
 - **Kassza**: a mini-app sorszámra keres a saját DB-jében, beváltja, és **visszaírja** az
   adott bolt WooCommerce-utalványának státuszát (a plugin új, hitelesített
   `redeem` végpontján) → a cégenkénti könyvelés is naprakész.
-- **Jogosultság**: bejelentkezés (Supabase Auth); szerep szerint teljes (group_admin)
-  vagy egységre szűkített (unit_admin/cashier) hozzáférés.
+- **Jogosultság (egységhez kötött)**: bejelentkezés (Supabase Auth). Minden felhasználó
+  egy szerephez + (a nem-központi szerepeknél) egy egységhez van rendelve:
+  - **Központi admin** (`group_admin`): minden egység, minden nézet.
+  - **Egység-kezelő / kasszás** (`unit_admin` / `cashier`): **csak a saját egysége** —
+    csak azt látja a listákban, csak annak a kinézetét szerkeszti, és a kasszában
+    **csak a saját egysége utalványát tudja beváltani** (más egység sorszáma
+    egyértelmű hibaüzenettel elutasításra kerül).
+  - A szűkítés **nem csak a felületen** él: a Supabase **Row Level Security (RLS)**
+    szabályai a szerveren is kikényszerítik, hogy egy egység-kezelő fizikailag ne
+    férhessen más egység adatához (az API/DB szintjén sem). A felület csak tükrözi ezt.
 
 ## Felület (a prototípus szerint)
 - **Áttekintés**: KPI-k (eladott db, bevétel, aktív, hamarosan lejáró), legutóbbi
