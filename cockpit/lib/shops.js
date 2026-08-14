@@ -55,7 +55,12 @@ async function readBody(req) {
 
 async function shopFetch(shop, path, opts = {}) {
   const url = shop.url.replace(/\/+$/, '') + '/wp-json/pgv/v1' + path;
-  const headers = Object.assign({ 'x-api-key': shop.apiKey }, opts.headers || {});
+  const headers = Object.assign({
+    'x-api-key': shop.apiKey,
+    'accept': 'application/json',
+    // Néhány tárhely/WAF 403-azik böngésző User-Agent nélkül.
+    'user-agent': 'Mozilla/5.0 (compatible; PomodoroCockpit/1.0; +https://polymaind.hu)',
+  }, opts.headers || {});
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 12000);
   try {
