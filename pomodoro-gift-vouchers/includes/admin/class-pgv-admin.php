@@ -89,7 +89,23 @@ class PGV_Admin {
 			case 'import':
 				$this->do_import();
 				break;
+			case 'regen_api_key':
+				$this->regen_api_key();
+				break;
 		}
+	}
+
+	/**
+	 * Új CRM API-kulcs generálása (a nyers kulcs csak egyszer jelenik meg).
+	 */
+	private function regen_api_key() {
+		check_admin_referer( 'pgv_regen_key' );
+		$raw = 'pk_' . bin2hex( random_bytes( 24 ) );
+		update_option( 'pgv_api_key_hash', hash( 'sha256', $raw ) );
+		update_option( 'pgv_api_key_preview', substr( $raw, 0, 10 ) . '…' );
+		update_option( 'pgv_api_key', $raw ); // egyszeri megjelenítéshez
+		delete_option( 'pgv_api_key_last_used' );
+		$this->redirect_with( self::SLUG . '-settings', 'apikey' );
 	}
 
 	private function save_settings() {
@@ -336,6 +352,7 @@ class PGV_Admin {
 			'images_updated' => __( 'Képek frissítve.', 'pomodoro-gift-vouchers' ),
 			'imported'       => __( 'Import kész.', 'pomodoro-gift-vouchers' ),
 			'import_error'   => __( 'Import hiba: nincs feltöltött fájl.', 'pomodoro-gift-vouchers' ),
+			'apikey'         => __( 'Új API-kulcs generálva. Másold ki most — később már csak a hash marad!', 'pomodoro-gift-vouchers' ),
 			'test_sent'      => __( 'Teszt e-mail elküldve a fiókod címére.', 'pomodoro-gift-vouchers' ),
 			'test_error'     => __( 'A teszt e-mail küldése nem sikerült (ellenőrizd a levélküldést / feladó címet).', 'pomodoro-gift-vouchers' ),
 		);
