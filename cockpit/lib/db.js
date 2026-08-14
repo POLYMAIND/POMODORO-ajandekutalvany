@@ -117,4 +117,58 @@ async function allVouchers() {
   return await sql`SELECT * FROM pgv_vouchers ORDER BY created_at DESC NULLS LAST`;
 }
 
-module.exports = { db, ensureSchema, upsertVouchers, allVouchers };
+// ---- Felhasználók (többfelhasználós admin) ----
+let _usersReady = false;
+async function ensureUsersSchema() {
+  if (_usersReady) return;
+  const sql = db();
+  await sql`CREATE TABLE IF NOT EXISTS pgv_users (
+    id serial PRIMARY KEY,
+    email text UNIQUE NOT NULL,
+    name text,
+    pass_hash text NOT NULL,
+    role text NOT NULL DEFAULT 'cashier',
+    units text[] NOT NULL DEFAULT '{}',
+    disabled boolean NOT NULL DEFAULT false,
+    created_at timestamptz DEFAULT now()
+  )`;
+  _usersReady = true;
+}
+
+async function countUsers() {
+  const sql = db();
+  const r = await sql`SELECT count(*)::int AS n FROM pgv_users`;
+  return r[0] ? r[0].n : 0;
+}
+async function getUserByEmail(email) {
+  const sql = db();
+  const r = await sql`SELECT * FROM pgv_users WHERE lower(email) = lower(${String(email)}) LIMIT 1`;
+  return r[0] || null;
+}
+async function listUsers() {
+  const sql = db();
+  return await sql`SELECT id, email, name, role, units, disabled, created_at
+    FROM pgv_users ORDER BY created_at ASC, id ASC`;
+}
+async function createUser(u) {
+  const sql = db();
+  const r = await sql`INSERT INTO pgv_users (email, name, pass_hash, role, units)
+    VALUES (${u.email}, ${u.name || ''}, ${u.pass_hash}, ${u.role}, ${u.units || []})
+    RETURNING id`;
+  return r[0].id;
+}
+async function updateUser(id, patch) {
+  const sql = db();
+  const cols = Object.keys(patch);
+  if (!cols.length) return;
+  await sql`UPDATE pgv_users SET ${sql(patch, ...cols)} WHERE id = ${Number(id)}`;
+}
+async function deleteUser(id) {
+  const sql = db();
+  await sql`DELETE FROM pgv_users WHERE id = ${Number(id)}`;
+}
+
+module.exports = {
+  db, ensureSchema, upsertVouchers, allVouchers,
+  ensureUsersSchema, countUsers, getUserByEmail, listUsers, createUser, updateUser, deleteUser,
+};

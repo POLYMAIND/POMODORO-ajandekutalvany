@@ -123,6 +123,19 @@ tr:last-child td{border-bottom:none}tbody tr:hover{background:var(--surface-2)}
 .res-k{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint);display:block;margin-bottom:2px}
 .res-v{font-size:17px;font-weight:600}
 .res-msg{margin-top:12px;font-weight:600}.res-msg.ok{color:var(--good)}.res-msg.err{color:var(--crit)}
+/* Users */
+.urow{display:grid;gap:16px;grid-template-columns:360px 1fr;align-items:start}
+.fl{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint);margin:12px 0 5px}
+.fi{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);color:var(--ink);font-size:14px}
+.chkgrid{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
+.chk{display:flex;align-items:center;gap:6px;font-size:13px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);cursor:pointer}
+.chk input{margin:0}
+.btn.ghost{background:var(--surface-3);color:var(--ink-soft)}
+.uerr{color:var(--crit);font-size:12.5px;font-weight:600;min-height:16px;margin-top:8px}
+.role-tag{font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:20px;background:var(--surface-3);color:var(--ink-soft)}
+.tact{color:var(--accent);background:none;border:none;cursor:pointer;font-weight:600;font-size:12.5px;padding:0 6px 0 0}
+.tact.danger{color:var(--crit)}
+@media(max-width:960px){.urow{grid-template-columns:1fr}}
 .menu-btn{display:none}
 @media(max-width:960px){
   #app.show{grid-template-columns:1fr}
@@ -138,8 +151,10 @@ tr:last-child td{border-bottom:none}tbody tr:hover{background:var(--surface-2)}
     <div class="bname">Pomo d'Oro</div>
     <div class="bsub">Utalvány vezérlőpult</div>
     <div class="login-err" id="loginErr"></div>
+    <input type="email" id="loginEmail" placeholder="E-mail" autocomplete="username">
     <input type="password" id="loginPass" placeholder="Jelszó" autocomplete="current-password">
     <button type="submit">Belépés</button>
+    <div style="font-size:12px;color:var(--ink-faint);margin-top:12px">Központi admin: hagyd üresen az e-mailt, és add meg a mesterjelszót.</div>
   </form>
 </div>
 
@@ -155,7 +170,9 @@ tr:last-child td{border-bottom:none}tbody tr:hover{background:var(--surface-2)}
     <button class="nav" data-sec="expiry"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Lejáratok<span class="count" id="expCount" style="display:none">0</span></button>
     <div class="nav-label">Kezelés</div>
     <button class="nav" data-sec="cashier"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg>Kassza – beváltás</button>
+    <button class="nav" data-sec="users" id="navUsers" style="display:none"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Felhasználók</button>
     <div class="side-foot">
+      <div id="whoami" style="color:var(--ink-soft);font-weight:600;margin-bottom:2px"></div>
       <div id="connInfo">Nincs bolt bekötve</div>
       <button class="logout" id="logoutBtn">Kilépés</button>
     </div>
@@ -213,6 +230,39 @@ tr:last-child td{border-bottom:none}tbody tr:hover{background:var(--surface-2)}
           <div class="card result hidden" id="cashResult"></div>
         </div>
       </section>
+
+      <section class="section" id="sec-users">
+        <p class="section-intro">Vedd fel a kezelőket, állítsd be a szerepüket és melyik egység(ek)re lássanak rá. Egy egység-kezelő / kasszás csak a saját egysége utalványait látja és váltja be.</p>
+        <div class="urow">
+          <div class="card" style="padding:18px 20px">
+            <h3 style="font-size:14.5px;margin-bottom:12px" id="userFormTitle">Új felhasználó</h3>
+            <form id="userForm">
+              <input type="hidden" id="uId">
+              <label class="fl">Név</label>
+              <input class="fi" id="uName" placeholder="Pl. Kiss Anna" autocomplete="off">
+              <label class="fl">E-mail (belépéshez)</label>
+              <input class="fi" id="uEmail" type="email" placeholder="anna@pomodoro.hu" autocomplete="off">
+              <label class="fl" id="uPassLabel">Jelszó</label>
+              <input class="fi" id="uPass" type="text" placeholder="Kezdő jelszó" autocomplete="new-password">
+              <label class="fl">Szerep</label>
+              <select class="fi" id="uRole"></select>
+              <div id="uUnitsWrap">
+                <label class="fl">Egységek (amit láthat/bevált)</label>
+                <div id="uUnits" class="chkgrid"></div>
+              </div>
+              <div class="uerr" id="uErr"></div>
+              <div style="display:flex;gap:8px;margin-top:14px">
+                <button type="submit" class="btn" id="uSave">Hozzáadás</button>
+                <button type="button" class="btn ghost" id="uCancel" style="display:none">Mégse</button>
+              </div>
+            </form>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>Felhasználók</h3></div>
+            <div style="overflow-x:auto"><table id="usersTable"></table></div>
+          </div>
+        </div>
+      </section>
     </div>
   </div>
 </div>
@@ -221,7 +271,8 @@ tr:last-child td{border-bottom:none}tbody tr:hover{background:var(--surface-2)}
 const $=s=>document.querySelector(s);
 const nf=n=>Number(n||0).toLocaleString('hu-HU');
 const money=n=>nf(n)+' Ft';
-let CFG={authed:false,configured:false,shops:[],role:'admin'};
+let CFG={authed:false,configured:false,shops:[],role:null,name:'',units:[],canManageUsers:false};
+const ROLE_LABELS={superadmin:'Központi admin',unit_manager:'Egység-kezelő',cashier:'Kasszás'};
 let DATA={orders:[],vouchers:[],errors:[]};
 let currentUnit='all';
 const UNIT_COLORS={casa:'#c0392b',osteria:'#1f7a4d',pizzabar:'#c98a1e',trattoria:'#7d3350'};
@@ -235,6 +286,8 @@ async function boot(){
   if(!CFG.authed){ $('#login').classList.add('show'); $('#app').classList.remove('show'); return; }
   $('#login').classList.remove('show'); $('#app').classList.add('show');
   buildUnitSwitch();
+  $('#navUsers').style.display = CFG.canManageUsers ? '' : 'none';
+  $('#whoami').textContent = (CFG.name||'') + (CFG.role?(' · '+(ROLE_LABELS[CFG.role]||CFG.role)):'');
   $('#connInfo').textContent = CFG.configured ? (CFG.shops.length+' egység bekötve') : 'Nincs bolt bekötve';
   await refresh();
   startPolling();
@@ -242,10 +295,10 @@ async function boot(){
 $('#loginForm').addEventListener('submit',async e=>{
   e.preventDefault();
   $('#loginErr').textContent='';
-  const r=await fetch('/api/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({password:$('#loginPass').value})});
+  const r=await fetch('/api/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('#loginEmail').value.trim(),password:$('#loginPass').value})});
   const j=await r.json().catch(()=>({}));
   if(r.ok){ $('#loginPass').value=''; boot(); }
-  else $('#loginErr').textContent=j.error||'Hibás jelszó.';
+  else $('#loginErr').textContent=j.error||'Hibás e-mail vagy jelszó.';
 });
 $('#logoutBtn').onclick=async()=>{ await fetch('/api/logout',{method:'POST'}); location.reload(); };
 
@@ -379,13 +432,90 @@ $('#cashBtn').onclick=()=>renderCash($('#cashInput').value);
 $('#cashInput').addEventListener('keydown',e=>{if(e.key==='Enter')renderCash(e.target.value);});
 
 // ---- nav / ui ----
-const titles={dash:'Áttekintés',purchases:'Vásárlások',expiry:'Lejáratok',cashier:'Kassza – beváltás'};
+const titles={dash:'Áttekintés',purchases:'Vásárlások',expiry:'Lejáratok',cashier:'Kassza – beváltás',users:'Felhasználók'};
 document.querySelectorAll('.nav').forEach(n=>n.onclick=()=>{
   document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x===n));
   document.querySelectorAll('.section').forEach(s=>s.classList.toggle('show',s.id==='sec-'+n.dataset.sec));
   $('#pageTitle').textContent=titles[n.dataset.sec];
   $('#sidebar').classList.remove('open');
+  if(n.dataset.sec==='users') loadUsers();
 });
+// ---- users (superadmin) ----
+let USERS=[], UUNITS=[];
+function roleLabel(r){return ROLE_LABELS[r]||r;}
+async function loadUsers(){
+  if(!CFG.canManageUsers) return;
+  try{
+    const j=await fetch('/api/users').then(r=>r.json());
+    USERS=j.users||[]; UUNITS=j.units||[];
+    fillRoleSelect(); renderUnitChecks([]); renderUsersTable();
+  }catch(e){ $('#uErr').textContent='Nem sikerült betölteni a felhasználókat.'; }
+}
+function fillRoleSelect(){
+  const sel=$('#uRole');
+  sel.innerHTML=['superadmin','unit_manager','cashier'].map(r=>'<option value="'+r+'">'+roleLabel(r)+'</option>').join('');
+  sel.onchange=()=>{ $('#uUnitsWrap').style.display = sel.value==='superadmin'?'none':''; };
+}
+function renderUnitChecks(sel){
+  const set=new Set(sel||[]);
+  $('#uUnits').innerHTML=UUNITS.map(u=>'<label class="chk"><input type="checkbox" value="'+u.slug+'"'+(set.has(u.slug)?' checked':'')+'>'+shortName(u.slug)+'</label>').join('')||'<span class="t-sub">Nincs egység a SHOPS-ban.</span>';
+}
+function selectedUnits(){return [...document.querySelectorAll('#uUnits input:checked')].map(i=>i.value);}
+function renderUsersTable(){
+  const head='<thead><tr><th>Név</th><th>E-mail</th><th>Szerep</th><th>Egységek</th><th>Állapot</th><th></th></tr></thead>';
+  const rows=USERS.length?USERS.map(u=>{
+    const units=u.role==='superadmin'?'<span class="t-sub">összes</span>':((u.units||[]).map(shortName).join(', ')||'—');
+    return '<tr><td class="t-strong">'+(u.name||'—')+'</td><td class="t-sub">'+u.email+'</td>'+
+      '<td><span class="role-tag">'+roleLabel(u.role)+'</span></td><td class="t-sub">'+units+'</td>'+
+      '<td>'+(u.disabled?'<span class="pill p-expired">letiltva</span>':'<span class="pill p-active">aktív</span>')+'</td>'+
+      '<td style="white-space:nowrap;text-align:right"><button class="tact" data-edit="'+u.id+'">Szerkeszt</button>'+
+      '<button class="tact" data-toggle="'+u.id+'">'+(u.disabled?'Enged':'Tilt')+'</button>'+
+      '<button class="tact danger" data-del="'+u.id+'">Töröl</button></td></tr>';
+  }).join(''):'<tr><td colspan="6" class="t-sub" style="padding:20px">Még nincs felhasználó. Vedd fel az elsőt balra.</td></tr>';
+  $('#usersTable').innerHTML=head+'<tbody>'+rows+'</tbody>';
+  document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editUser(+b.dataset.edit));
+  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>delUser(+b.dataset.del));
+  document.querySelectorAll('[data-toggle]').forEach(b=>b.onclick=()=>toggleUser(+b.dataset.toggle));
+}
+function resetUserForm(){
+  $('#uId').value=''; $('#uName').value=''; $('#uEmail').value=''; $('#uPass').value='';
+  $('#uEmail').disabled=false; $('#uRole').value='cashier'; $('#uRole').onchange();
+  renderUnitChecks([]); $('#uErr').textContent='';
+  $('#userFormTitle').textContent='Új felhasználó'; $('#uSave').textContent='Hozzáadás';
+  $('#uPassLabel').textContent='Jelszó'; $('#uCancel').style.display='none';
+}
+function editUser(id){
+  const u=USERS.find(x=>x.id===id); if(!u)return;
+  $('#uId').value=u.id; $('#uName').value=u.name||''; $('#uEmail').value=u.email; $('#uEmail').disabled=true;
+  $('#uPass').value=''; $('#uRole').value=u.role; $('#uRole').onchange(); renderUnitChecks(u.units||[]);
+  $('#userFormTitle').textContent='Felhasználó szerkesztése'; $('#uSave').textContent='Mentés';
+  $('#uPassLabel').textContent='Új jelszó (üres = marad)'; $('#uCancel').style.display=''; $('#uErr').textContent='';
+  document.querySelector('.nav[data-sec="users"]').scrollIntoView({block:'nearest'});
+}
+$('#uCancel').onclick=resetUserForm;
+$('#userForm').addEventListener('submit',async e=>{
+  e.preventDefault(); $('#uErr').textContent='';
+  const id=$('#uId').value, role=$('#uRole').value;
+  const payload={action:id?'update':'create',name:$('#uName').value.trim(),role,units:selectedUnits()};
+  if(id) payload.id=+id; else payload.email=$('#uEmail').value.trim();
+  const pw=$('#uPass').value; if(pw) payload.password=pw;
+  if(!id && !pw){ $('#uErr').textContent='Adj meg kezdő jelszót.'; return; }
+  const r=await fetch('/api/users',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
+  const j=await r.json().catch(()=>({}));
+  if(r.ok&&j.ok){ resetUserForm(); loadUsers(); } else $('#uErr').textContent=j.error||'Nem sikerült menteni.';
+});
+async function delUser(id){
+  const u=USERS.find(x=>x.id===id); if(!u)return;
+  if(!confirm('Biztosan törlöd? ('+(u.name||u.email)+')'))return;
+  const r=await fetch('/api/users',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'delete',id})});
+  if(r.ok) loadUsers();
+}
+async function toggleUser(id){
+  const u=USERS.find(x=>x.id===id); if(!u)return;
+  const r=await fetch('/api/users',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'update',id,disabled:!u.disabled})});
+  if(r.ok) loadUsers();
+}
+
 $('#menuBtn').onclick=()=>$('#sidebar').classList.toggle('open');
 $('#themeBtn').onclick=()=>{const r=document.documentElement;const cur=r.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');r.setAttribute('data-theme',cur==='dark'?'light':'dark');};
 

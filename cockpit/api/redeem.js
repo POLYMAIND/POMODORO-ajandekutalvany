@@ -1,9 +1,11 @@
-const { getShops, isAuthed, readBody, shopFetch } = require('../lib/shops.js');
+const { getShops, readBody, shopFetch } = require('../lib/shops.js');
+const { readSession, canSeeUnit } = require('../lib/auth.js');
 
 // Egységes kassza: sorszám -> a megfelelő bolt beváltó végpontja.
 module.exports = async (req, res) => {
   if (req.method !== 'POST') { res.status(405).json({ error: 'POST' }); return; }
-  if (!isAuthed(req)) { res.status(401).json({ error: 'auth' }); return; }
+  const session = readSession(req);
+  if (!session) { res.status(401).json({ error: 'auth' }); return; }
 
   const body = await readBody(req);
   const serial = String((body && body.serial) || '').trim();
@@ -13,6 +15,12 @@ module.exports = async (req, res) => {
     serial.toUpperCase().startsWith(String(s.prefix || '').toUpperCase() + '-')
   );
   if (!shop) { res.status(404).json({ error: 'A sorszám alapján nem azonosítható az egység.' }); return; }
+
+  // Jogosultság: csak a saját egysége(i) utalványát válthatja be (superadmin bármelyiket).
+  if (!canSeeUnit(session, shop.slug)) {
+    res.status(403).json({ error: 'Nincs jogosultságod ehhez az egységhez.' });
+    return;
+  }
 
   try {
     const r = await shopFetch(shop, '/redeem', {
