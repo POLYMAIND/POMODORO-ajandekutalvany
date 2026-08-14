@@ -308,24 +308,25 @@ function renderEmpty(){
   $('#dashEmpty').innerHTML='<div class="card empty"><h3>Nincs még bolt bekötve</h3><p>Add meg a boltok elérését a Vercel <code>SHOPS</code> környezeti változójában, majd frissíts. Ezután itt jelennek meg valós időben a vásárlások.</p></div>';
 }
 function renderKpis(){
-  const o=filt(DATA.orders), v=filt(DATA.vouchers);
+  const v=filt(DATA.vouchers);
   const revenue=v.reduce((s,x)=>s+(+x.amount||0),0);
   const active=v.filter(x=>x.status==='active').length;
   const soon=v.filter(x=>{const d=daysLeft(x.valid_until);return x.status==='active'&&d!==null&&d>=0&&d<=14;}).length;
   const k=[['Eladott utalvány',v.length],['Érték összesen',money(revenue)],['Aktív utalvány',active],['14 napon belül lejár',soon]];
   $('#kpis').innerHTML=k.map(x=>'<div class="card kpi"><div class="kpi-label">'+x[0]+'</div><div class="kpi-val">'+x[1]+'</div></div>').join('');
 }
-function orderRow(o){
-  return '<tr><td class="tnum">'+fdate(o.created_at||o.paid_at)+'<div class="t-sub">'+ftime(o.created_at||o.paid_at)+'</div></td>'+
-    '<td>'+uchip(o.unit)+'</td><td class="t-strong">'+(o.buyer_name||'—')+'</td>'+
-    '<td class="t-sub">'+(o.buyer_email||'')+'</td>'+
-    '<td class="t-strong tnum">'+money(o.amount)+'</td><td>'+statusPill(o.status)+'</td></tr>';
+function purchaseRow(x){
+  return '<tr><td class="tnum">'+fdate(x.created_at)+'<div class="t-sub">'+ftime(x.created_at)+'</div></td>'+
+    '<td>'+uchip(x.unit)+'</td><td class="mono t-sub">'+(x.serial||'')+'</td>'+
+    '<td class="t-strong">'+(x.giver_name||'—')+'</td>'+
+    '<td class="t-sub">'+(x.buyer_email||'')+'</td>'+
+    '<td class="t-strong tnum">'+money(x.amount)+'</td><td>'+statusPill(x.status)+'</td></tr>';
 }
 function renderPurchases(){
-  const head='<thead><tr><th>Dátum</th><th>Egység</th><th>Vásárló</th><th>E-mail</th><th>Érték</th><th>Státusz</th></tr></thead>';
-  const o=filt(DATA.orders).slice().sort((a,b)=>new Date(b.created_at||b.paid_at||0)-new Date(a.created_at||a.paid_at||0));
-  const rows=o.length?o.map(orderRow).join(''):'<tr><td colspan="6" class="t-sub" style="padding:22px">Még nincs vásárlás.</td></tr>';
-  $('#dashTable').innerHTML=head+'<tbody>'+o.slice(0,6).map(orderRow).join('')+'</tbody>';
+  const head='<thead><tr><th>Dátum</th><th>Egység</th><th>Sorszám</th><th>Vásárló</th><th>E-mail</th><th>Érték</th><th>Státusz</th></tr></thead>';
+  const v=filt(DATA.vouchers).slice().sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
+  const rows=v.length?v.map(purchaseRow).join(''):'<tr><td colspan="7" class="t-sub" style="padding:22px">Még nincs adat.</td></tr>';
+  $('#dashTable').innerHTML=head+'<tbody>'+(v.length?v.slice(0,6).map(purchaseRow).join(''):'<tr><td colspan="7" class="t-sub" style="padding:18px">Még nincs adat.</td></tr>')+'</tbody>';
   $('#purchasesTable').innerHTML=head+'<tbody>'+rows+'</tbody>';
 }
 function daysPill(d){

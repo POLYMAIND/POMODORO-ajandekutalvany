@@ -92,7 +92,42 @@ class PGV_Admin {
 			case 'regen_api_key':
 				$this->regen_api_key();
 				break;
+			case 'save_cockpit':
+				$this->save_cockpit();
+				break;
+			case 'sync_all':
+				$this->sync_all();
+				break;
 		}
+	}
+
+	/**
+	 * A központi vezérlőpult (push) beállításai — külön űrlap, hogy a fő beállításokat ne írja felül.
+	 */
+	private function save_cockpit() {
+		check_admin_referer( 'pgv_cockpit' );
+		$in = wp_unslash( $_POST );
+		PGV_Settings::save(
+			array(
+				'cockpit_url'    => esc_url_raw( trim( $in['cockpit_url'] ?? '' ) ),
+				'cockpit_secret' => sanitize_text_field( $in['cockpit_secret'] ?? '' ),
+			)
+		);
+		$this->redirect_with( self::SLUG . '-settings', 'saved' );
+	}
+
+	/**
+	 * Az összes utalvány felküldése a központi vezérlőpultba (push, egyszeri teljes szinkron).
+	 */
+	private function sync_all() {
+		check_admin_referer( 'pgv_sync_all' );
+		if ( ! class_exists( 'PGV_Push' ) || ! PGV_Push::configured() ) {
+			$this->redirect_with( self::SLUG . '-settings', 'sync_cfg' );
+			return;
+		}
+		$res = PGV_Push::sync_all();
+		set_transient( 'pgv_sync_result', $res, 60 );
+		$this->redirect_with( self::SLUG . '-settings', empty( $res['errors'] ) ? 'sync_ok' : 'sync_partial' );
 	}
 
 	/**
@@ -342,6 +377,31 @@ class PGV_Admin {
 		exit;
 	}
 
+	/**
+	 * A legutóbbi teljes szinkron eredménye (átmeneti üzenet).
+	 */
+	private function sync_notice_text() {
+		$res = get_transient( 'pgv_sync_result' );
+		if ( ! is_array( $res ) ) {
+			return __( 'Szinkron kész.', 'pomodoro-gift-vouchers' );
+		}
+		delete_transient( 'pgv_sync_result' );
+		$sent = (int) ( $res['sent'] ?? 0 );
+		if ( ! empty( $res['errors'] ) ) {
+			return sprintf(
+				/* translators: 1: felküldött darabszám, 2: hibaüzenetek */
+				__( 'Felküldve: %1$d. Hiba: %2$s', 'pomodoro-gift-vouchers' ),
+				$sent,
+				implode( ' | ', array_map( 'wp_strip_all_tags', (array) $res['errors'] ) )
+			);
+		}
+		return sprintf(
+			/* translators: %d: felküldött utalványok száma */
+			__( 'Teljes szinkron kész — %d utalvány felküldve a vezérlőpultba.', 'pomodoro-gift-vouchers' ),
+			$sent
+		);
+	}
+
 	private function notice() {
 		if ( empty( $_GET['pgv_notice'] ) ) {
 			return;
@@ -355,10 +415,13 @@ class PGV_Admin {
 			'apikey'         => __( 'Új API-kulcs generálva. Másold ki most — később már csak a hash marad!', 'pomodoro-gift-vouchers' ),
 			'test_sent'      => __( 'Teszt e-mail elküldve a fiókod címére.', 'pomodoro-gift-vouchers' ),
 			'test_error'     => __( 'A teszt e-mail küldése nem sikerült (ellenőrizd a levélküldést / feladó címet).', 'pomodoro-gift-vouchers' ),
+			'sync_cfg'       => __( 'A vezérlőpult URL és/vagy titok nincs beállítva — előbb mentsd őket.', 'pomodoro-gift-vouchers' ),
+			'sync_ok'        => $this->sync_notice_text(),
+			'sync_partial'   => $this->sync_notice_text(),
 		);
 		$key = sanitize_key( wp_unslash( $_GET['pgv_notice'] ) );
 		if ( isset( $map[ $key ] ) ) {
-			$type = in_array( $key, array( 'import_error', 'test_error' ), true ) ? 'error' : 'success';
+			$type = in_array( $key, array( 'import_error', 'test_error', 'sync_cfg', 'sync_partial' ), true ) ? 'error' : 'success';
 			printf( '<div class="notice notice-%s is-dismissible"><p>%s</p></div>', esc_attr( $type ), esc_html( $map[ $key ] ) );
 		}
 	}

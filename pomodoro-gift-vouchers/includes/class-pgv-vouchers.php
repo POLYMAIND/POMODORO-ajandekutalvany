@@ -169,6 +169,12 @@ class PGV_Vouchers {
 			$row['status'],
 			self::actor()
 		);
+
+		/**
+		 * Az utalvány elmentve (létrehozva) — a központi vezérlőpult push-ja ezt figyeli.
+		 */
+		do_action( 'pgv_voucher_saved', $id );
+
 		return $id;
 	}
 
@@ -238,6 +244,12 @@ class PGV_Vouchers {
 			$action = self::action_for_status( $new_status );
 			self::audit( $id, $action, $from, $new_status, $actor ?: self::actor(), $extra );
 		}
+
+		/**
+		 * Az utalvány megváltozott (státusz/mezők) — felkerül a vezérlőpultra.
+		 */
+		do_action( 'pgv_voucher_saved', $id );
+
 		return self::get( $id );
 	}
 

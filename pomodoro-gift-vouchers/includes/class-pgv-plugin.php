@@ -40,6 +40,7 @@ final class PGV_Plugin {
 		require_once $dir . 'class-pgv-emails.php';
 		require_once $dir . 'class-pgv-export.php';
 		require_once $dir . 'class-pgv-rest.php';
+		require_once $dir . 'class-pgv-push.php';
 		require_once $dir . 'lib/class-pgv-qr.php';
 		require_once $dir . 'class-pgv-pdf.php';
 		require_once $dir . 'class-pgv-voucher-pdf.php';
@@ -69,6 +70,7 @@ final class PGV_Plugin {
 		new PGV_Order();
 		new PGV_Emails();
 		new PGV_REST();
+		new PGV_Push();
 
 		if ( is_admin() ) {
 			new PGV_Admin();

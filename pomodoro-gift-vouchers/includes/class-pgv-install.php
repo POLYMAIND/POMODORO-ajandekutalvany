@@ -193,5 +193,10 @@ function PGV_Settings_Defaults() {
 
 		// A WooCommerce saját rendelés-visszaigazolójának elnémítása tiszta utalvány-rendelésnél.
 		'suppress_wc_emails'      => 1,
+
+		// Központi vezérlőpult (push szinkron): minden mentett utalvány kimenő
+		// HTTP-hívással felkerül a vezérlőpult /api/ingest végpontjára.
+		'cockpit_url'             => '',
+		'cockpit_secret'          => '',
 	);
 }

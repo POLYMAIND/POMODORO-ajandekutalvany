@@ -2,6 +2,9 @@
   "name": "pomodoro-cockpit",
   "version": "0.1.2",
   "private": true,
-  "description": "Pomo d'Oro központi ajándékutalvány-vezérlőpult (statikus UI + Vercel serverless API a boltok aggregálásához).",
-  "engines": { "node": "20.x" }
+  "description": "Pomo d'Oro központi ajándékutalvány-vezérlőpult (statikus UI + Vercel serverless API, Neon Postgres tárolással).",
+  "engines": { "node": "20.x" },
+  "dependencies": {
+    "postgres": "^3.4.4"
+  }
 }

@@ -202,4 +202,39 @@ $api_key = get_option( 'pgv_api_key' );
 			<span class="description"><?php esc_html_e( 'A régi kulcs érvénytelenné válik.', 'pomodoro-gift-vouchers' ); ?></span>
 		</form>
 	</div>
+
+	<div class="pgv-card">
+		<h2><?php esc_html_e( 'Központi vezérlőpult (push szinkron)', 'pomodoro-gift-vouchers' ); ?></h2>
+		<p class="description">
+			<?php esc_html_e( 'Ez az egység kimenő HTTP-hívással azonnal felküldi minden kibocsátott/módosított utalványát a központi vezérlőpultba. Nem kell a tárhely biztonságához nyúlni — csak kimenő kérés indul innen.', 'pomodoro-gift-vouchers' ); ?>
+		</p>
+		<form method="post" class="pgv-card" style="box-shadow:none;border:1px solid #e6e6e6">
+			<?php wp_nonce_field( 'pgv_cockpit' ); ?>
+			<input type="hidden" name="pgv_action" value="save_cockpit">
+			<table class="form-table">
+				<tr>
+					<th><label for="cockpit_url"><?php esc_html_e( 'Vezérlőpult URL', 'pomodoro-gift-vouchers' ); ?></label></th>
+					<td>
+						<input type="url" name="cockpit_url" id="cockpit_url" class="large-text" placeholder="https://pomodoro-ajandekutalvany.vercel.app" value="<?php echo esc_attr( isset( $s['cockpit_url'] ) ? $s['cockpit_url'] : '' ); ?>">
+						<p class="description"><?php esc_html_e( 'A vezérlőpult címe (a /api/ingest végpontot automatikusan hozzáfűzi).', 'pomodoro-gift-vouchers' ); ?></p>
+					</td>
+				</tr>
+				<tr>
+					<th><label for="cockpit_secret"><?php esc_html_e( 'Ingest titok', 'pomodoro-gift-vouchers' ); ?></label></th>
+					<td>
+						<input type="text" name="cockpit_secret" id="cockpit_secret" class="large-text" autocomplete="off" value="<?php echo esc_attr( isset( $s['cockpit_secret'] ) ? $s['cockpit_secret'] : '' ); ?>">
+						<p class="description"><?php esc_html_e( 'Ugyanaz a titok, mint a vezérlőpult INGEST_SECRET környezeti változója.', 'pomodoro-gift-vouchers' ); ?></p>
+					</td>
+				</tr>
+			</table>
+			<button type="submit" class="button button-primary"><?php esc_html_e( 'Mentés', 'pomodoro-gift-vouchers' ); ?></button>
+		</form>
+
+		<form method="post" style="margin-top:12px" onsubmit="return confirm('<?php echo esc_js( __( 'Az összes eddigi utalvány felkerül a vezérlőpultba. Folytatod?', 'pomodoro-gift-vouchers' ) ); ?>');">
+			<?php wp_nonce_field( 'pgv_sync_all' ); ?>
+			<input type="hidden" name="pgv_action" value="sync_all">
+			<button type="submit" class="button"><?php esc_html_e( 'Összes felküldése', 'pomodoro-gift-vouchers' ); ?></button>
+			<span class="description"><?php esc_html_e( 'Egyszeri, teljes szinkron — a meglévő/korábbi utalványokat is felküldi. (Előbb mentsd a fenti URL-t és titkot.)', 'pomodoro-gift-vouchers' ); ?></span>
+		</form>
+	</div>
 </div>
