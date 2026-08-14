@@ -53,6 +53,9 @@ Döntések (a megrendelővel egyeztetve):
 - **Utalvány kinézet**: élő szerkesztő + előnézet, egységenként.
 - **Kassza**: sorszám → beváltás, központi napló.
 - **Egység beállítások**: cég/adószám/előtag/érvényesség/feladó, egységenként.
+- **Felhasználók** (csak központi admin): felhasználók felvétele, szerep + egység
+  hozzárendelése, meghívó küldése (Supabase Auth invite), aktív/meghívva állapot,
+  szerkesztés/eltávolítás. A menüpont csak `group_admin` szerepnél látszik.
 
 ## A WP-pluginon szükséges kiegészítések (a mini-apphoz)
 1. **Kimenő webhook** kibocsátáskor/beváltáskor/státuszváltáskor → mini-app API (aláírt).
