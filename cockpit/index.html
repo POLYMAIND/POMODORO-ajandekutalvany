@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pomo d'Oro Vezérlőpult</title>
+<style>
+:root{
+  --ground:#efe9df;--surface:#fff;--surface-2:#faf7f1;--surface-3:#f2ede4;
+  --ink:#221d18;--ink-soft:#6d6357;--ink-faint:#9a9084;
+  --line:#e4dccd;--line-soft:#eee8dc;
+  --accent:#e2552b;--accent-ink:#fff;--accent-soft:#fbe9e1;
+  --gold:#b4892f;--good:#2f855a;--good-soft:#e2f1e8;
+  --warn:#b9791a;--warn-soft:#f8ecd3;--crit:#b42318;--crit-soft:#fbe4e1;
+  --shadow:0 1px 2px rgba(40,30,18,.05),0 8px 24px -12px rgba(40,30,18,.18);
+  --radius:14px;--font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --brand:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+:root[data-theme="dark"]{
+  --ground:#15110d;--surface:#1e1812;--surface-2:#241d16;--surface-3:#2b2319;
+  --ink:#f3ede3;--ink-soft:#ab9f8e;--ink-faint:#7c7161;--line:#332a1f;--line-soft:#2a2219;
+  --accent:#f26a41;--accent-ink:#1a120c;--accent-soft:#3a2217;--gold:#d7a951;
+  --good:#57b483;--good-soft:#182a20;--warn:#d7a24a;--warn-soft:#31260f;--crit:#e2685c;--crit-soft:#331815;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px -14px rgba(0,0,0,.6);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --ground:#15110d;--surface:#1e1812;--surface-2:#241d16;--surface-3:#2b2319;
+  --ink:#f3ede3;--ink-soft:#ab9f8e;--ink-faint:#7c7161;--line:#332a1f;--line-soft:#2a2219;
+  --accent:#f26a41;--accent-ink:#1a120c;--accent-soft:#3a2217;--gold:#d7a951;
+  --good:#57b483;--good-soft:#182a20;--warn:#d7a24a;--warn-soft:#31260f;--crit:#e2685c;--crit-soft:#331815;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px -14px rgba(0,0,0,.6);
+}}
+*{box-sizing:border-box}html,body{margin:0}
+body{font-family:var(--font);background:var(--ground);color:var(--ink);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+h1,h2,h3{margin:0;font-weight:650;letter-spacing:-.01em}
+button{font-family:inherit}
+.tnum{font-variant-numeric:tabular-nums}.mono{font-family:var(--mono)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+
+/* Login */
+#login{position:fixed;inset:0;background:var(--ground);display:none;place-items:center;z-index:100;padding:20px}
+#login.show{display:grid}
+.login-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:32px;width:100%;max-width:380px;text-align:center}
+.login-card .bname{font-family:var(--brand);font-size:24px;font-weight:600}
+.login-card .bsub{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:22px}
+.login-card input{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--ink);font-size:15px;margin-bottom:12px}
+.login-card button{width:100%;padding:12px;border:none;border-radius:10px;background:var(--accent);color:var(--accent-ink);font-weight:650;font-size:15px;cursor:pointer}
+.login-err{color:var(--crit);font-size:13px;font-weight:600;min-height:18px;margin-bottom:8px}
+
+/* App */
+#app{display:none;grid-template-columns:236px 1fr;min-height:100vh}
+#app.show{display:grid}
+.sidebar{background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;gap:4px;padding:20px 14px;position:sticky;top:0;height:100vh}
+.brand{padding:4px 8px 18px}
+.brand-name{font-family:var(--brand);font-size:18px;font-weight:600;line-height:1.1}
+.brand-sub{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-top:3px}
+.nav-label{font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-faint);padding:14px 10px 6px}
+.nav{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:10px;color:var(--ink-soft);cursor:pointer;border:none;background:none;width:100%;text-align:left;font-size:14.5px;font-weight:500}
+.nav:hover{background:var(--surface-3);color:var(--ink)}
+.nav.active{background:var(--accent);color:var(--accent-ink);font-weight:600}
+.nav .count{margin-left:auto;font-size:11px;background:var(--crit);color:#fff;border-radius:20px;padding:1px 7px}
+.nav.active .count{background:rgba(255,255,255,.25)}
+.nav-ic{width:17px;height:17px;flex:none;opacity:.8}
+.side-foot{margin-top:auto;padding-top:12px;border-top:1px solid var(--line-soft);font-size:12px;color:var(--ink-faint)}
+.logout{margin-top:8px;font-size:12.5px;color:var(--accent);background:none;border:none;cursor:pointer;font-weight:600;padding:0}
+
+.main{min-width:0;display:flex;flex-direction:column}
+.topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--ground) 85%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:12px 24px}
+.page-title{font-size:19px;font-weight:650}
+.unit-switch{display:flex;gap:4px;background:var(--surface-3);padding:4px;border-radius:11px}
+.unit-btn{border:none;background:none;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:550;color:var(--ink-soft);display:flex;align-items:center;gap:7px}
+.unit-btn.active{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.unit-dot{width:8px;height:8px;border-radius:50%;flex:none}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+.sync{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-soft)}
+.sync .dot{width:8px;height:8px;border-radius:50%;background:var(--good)}
+.sync.stale .dot{background:var(--warn)}.sync.err .dot{background:var(--crit)}
+.sync .dot.live{animation:pulse 1.6s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.icon-btn{width:34px;height:34px;border-radius:9px;border:1px solid var(--line);background:var(--surface);cursor:pointer;color:var(--ink-soft);display:grid;place-items:center}
+.content{padding:22px 24px 60px;max-width:1180px;width:100%}
+.section{display:none}.section.show{display:block}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.grid{display:grid;gap:16px}.kpis{grid-template-columns:repeat(4,1fr)}
+.kpi{padding:16px 18px;display:flex;flex-direction:column;gap:6px}
+.kpi-label{font-size:12px;color:var(--ink-soft)}
+.kpi-val{font-size:26px;font-weight:680;letter-spacing:-.02em}
+.row{display:grid;gap:16px;grid-template-columns:1.55fr 1fr;margin-top:16px}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line-soft)}
+.card-head h3{font-size:14.5px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;padding:10px 18px;border-bottom:1px solid var(--line-soft);background:var(--surface-2)}
+td{padding:11px 18px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+tr:last-child td{border-bottom:none}tbody tr:hover{background:var(--surface-2)}
+.t-strong{font-weight:600}.t-sub{color:var(--ink-faint);font-size:12px}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.p-active,.p-paid,.p-completed,.p-processing{background:var(--good-soft);color:var(--good)}
+.p-redeemed{background:var(--surface-3);color:var(--ink-soft)}
+.p-pending,.p-on-hold,.p-expsoon{background:var(--warn-soft);color:var(--warn)}
+.p-expired,.p-cancelled,.p-failed,.p-refunded{background:var(--crit-soft);color:var(--crit)}
+.uchip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:550}
+.exp-item{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line-soft)}
+.exp-item:last-child{border-bottom:none}
+.exp-serial{font-family:var(--mono);font-size:12.5px;font-weight:600}
+.exp-sub{font-size:12px;color:var(--ink-faint)}
+.days{margin-left:auto}
+.empty{padding:40px 24px;text-align:center;color:var(--ink-soft)}
+.empty h3{font-size:16px;margin-bottom:8px}
+.empty code{background:var(--surface-3);padding:2px 7px;border-radius:6px;font-size:12.5px}
+.section-intro{color:var(--ink-soft);font-size:13.5px;margin:-2px 0 18px;max-width:70ch}
+.errbar{background:var(--crit-soft);color:var(--crit);border-radius:10px;padding:9px 14px;font-size:12.5px;margin-bottom:14px}
+
+/* Cashier */
+.cashier{max-width:640px}
+.search-box{display:flex;gap:10px;margin:8px 0 4px}
+.search-box input{flex:1;font-size:20px;padding:13px 16px;letter-spacing:.04em;font-family:var(--mono);border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--ink)}
+.btn{border:none;border-radius:9px;padding:11px 18px;font-size:14px;font-weight:650;cursor:pointer;background:var(--accent);color:var(--accent-ink)}
+.result{margin-top:18px;padding:20px 22px}.result.hidden{display:none}
+.res-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 24px;margin:6px 0 18px}
+.res-k{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint);display:block;margin-bottom:2px}
+.res-v{font-size:17px;font-weight:600}
+.res-msg{margin-top:12px;font-weight:600}.res-msg.ok{color:var(--good)}.res-msg.err{color:var(--crit)}
+.menu-btn{display:none}
+@media(max-width:960px){
+  #app.show{grid-template-columns:1fr}
+  .sidebar{position:fixed;left:-260px;transition:.2s;z-index:50}.sidebar.open{left:0}
+  .kpis{grid-template-columns:repeat(2,1fr)}.row{grid-template-columns:1fr}.menu-btn{display:grid}
+}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <form class="login-card" id="loginForm">
+    <div class="bname">Pomo d'Oro</div>
+    <div class="bsub">Utalvány vezérlőpult</div>
+    <div class="login-err" id="loginErr"></div>
+    <input type="password" id="loginPass" placeholder="Jelszó" autocomplete="current-password">
+    <button type="submit">Belépés</button>
+  </form>
+</div>
+
+<div id="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-name">Pomo d'Oro</div>
+      <div class="brand-sub">Utalvány vezérlőpult</div>
+    </div>
+    <div class="nav-label">Áttekintés</div>
+    <button class="nav active" data-sec="dash"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>Áttekintés</button>
+    <button class="nav" data-sec="purchases"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>Vásárlások</button>
+    <button class="nav" data-sec="expiry"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Lejáratok<span class="count" id="expCount" style="display:none">0</span></button>
+    <div class="nav-label">Kezelés</div>
+    <button class="nav" data-sec="cashier"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg>Kassza – beváltás</button>
+    <div class="side-foot">
+      <div id="connInfo">Nincs bolt bekötve</div>
+      <button class="logout" id="logoutBtn">Kilépés</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="icon-btn menu-btn" id="menuBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+      <div class="page-title" id="pageTitle">Áttekintés</div>
+      <div class="unit-switch" id="unitSwitch"></div>
+      <div class="top-right">
+        <div class="sync" id="sync"><span class="dot live"></span><span id="syncTxt">Szinkron…</span></div>
+        <button class="icon-btn" id="themeBtn" aria-label="Téma"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+      </div>
+    </header>
+    <div class="content">
+      <div id="errbar"></div>
+
+      <section class="section show" id="sec-dash">
+        <div id="dashEmpty"></div>
+        <div id="dashBody" style="display:none">
+          <div class="grid kpis" id="kpis"></div>
+          <div class="row">
+            <div class="card">
+              <div class="card-head"><h3>Legutóbbi vásárlások</h3></div>
+              <div style="overflow-x:auto"><table id="dashTable"></table></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h3>Hamarosan lejár</h3></div>
+              <div id="dashExpiry"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="sec-purchases">
+        <p class="section-intro">Minden egység vásárlása egy helyen. A lista magától frissül, ahogy új fizetés érkezik.</p>
+        <div class="card"><div style="overflow-x:auto"><table id="purchasesTable"></table></div></div>
+      </section>
+
+      <section class="section" id="sec-expiry">
+        <p class="section-intro">A közelgő és lejárt utalványok, sürgősség szerint.</p>
+        <div class="card" id="expiryCard"></div>
+      </section>
+
+      <section class="section" id="sec-cashier">
+        <p class="section-intro">Írd be a sorszámot; a rendszer bármelyik egység utalványát megtalálja és a megfelelő boltban váltja be.</p>
+        <div class="cashier">
+          <div class="card" style="padding:18px 20px">
+            <div class="search-box">
+              <input id="cashInput" placeholder="pl. CASA-2026-000042" autocomplete="off">
+              <button class="btn" id="cashBtn">Keresés</button>
+            </div>
+          </div>
+          <div class="card result hidden" id="cashResult"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const nf=n=>Number(n||0).toLocaleString('hu-HU');
+const money=n=>nf(n)+' Ft';
+let CFG={authed:false,configured:false,shops:[],role:'admin'};
+let DATA={orders:[],vouchers:[],errors:[]};
+let currentUnit='all';
+const UNIT_COLORS={casa:'#c0392b',osteria:'#1f7a4d',pizzabar:'#c98a1e',trattoria:'#7d3350'};
+function unitColor(s){return UNIT_COLORS[s]||'#b4892f';}
+function shopName(slug){const s=CFG.shops.find(x=>x.slug===slug);return s?s.name:slug;}
+function shortName(slug){return shopName(slug).replace(" Pomo d'Oro","");}
+
+// ---- auth / boot ----
+async function boot(){
+  CFG=await fetch('/api/config').then(r=>r.json()).catch(()=>CFG);
+  if(!CFG.authed){ $('#login').classList.add('show'); $('#app').classList.remove('show'); return; }
+  $('#login').classList.remove('show'); $('#app').classList.add('show');
+  buildUnitSwitch();
+  $('#connInfo').textContent = CFG.configured ? (CFG.shops.length+' egység bekötve') : 'Nincs bolt bekötve';
+  await refresh();
+  startPolling();
+}
+$('#loginForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  $('#loginErr').textContent='';
+  const r=await fetch('/api/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({password:$('#loginPass').value})});
+  const j=await r.json().catch(()=>({}));
+  if(r.ok){ $('#loginPass').value=''; boot(); }
+  else $('#loginErr').textContent=j.error||'Hibás jelszó.';
+});
+$('#logoutBtn').onclick=async()=>{ await fetch('/api/logout',{method:'POST'}); location.reload(); };
+
+// ---- polling ----
+let pollTimer=null,lastTs=0;
+function startPolling(){ if(pollTimer)clearInterval(pollTimer); pollTimer=setInterval(refresh,8000); }
+async function refresh(){
+  try{
+    const r=await fetch('/api/data');
+    if(r.status===401){ location.reload(); return; }
+    const j=await r.json();
+    DATA=j; lastTs=j.ts||Date.now();
+    setSync('ok');
+    renderAll();
+  }catch(e){ setSync('err'); }
+}
+function setSync(state){
+  const el=$('#sync'); el.className='sync'+(state==='err'?' err':'');
+  $('#syncTxt').textContent = state==='err' ? 'Kapcsolat hiba' : 'Élő – frissítve most';
+}
+
+// ---- unit switch ----
+function buildUnitSwitch(){
+  const us=$('#unitSwitch');
+  const slugs=CFG.shops.map(s=>s.slug);
+  const opts = slugs.length>1 ? ['all',...slugs] : slugs;
+  if(!opts.includes(currentUnit)) currentUnit=opts[0]||'all';
+  us.innerHTML='';
+  opts.forEach(u=>{
+    const b=document.createElement('button');
+    b.className='unit-btn'+(u===currentUnit?' active':'');
+    b.innerHTML=(u==='all'?'':'<span class="unit-dot" style="background:'+unitColor(u)+'"></span>')+(u==='all'?'Összes':shortName(u));
+    b.onclick=()=>{currentUnit=u;document.querySelectorAll('.unit-btn').forEach(x=>x.classList.toggle('active',x===b));renderAll();};
+    us.appendChild(b);
+  });
+  us.style.display = opts.length>1 ? '' : 'none';
+}
+function filt(list){return currentUnit==='all'?list:list.filter(r=>r.unit===currentUnit);}
+
+// ---- render ----
+function statusPill(s){
+  const label={active:'Aktív',redeemed:'Beváltva',pending:'Függőben',expired:'Lejárt',cancelled:'Sztornó',
+    completed:'Teljesítve',processing:'Feldolgozás',paid:'Fizetve','on-hold':'Tartva',failed:'Sikertelen',refunded:'Visszatérítve'}[s]||s;
+  return '<span class="pill p-'+s+'">'+label+'</span>';
+}
+function uchip(u){return '<span class="uchip"><span class="unit-dot" style="background:'+unitColor(u)+'"></span>'+shortName(u)+'</span>';}
+function fdate(d){ if(!d)return''; const t=new Date(d.replace(' ','T')); return isNaN(t)?d:t.toLocaleDateString('hu-HU'); }
+function ftime(d){ if(!d)return''; const t=new Date(d.replace(' ','T')); return isNaN(t)?'':t.toLocaleTimeString('hu-HU',{hour:'2-digit',minute:'2-digit'}); }
+function daysLeft(vu){ if(!vu)return null; const t=new Date(vu+'T00:00:00'); return Math.ceil((t-new Date().setHours(0,0,0,0))/86400000); }
+
+function renderAll(){
+  $('#errbar').innerHTML = (DATA.errors&&DATA.errors.length)?('<div class="errbar">Néhány bolt nem elérhető: '+DATA.errors.join(' · ')+'</div>'):'';
+  if(!CFG.configured){ renderEmpty(); return; }
+  $('#dashEmpty').style.display='none'; $('#dashBody').style.display='';
+  renderKpis(); renderPurchases(); renderExpiry();
+}
+function renderEmpty(){
+  $('#dashBody').style.display='none';
+  $('#dashEmpty').style.display='';
+  $('#dashEmpty').innerHTML='<div class="card empty"><h3>Nincs még bolt bekötve</h3><p>Add meg a boltok elérését a Vercel <code>SHOPS</code> környezeti változójában, majd frissíts. Ezután itt jelennek meg valós időben a vásárlások.</p></div>';
+}
+function renderKpis(){
+  const o=filt(DATA.orders), v=filt(DATA.vouchers);
+  const revenue=v.reduce((s,x)=>s+(+x.amount||0),0);
+  const active=v.filter(x=>x.status==='active').length;
+  const soon=v.filter(x=>{const d=daysLeft(x.valid_until);return x.status==='active'&&d!==null&&d>=0&&d<=14;}).length;
+  const k=[['Eladott utalvány',v.length],['Érték összesen',money(revenue)],['Aktív utalvány',active],['14 napon belül lejár',soon]];
+  $('#kpis').innerHTML=k.map(x=>'<div class="card kpi"><div class="kpi-label">'+x[0]+'</div><div class="kpi-val">'+x[1]+'</div></div>').join('');
+}
+function orderRow(o){
+  return '<tr><td class="tnum">'+fdate(o.created_at||o.paid_at)+'<div class="t-sub">'+ftime(o.created_at||o.paid_at)+'</div></td>'+
+    '<td>'+uchip(o.unit)+'</td><td class="t-strong">'+(o.buyer_name||'—')+'</td>'+
+    '<td class="t-sub">'+(o.buyer_email||'')+'</td>'+
+    '<td class="t-strong tnum">'+money(o.amount)+'</td><td>'+statusPill(o.status)+'</td></tr>';
+}
+function renderPurchases(){
+  const head='<thead><tr><th>Dátum</th><th>Egység</th><th>Vásárló</th><th>E-mail</th><th>Érték</th><th>Státusz</th></tr></thead>';
+  const o=filt(DATA.orders).slice().sort((a,b)=>new Date(b.created_at||b.paid_at||0)-new Date(a.created_at||a.paid_at||0));
+  const rows=o.length?o.map(orderRow).join(''):'<tr><td colspan="6" class="t-sub" style="padding:22px">Még nincs vásárlás.</td></tr>';
+  $('#dashTable').innerHTML=head+'<tbody>'+o.slice(0,6).map(orderRow).join('')+'</tbody>';
+  $('#purchasesTable').innerHTML=head+'<tbody>'+rows+'</tbody>';
+}
+function daysPill(d){
+  if(d<0)return '<span class="pill p-expired">lejárt</span>';
+  if(d<=14)return '<span class="pill p-expsoon">'+d+' nap</span>';
+  return '<span class="pill p-redeemed">'+d+' nap</span>';
+}
+function expRow(x){
+  const d=daysLeft(x.valid_until);
+  return '<div class="exp-item"><div><div class="exp-serial">'+x.serial+'</div><div class="exp-sub">'+shortName(x.unit)+' · '+(x.recipient_name||'—')+' · '+(x.valid_until||'')+'</div></div><div class="days">'+(d===null?'':daysPill(d))+'</div></div>';
+}
+function renderExpiry(){
+  const v=filt(DATA.vouchers).filter(x=>x.status==='active'&&x.valid_until)
+    .map(x=>({x,d:daysLeft(x.valid_until)})).sort((a,b)=>a.d-b.d);
+  const soon=v.filter(e=>e.d>=0&&e.d<=14).length;
+  const c=$('#expCount'); if(soon>0){c.style.display='';c.textContent=soon;}else c.style.display='none';
+  const near=v.filter(e=>e.d>=0).slice(0,5);
+  $('#dashExpiry').innerHTML=near.length?near.map(e=>expRow(e.x)).join(''):'<div class="exp-item"><span class="t-sub">Nincs közelgő lejárat.</span></div>';
+  $('#expiryCard').innerHTML=v.length?v.map(e=>expRow(e.x)).join(''):'<div class="empty"><p>Nincs aktív, lejárattal rendelkező utalvány.</p></div>';
+}
+
+// ---- cashier ----
+function renderCash(serial){
+  serial=(serial||'').trim().toUpperCase();
+  const box=$('#cashResult');
+  if(!serial){box.classList.add('hidden');return;}
+  const v=DATA.vouchers.find(x=>String(x.serial).toUpperCase()===serial);
+  if(!v){ box.classList.remove('hidden'); box.innerHTML='<div class="res-msg err">Nincs találat erre a sorszámra (lehet, hogy még nem szinkronizálódott).</div>'; return; }
+  const d=daysLeft(v.valid_until);
+  const redeemable = v.status==='active' && (d===null||d>=0);
+  box.classList.remove('hidden');
+  box.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center"><div class="mono" style="font-size:16px;font-weight:700">'+v.serial+'</div>'+statusPill(v.status)+'</div>'+
+    '<div class="res-grid"><div><span class="res-k">Egység</span><span class="res-v">'+shortName(v.unit)+'</span></div>'+
+    '<div><span class="res-k">Érték</span><span class="res-v">'+money(v.amount)+'</span></div>'+
+    '<div><span class="res-k">Megajándékozott</span><span class="res-v">'+(v.recipient_name||'—')+'</span></div>'+
+    '<div><span class="res-k">Érvényes</span><span class="res-v">'+(v.valid_until||'—')+'</span></div></div>'+
+    (redeemable?'<button class="btn" id="redeemBtn">Beváltás</button><p class="res-msg" id="redeemMsg"></p>':'<p class="res-msg err">Nem beváltható ('+statusPill(v.status)+').</p>');
+  const rb=$('#redeemBtn');
+  if(rb) rb.onclick=async()=>{
+    rb.disabled=true; const msg=$('#redeemMsg');
+    try{
+      const r=await fetch('/api/redeem',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({serial:v.serial})});
+      const j=await r.json();
+      if(r.ok&&j.ok){ msg.className='res-msg ok'; msg.textContent='Beváltva – naplózva.'; rb.remove(); v.status='redeemed'; setTimeout(refresh,600); }
+      else { msg.className='res-msg err'; msg.textContent=j.error||'Beváltás sikertelen.'; rb.disabled=false; }
+    }catch(e){ msg.className='res-msg err'; msg.textContent='Hálózati hiba.'; rb.disabled=false; }
+  };
+}
+$('#cashBtn').onclick=()=>renderCash($('#cashInput').value);
+$('#cashInput').addEventListener('keydown',e=>{if(e.key==='Enter')renderCash(e.target.value);});
+
+// ---- nav / ui ----
+const titles={dash:'Áttekintés',purchases:'Vásárlások',expiry:'Lejáratok',cashier:'Kassza – beváltás'};
+document.querySelectorAll('.nav').forEach(n=>n.onclick=()=>{
+  document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x===n));
+  document.querySelectorAll('.section').forEach(s=>s.classList.toggle('show',s.id==='sec-'+n.dataset.sec));
+  $('#pageTitle').textContent=titles[n.dataset.sec];
+  $('#sidebar').classList.remove('open');
+});
+$('#menuBtn').onclick=()=>$('#sidebar').classList.toggle('open');
+$('#themeBtn').onclick=()=>{const r=document.documentElement;const cur=r.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');r.setAttribute('data-theme',cur==='dark'?'light':'dark');};
+
+boot();
+</script>
+</body>
+</html>

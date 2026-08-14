@@ -30,6 +30,72 @@ class PGV_REST {
 		register_rest_route( self::NS, '/vouchers', array_merge( $args, array( 'callback' => array( $this, 'get_vouchers' ) ) ) );
 		register_rest_route( self::NS, '/orders', array_merge( $args, array( 'callback' => array( $this, 'get_orders' ) ) ) );
 		register_rest_route( self::NS, '/customers', array_merge( $args, array( 'callback' => array( $this, 'get_customers' ) ) ) );
+
+		// Beváltás a központi appból (kassza). Csak POST, API-kulccsal.
+		register_rest_route(
+			self::NS,
+			'/redeem',
+			array(
+				'permission_callback' => array( $this, 'check_key' ),
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'redeem' ),
+			)
+		);
+
+		// Egy utalvány lekérése sorszám alapján (a kassza-előnézethez).
+		register_rest_route( self::NS, '/voucher', array_merge( $args, array( 'callback' => array( $this, 'get_one' ) ) ) );
+	}
+
+	/**
+	 * Egy utalvány sorszám (vagy QR-token) alapján.
+	 */
+	public function get_one( WP_REST_Request $request ) {
+		$needle = sanitize_text_field( (string) $request->get_param( 'serial' ) );
+		$v      = PGV_Vouchers::get_by_serial_or_token( $needle );
+		if ( ! $v ) {
+			return new WP_Error( 'pgv_notfound', __( 'Nincs ilyen utalvány.', 'pomodoro-gift-vouchers' ), array( 'status' => 404 ) );
+		}
+		$redeemable = ( PGV_Vouchers::STATUS_ACTIVE === $v['status'] )
+			&& ( empty( $v['valid_until'] ) || $v['valid_until'] >= current_time( 'Y-m-d' ) );
+		return rest_ensure_response(
+			array(
+				'serial'      => $v['serial'],
+				'unit'        => $v['unit_slug'],
+				'amount'      => (int) $v['amount'],
+				'status'      => $v['status'],
+				'recipient'   => $v['recipient_name'],
+				'valid_until' => $v['valid_until'],
+				'redeemable'  => $redeemable,
+				'is_legacy'   => (bool) $v['is_legacy'],
+			)
+		);
+	}
+
+	/**
+	 * Beváltás sorszám alapján. Az API-kulcs egységéhez tartozó utalvány váltható be.
+	 */
+	public function redeem( WP_REST_Request $request ) {
+		$serial = sanitize_text_field( (string) $request->get_param( 'serial' ) );
+		if ( '' === $serial ) {
+			return new WP_Error( 'pgv_no_serial', __( 'Hiányzó sorszám.', 'pomodoro-gift-vouchers' ), array( 'status' => 400 ) );
+		}
+		$v = PGV_Vouchers::get_by_serial_or_token( $serial );
+		if ( ! $v ) {
+			return new WP_Error( 'pgv_notfound', __( 'Nincs ilyen utalvány ennél az egységnél.', 'pomodoro-gift-vouchers' ), array( 'status' => 404 ) );
+		}
+		$result = PGV_Vouchers::redeem( (int) $v['id'], 'app' );
+		if ( is_wp_error( $result ) ) {
+			return new WP_Error( $result->get_error_code(), $result->get_error_message(), array( 'status' => 409 ) );
+		}
+		return rest_ensure_response(
+			array(
+				'ok'     => true,
+				'serial' => $result['serial'],
+				'unit'   => $result['unit_slug'],
+				'amount' => (int) $result['amount'],
+				'status' => $result['status'],
+			)
+		);
 	}
 
 	/**
