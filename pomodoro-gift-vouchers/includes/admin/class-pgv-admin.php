@@ -406,6 +406,19 @@ class PGV_Admin {
 		if ( empty( $_GET['pgv_notice'] ) ) {
 			return;
 		}
+		$key = sanitize_key( wp_unslash( $_GET['pgv_notice'] ) );
+
+		// A szinkron-üzenetet csak a tényleges kulcshoz számoljuk ki (a tranzienst
+		// egyszer olvassuk/töröljük), különben elveszne a hibaüzenet.
+		if ( 'sync_ok' === $key || 'sync_partial' === $key ) {
+			printf(
+				'<div class="notice notice-%s is-dismissible"><p>%s</p></div>',
+				'sync_ok' === $key ? 'success' : 'error',
+				esc_html( $this->sync_notice_text() )
+			);
+			return;
+		}
+
 		$map = array(
 			'saved'          => __( 'Beállítások mentve.', 'pomodoro-gift-vouchers' ),
 			'image_added'    => __( 'Kép hozzáadva a készlethez.', 'pomodoro-gift-vouchers' ),
@@ -416,12 +429,9 @@ class PGV_Admin {
 			'test_sent'      => __( 'Teszt e-mail elküldve a fiókod címére.', 'pomodoro-gift-vouchers' ),
 			'test_error'     => __( 'A teszt e-mail küldése nem sikerült (ellenőrizd a levélküldést / feladó címet).', 'pomodoro-gift-vouchers' ),
 			'sync_cfg'       => __( 'A vezérlőpult URL és/vagy titok nincs beállítva — előbb mentsd őket.', 'pomodoro-gift-vouchers' ),
-			'sync_ok'        => $this->sync_notice_text(),
-			'sync_partial'   => $this->sync_notice_text(),
 		);
-		$key = sanitize_key( wp_unslash( $_GET['pgv_notice'] ) );
 		if ( isset( $map[ $key ] ) ) {
-			$type = in_array( $key, array( 'import_error', 'test_error', 'sync_cfg', 'sync_partial' ), true ) ? 'error' : 'success';
+			$type = in_array( $key, array( 'import_error', 'test_error', 'sync_cfg' ), true ) ? 'error' : 'success';
 			printf( '<div class="notice notice-%s is-dismissible"><p>%s</p></div>', esc_attr( $type ), esc_html( $map[ $key ] ) );
 		}
 	}
