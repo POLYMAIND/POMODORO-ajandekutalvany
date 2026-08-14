@@ -53,14 +53,7 @@ async function readBody(req) {
   });
 }
 
-async function shopFetch(shop, path, opts = {}) {
-  const url = shop.url.replace(/\/+$/, '') + '/wp-json/pgv/v1' + path;
-  const headers = Object.assign({
-    'x-api-key': shop.apiKey,
-    'accept': 'application/json',
-    // Néhány tárhely/WAF 403-azik böngésző User-Agent nélkül.
-    'user-agent': 'Mozilla/5.0 (compatible; PomodoroCockpit/1.0; +https://polymaind.hu)',
-  }, opts.headers || {});
+async function rawFetch(url, headers, opts) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 12000);
   try {
@@ -72,6 +65,29 @@ async function shopFetch(shop, path, opts = {}) {
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function shopFetch(shop, path, opts = {}) {
+  const base = shop.url.replace(/\/+$/, '') + '/wp-json/pgv/v1' + path;
+  const ua = 'Mozilla/5.0 (compatible; PomodoroCockpit/1.0; +https://polymaind.hu)';
+
+  // 1) kulcs a fejlécben (ajánlott)
+  const headers = Object.assign({
+    'x-api-key': shop.apiKey,
+    'accept': 'application/json',
+    'user-agent': ua,
+  }, opts.headers || {});
+  let res = await rawFetch(base, headers, opts);
+  if (res.ok || (res.status && res.status !== 401 && res.status !== 403 && res.status !== 406)) {
+    return res;
+  }
+
+  // 2) fallback: kulcs query-ben, egyszerű fejlécekkel (WAF-kerülő)
+  const sep = base.includes('?') ? '&' : '?';
+  const url2 = base + sep + 'api_key=' + encodeURIComponent(shop.apiKey);
+  const headers2 = Object.assign({ 'accept': 'application/json', 'user-agent': ua }, opts.headers || {});
+  const res2 = await rawFetch(url2, headers2, opts);
+  return res2.ok ? res2 : res; // ha egyik sem, az elsődleges hibát adjuk vissza
 }
 
 module.exports = { getShops, makeToken, isAuthed, parseCookies, readBody, shopFetch, sign };
