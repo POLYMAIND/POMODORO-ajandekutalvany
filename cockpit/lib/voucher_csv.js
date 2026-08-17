@@ -5,7 +5,6 @@
 const FIELDS = [
   ['utalvány kódja', 'serial'],
   ['megrendelési azonosító', 'order_ref'],
-  ['WooCommerce rendelésszám', 'wc_order_id'],
   ['utalvány neve', 'label'],
   ['érték', 'amount'],
   ['státusz', 'status'],
@@ -34,8 +33,7 @@ const FIELDS = [
 // Elfogadott fejléc-nevek mezőnként (a kanonikus + a régi SimplePay/WP-admin exportok).
 const ALIASES = {
   serial: ['utalvány kódja', 'azonosító', 'sorszám', 'serial'],
-  order_ref: ['megrendelési azonosító'],
-  wc_order_id: ['woocommerce rendelésszám'],
+  order_ref: ['megrendelési azonosító', 'woocommerce rendelésszám'],
   label: ['utalvány neve'],
   amount: ['érték', 'ár', 'összeg', 'amount'],
   status: ['státusz', 'status'],
@@ -105,7 +103,6 @@ function rowToRecord(headerIdx, row, unitSlug) {
     unit: unitSlug,
     serial: get('serial'),
     order_ref: get('order_ref'),
-    wc_order_id: get('wc_order_id'),
     label: get('label'),
     amount: amountFrom(get('amount')),
     status: IMPORT_STATUS[String(get('status')).toLowerCase()] || (get('status') ? String(get('status')).toLowerCase() : 'active'),

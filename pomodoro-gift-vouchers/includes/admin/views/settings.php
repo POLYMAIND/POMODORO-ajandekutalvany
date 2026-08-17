@@ -15,7 +15,6 @@ $units = array(
 	'pizzabar'  => "Pizzabar Pomo d'Oro",
 	'trattoria' => "Trattoria Pomo d'Oro",
 );
-$api_key = get_option( 'pgv_api_key' );
 ?>
 <div class="wrap pgv-wrap">
 	<h1 class="pgv-title"><?php esc_html_e( 'Beállítások', 'pomodoro-gift-vouchers' ); ?></h1>
@@ -178,30 +177,6 @@ $api_key = get_option( 'pgv_api_key' );
 			<span class="description"><?php esc_html_e( '(előbb mentsd a módosításokat)', 'pomodoro-gift-vouchers' ); ?></span>
 		</p>
 	</form>
-
-	<div class="pgv-card">
-		<h2><?php esc_html_e( 'CRM olvasó API', 'pomodoro-gift-vouchers' ); ?></h2>
-		<p><?php esc_html_e( 'Végpontok:', 'pomodoro-gift-vouchers' ); ?></p>
-		<code><?php echo esc_html( rest_url( PGV_REST::NS . '/vouchers' ) ); ?></code><br>
-		<code><?php echo esc_html( rest_url( PGV_REST::NS . '/orders' ) ); ?></code><br>
-		<code><?php echo esc_html( rest_url( PGV_REST::NS . '/customers' ) ); ?></code>
-		<p class="description"><?php esc_html_e( 'Hitelesítés: x-api-key fejléc (vagy Authorization: Bearer, illetve ?api_key=). A CRM a WooCommerce beépített REST-jét is használhatja.', 'pomodoro-gift-vouchers' ); ?></p>
-		<?php if ( $api_key ) : ?>
-			<p style="background:#fff8e5;border:1px solid #f0d98c;border-radius:8px;padding:12px 14px">
-				<strong><?php esc_html_e( 'API kulcs (csak MOST látszik teljesen — másold ki!):', 'pomodoro-gift-vouchers' ); ?></strong><br>
-				<code style="user-select:all;font-size:14px"><?php echo esc_html( $api_key ); ?></code>
-			</p>
-			<p class="description"><?php esc_html_e( 'Ez a kulcs kell a központi vezérlőpult SHOPS beállításához. Biztonsági okból a nyers kulcsot nem tároljuk — ha most nem mented el, később csak új kulcsot lehet generálni.', 'pomodoro-gift-vouchers' ); ?></p>
-		<?php else : ?>
-			<p class="description"><?php echo esc_html( sprintf( __( 'Kulcs-előnézet: %s', 'pomodoro-gift-vouchers' ), get_option( 'pgv_api_key_preview', '—' ) ) ); ?></p>
-		<?php endif; ?>
-		<form method="post" style="margin-top:10px" onsubmit="return confirm('<?php echo esc_js( __( 'Új kulcs generálása után a régi kulcs azonnal érvénytelen lesz. Folytatod?', 'pomodoro-gift-vouchers' ) ); ?>');">
-			<?php wp_nonce_field( 'pgv_regen_key' ); ?>
-			<input type="hidden" name="pgv_action" value="regen_api_key">
-			<button type="submit" class="button"><?php esc_html_e( 'Új API-kulcs generálása', 'pomodoro-gift-vouchers' ); ?></button>
-			<span class="description"><?php esc_html_e( 'A régi kulcs érvénytelenné válik.', 'pomodoro-gift-vouchers' ); ?></span>
-		</form>
-	</div>
 
 	<div class="pgv-card">
 		<h2><?php esc_html_e( 'Központi vezérlőpult (push szinkron)', 'pomodoro-gift-vouchers' ); ?></h2>

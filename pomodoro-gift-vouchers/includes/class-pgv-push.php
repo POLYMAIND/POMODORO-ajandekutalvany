@@ -36,8 +36,7 @@ class PGV_Push {
 		$data = array(
 			'unit'             => $v['unit_slug'],
 			'serial'           => $v['serial'],
-			'order_ref'        => '',
-			'wc_order_id'      => ! empty( $v['order_id'] ) ? (string) $v['order_id'] : '',
+			'order_ref'        => ! empty( $v['order_id'] ) ? (string) $v['order_id'] : '',
 			'transaction_id'   => '',
 			'label'            => isset( $v['denomination_label'] ) ? $v['denomination_label'] : '',
 			'amount'           => (int) $v['amount'],
@@ -69,7 +68,6 @@ class PGV_Push {
 			$order = wc_get_order( (int) $v['order_id'] );
 			if ( $order ) {
 				$data['order_ref']        = (string) $order->get_order_number();
-				$data['wc_order_id']      = (string) $order->get_id();
 				$data['transaction_id']   = (string) $order->get_transaction_id();
 				$name                     = trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() );
 				$data['buyer_name']       = $name;

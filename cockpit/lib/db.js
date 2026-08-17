@@ -26,7 +26,7 @@ function db() {
 
 // Extra (import-only) CRM oszlopok — a plugin push nem küldi ezeket, ezért
 // upsertnél COALESCE-szal védjük, hogy egy későbbi push ne nullázza őket.
-const EXTRA_COLS = ['order_ref', 'wc_order_id', 'label', 'buyer_name', 'buyer_phone', 'country',
+const EXTRA_COLS = ['order_ref', 'label', 'buyer_name', 'buyer_phone', 'country',
   'postcode', 'city', 'street', 'message',
   'buyer_note', 'promo_code', 'payment_provider', 'transaction_id', 'paid_at'];
 
@@ -106,7 +106,6 @@ function norm(v) {
     updated_at: d(v.updated_at) || d(v.created_at),
     // extra
     order_ref: s(v.order_ref),
-    wc_order_id: s(v.wc_order_id),
     label: s(v.label),
     buyer_name: s(v.buyer_name),
     buyer_phone: s(v.buyer_phone),

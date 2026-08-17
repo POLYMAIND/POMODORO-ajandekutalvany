@@ -17,6 +17,12 @@ class PGV_Admin {
 		add_action( 'admin_menu', array( $this, 'menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'assets' ) );
 		add_action( 'admin_init', array( $this, 'handle_actions' ) );
+		// A korábban plaintextben tárolt CRM API-kulcs eltávolítása (biztonság).
+		add_action( 'admin_init', static function () {
+			if ( false !== get_option( 'pgv_api_key', false ) ) {
+				delete_option( 'pgv_api_key' );
+			}
+		} );
 
 		// Export + PDF letöltés + AJAX beváltás/újraküldés.
 		add_action( 'admin_post_pgv_export', array( $this, 'do_export' ) );

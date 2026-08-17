@@ -148,14 +148,8 @@ class PGV_Install {
 		if ( false === get_option( 'pgv_settings', false ) ) {
 			add_option( 'pgv_settings', PGV_Settings_Defaults() );
 		}
-		if ( ! get_option( 'pgv_api_key' ) ) {
-			// Nyers kulcs csak itt látszik; hash-t tárolunk az összehasonlításhoz.
-			$raw = 'pk_' . bin2hex( random_bytes( 24 ) );
-			add_option( 'pgv_api_key_hash', hash( 'sha256', $raw ) );
-			add_option( 'pgv_api_key_preview', substr( $raw, 0, 10 ) . '…' );
-			// A nyers kulcsot egyszer eltesszük, hogy az admin megmutathassa, majd törölhető.
-			add_option( 'pgv_api_key', $raw );
-		}
+		// Megj.: a korábbi CRM olvasó API-kulcsot már nem hozzuk létre (a vezérlőpult
+		// push-szinkronnal dolgozik). A plaintext kulcs sehol nem tárolódik.
 	}
 }
 
