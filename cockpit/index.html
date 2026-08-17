@@ -297,6 +297,7 @@ tbody tr.clickable{cursor:pointer}
               <span class="period-dash">–</span>
               <input class="fi" type="date" id="ioExpTo" aria-label="Ig" style="flex:1">
             </div>
+            <div class="uerr" id="ioExpMsg"></div>
             <button type="button" class="btn" id="ioExport" style="margin-top:12px">Export CSV letöltése</button>
           </div>
         </div>
@@ -552,13 +553,26 @@ function initIO(){
   exp.innerHTML=expOpts.join('');
   $('#ioMsg').textContent='';
 }
-$('#ioExport').onclick=()=>{
+$('#ioExport').onclick=async()=>{
+  const msg=$('#ioExpMsg'); msg.className='uerr'; msg.textContent='';
   const u=$('#ioExpUnit').value, from=$('#ioExpFrom').value, to=$('#ioExpTo').value;
   const q=[];
   if(u)q.push('unit='+encodeURIComponent(u));
   if(from)q.push('from='+encodeURIComponent(from));
   if(to)q.push('to='+encodeURIComponent(to));
-  window.location='/api/export'+(q.length?('?'+q.join('&')):'');
+  const url='/api/export'+(q.length?('?'+q.join('&')):'');
+  const btn=$('#ioExport'); btn.disabled=true; const o=btn.textContent; btn.textContent='Letöltés…';
+  try{
+    const r=await fetch(url);
+    if(!r.ok){ const j=await r.json().catch(()=>({})); msg.textContent=j.error||'Nincs letölthető adat.'; return; }
+    const blob=await r.blob();
+    let fn='export.csv';
+    const cd=r.headers.get('content-disposition')||'';
+    const m=cd.match(/filename="?([^"]+)"?/); if(m) fn=m[1];
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fn;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  }catch(e){ msg.textContent='Hiba: '+(e.message||e); }
+  finally{ btn.disabled=false; btn.textContent=o; }
 };
 $('#ioImport').onclick=async()=>{
   const msg=$('#ioMsg'); msg.className='uerr'; msg.textContent='';

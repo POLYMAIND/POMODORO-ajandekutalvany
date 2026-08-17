@@ -36,12 +36,19 @@ module.exports = async (req, res) => {
     getShops().forEach(s => { names[n(s.slug)] = String(s.name || s.slug).replace(" Pomo d'Oro", ''); });
     const unitName = slug => names[n(slug)] || slug;
 
+    // Üres eredménynél ne adjunk letölthető fájlt.
+    if (!rows.length) {
+      res.status(404).json({ error: 'Nincs letölthető utalvány a kiválasztott szűrőkkel.' });
+      return;
+    }
+
     const out = [exportHeader()];
     for (const v of rows) out.push(recordToRow(v, unitName(v.unit)));
 
     const stamp = new Date().toISOString().slice(0, 10);
+    const base = only ? only : 'pomodoro'; // egység slug, vagy összesnél „pomodoro”
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="pomodoro-utalvanyok-${stamp}.csv"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${base}-utalvanyok-${stamp}.csv"`);
     res.setHeader('Cache-Control', 'no-store');
     res.status(200).send(toCSV(out, ';', true));
   } catch (e) {
