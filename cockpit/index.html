@@ -405,12 +405,13 @@ function purchaseRow(x){
   return '<tr><td class="tnum">'+fdate(x.created_at)+'<div class="t-sub">'+ftime(x.created_at)+'</div></td>'+
     '<td>'+uchip(x.unit)+'</td><td class="mono t-sub">'+(x.serial||'')+'</td>'+
     '<td class="t-strong">'+buyer+'</td>'+
-    '<td>'+(x.recipient_name||'—')+'</td>'+
     '<td class="t-sub">'+(x.buyer_email||'')+'</td>'+
-    '<td class="t-strong tnum">'+money(x.amount)+'</td><td>'+statusPill(x.status)+'</td></tr>';
+    '<td class="t-strong tnum">'+money(x.amount)+'</td>'+
+    '<td class="tnum">'+(x.valid_until?fdate(x.valid_until):'—')+'</td>'+
+    '<td>'+statusPill(x.status)+'</td></tr>';
 }
 function renderPurchases(){
-  const head='<thead><tr><th>Dátum</th><th>Egység</th><th>Sorszám</th><th>Vásárló</th><th>Megajándékozott</th><th>E-mail</th><th>Érték</th><th>Státusz</th></tr></thead>';
+  const head='<thead><tr><th>Dátum</th><th>Egység</th><th>Sorszám</th><th>Vásárló</th><th>E-mail</th><th>Érték</th><th>Lejárat</th><th>Státusz</th></tr></thead>';
   const v=filt(DATA.vouchers).slice().sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
   const rows=v.length?v.map(purchaseRow).join(''):'<tr><td colspan="8" class="t-sub" style="padding:22px">Még nincs adat.</td></tr>';
   $('#dashTable').innerHTML=head+'<tbody>'+(v.length?v.slice(0,6).map(purchaseRow).join(''):'<tr><td colspan="8" class="t-sub" style="padding:18px">Még nincs adat.</td></tr>')+'</tbody>';
@@ -455,7 +456,7 @@ function renderCash(serial){
   if(rb) rb.onclick=async()=>{
     rb.disabled=true; const msg=$('#redeemMsg');
     try{
-      const r=await fetch('/api/redeem',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({serial:v.serial})});
+      const r=await fetch('/api/redeem',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({serial:v.serial,unit:v.unit})});
       const j=await r.json();
       if(r.ok&&j.ok){ msg.className='res-msg ok'; msg.textContent='Beváltva – naplózva.'; rb.remove(); v.status='redeemed'; setTimeout(refresh,600); }
       else { msg.className='res-msg err'; msg.textContent=j.error||'Beváltás sikertelen.'; rb.disabled=false; }

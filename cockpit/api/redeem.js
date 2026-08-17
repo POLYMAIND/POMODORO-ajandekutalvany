@@ -1,35 +1,48 @@
-const { getShops, readBody, shopFetch } = require('../lib/shops.js');
+const { getShops, readBody } = require('../lib/shops.js');
 const { resolveUser, canSeeUnit } = require('../lib/auth.js');
+const { ensureSchema, getVoucher, redeemVoucher } = require('../lib/db.js');
 
-// Egységes kassza: sorszám -> a megfelelő bolt beváltó végpontja.
+// Egységes kassza: beváltás a központi adatbázisban (legacy és élő utalványra is).
+// Atomikus — beváltott/lejárt/sztornó utalványt nem enged még egyszer beváltani.
 module.exports = async (req, res) => {
   if (req.method !== 'POST') { res.status(405).json({ error: 'POST' }); return; }
-  const session = await resolveUser(req);
-  if (!session) { res.status(401).json({ error: 'auth' }); return; }
+  const user = await resolveUser(req);
+  if (!user) { res.status(401).json({ error: 'auth' }); return; }
 
   const body = await readBody(req);
   const serial = String((body && body.serial) || '').trim();
   if (!serial) { res.status(400).json({ error: 'Hiányzó sorszám.' }); return; }
 
-  const shop = getShops().find(s =>
-    serial.toUpperCase().startsWith(String(s.prefix || '').toUpperCase() + '-')
-  );
-  if (!shop) { res.status(404).json({ error: 'A sorszám alapján nem azonosítható az egység.' }); return; }
-
-  // Jogosultság: csak a saját egysége(i) utalványát válthatja be (superadmin bármelyiket).
-  if (!canSeeUnit(session, shop.slug)) {
-    res.status(403).json({ error: 'Nincs jogosultságod ehhez az egységhez.' });
-    return;
+  // Egység: a kliens küldi (a lista rekordjából), vagy a sorszám előtagjából.
+  const shops = getShops();
+  let unit = String((body && body.unit) || '').trim().toLowerCase();
+  if (!unit) {
+    const byPrefix = shops.find(s => serial.toUpperCase().startsWith(String(s.prefix || '').toUpperCase() + '-'));
+    unit = byPrefix ? byPrefix.slug : '';
   }
+  const shop = shops.find(s => String(s.slug).toLowerCase() === unit);
+  if (!shop) { res.status(404).json({ error: 'A sorszám alapján nem azonosítható az egység.' }); return; }
+  if (!canSeeUnit(user, shop.slug)) { res.status(403).json({ error: 'Nincs jogosultságod ehhez az egységhez.' }); return; }
 
   try {
-    const r = await shopFetch(shop, '/redeem', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ serial }),
-    });
-    res.status(r.status).json(r.json || { error: 'Ismeretlen válasz a bolttól.' });
+    await ensureSchema();
+    const v = await getVoucher(shop.slug, serial);
+    if (!v) { res.status(404).json({ error: 'Nincs ilyen utalvány ebben az egységben.' }); return; }
+
+    const labels = { active: 'Aktív', redeemed: 'Beváltva', cancelled: 'Sztornó', expired: 'Lejárt', pending: 'Függőben' };
+    if (v.status !== 'active') {
+      res.status(409).json({ error: 'Nem beváltható (állapot: ' + (labels[v.status] || v.status) + ').' });
+      return;
+    }
+
+    const done = await redeemVoucher(shop.slug, serial);
+    if (!done) {
+      // Aktív volt, de a feltétel mégsem teljesült → lejárt, vagy közben beváltották.
+      res.status(409).json({ error: 'Nem beváltható (lejárt, vagy időközben beváltották).' });
+      return;
+    }
+    res.status(200).json({ ok: true, status: 'redeemed', redeemed_at: done.redeemed_at });
   } catch (e) {
-    res.status(500).json({ error: e.message || 'Hálózati hiba.' });
+    res.status(500).json({ error: String(e && e.message || e) });
   }
 };

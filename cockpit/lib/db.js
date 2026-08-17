@@ -155,6 +155,26 @@ async function allVouchers() {
   return await sql`SELECT * FROM pgv_vouchers ORDER BY created_at DESC NULLS LAST`;
 }
 
+async function getVoucher(unit, serial) {
+  const sql = db();
+  const r = await sql`SELECT * FROM pgv_vouchers
+    WHERE lower(unit) = lower(${String(unit)}) AND serial = ${String(serial)} LIMIT 1`;
+  return r[0] || null;
+}
+
+// Atomikus beváltás: CSAK aktív + nem lejárt utalvány váltható be, egyszer.
+// A WHERE-feltétel biztosítja, hogy párhuzamos hívásnál se legyen dupla beváltás.
+async function redeemVoucher(unit, serial) {
+  const sql = db();
+  const rows = await sql`UPDATE pgv_vouchers
+    SET status = 'redeemed', redeemed_at = now()
+    WHERE lower(unit) = lower(${String(unit)}) AND serial = ${String(serial)}
+      AND status = 'active'
+      AND (valid_until IS NULL OR valid_until >= CURRENT_DATE)
+    RETURNING *`;
+  return rows[0] || null;
+}
+
 // Egy egység importált (legacy) utalványainak törlése — az import visszavonásához.
 async function deleteLegacyByUnit(unit) {
   const sql = db();
@@ -220,6 +240,6 @@ async function deleteUser(id) {
 }
 
 module.exports = {
-  db, ensureSchema, upsertVouchers, allVouchers, deleteLegacyByUnit,
+  db, ensureSchema, upsertVouchers, allVouchers, getVoucher, redeemVoucher, deleteLegacyByUnit,
   ensureUsersSchema, countUsers, getUserByEmail, getUserById, listUsers, createUser, updateUser, deleteUser,
 };
