@@ -289,7 +289,9 @@ async function boot(){
   $('#navUsers').style.display = CFG.canManageUsers ? '' : 'none';
   const _rl = CFG.role ? (ROLE_LABELS[CFG.role]||CFG.role) : '';
   $('#whoami').textContent = (CFG.name && CFG.name!==_rl) ? (CFG.name+' · '+_rl) : (CFG.name||_rl);
-  $('#connInfo').textContent = CFG.configured ? (CFG.shops.length+' egység bekötve') : 'Nincs bolt bekötve';
+  $('#connInfo').textContent = !CFG.configured ? 'Nincs egység'
+    : (CFG.role==='superadmin' ? (CFG.shops.length+' egység bekötve')
+      : ('Kezelt egység: '+CFG.shops.map(s=>shortName(s.slug)).join(', ')));
   await refresh();
   startPolling();
 }
@@ -335,7 +337,7 @@ function buildUnitSwitch(){
     b.onclick=()=>{currentUnit=u;document.querySelectorAll('.unit-btn').forEach(x=>x.classList.toggle('active',x===b));renderAll();};
     us.appendChild(b);
   });
-  us.style.display = opts.length>1 ? '' : 'none';
+  us.style.display = opts.length ? '' : 'none';
 }
 function filt(list){return currentUnit==='all'?list:list.filter(r=>r.unit===currentUnit);}
 

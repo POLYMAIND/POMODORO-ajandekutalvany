@@ -5,8 +5,10 @@ module.exports = async (req, res) => {
   const s = readSession(req);
   const all = getShops().map(x => ({ slug: x.slug, name: x.name, prefix: x.prefix }));
   // Nem-superadmin csak a saját egységeit látja.
+  const n = u => String(u == null ? '' : u).trim().toLowerCase();
+  const mine = new Set((s ? (s.units || []) : []).map(n));
   const shops = (s && s.role !== 'superadmin')
-    ? all.filter(x => (s.units || []).includes(x.slug))
+    ? all.filter(x => mine.has(n(x.slug)))
     : all;
 
   res.status(200).json({

@@ -75,7 +75,8 @@ function verifyPassword(pw, stored) {
 function canSeeUnit(session, unit) {
   if (!session) return false;
   if (session.role === 'superadmin') return true;
-  return Array.isArray(session.units) && session.units.includes(unit);
+  const n = u => String(u == null ? '' : u).trim().toLowerCase();
+  return Array.isArray(session.units) && session.units.map(n).includes(n(unit));
 }
 
 module.exports = { ROLES, ROLE_LABELS, makeSession, readSession, hashPassword, verifyPassword, canSeeUnit, secret };

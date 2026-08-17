@@ -9,12 +9,26 @@ module.exports = async (req, res) => {
   try {
     await ensureSchema();
     let rows = await allVouchers();
+    const norm = u => String(u == null ? '' : u).trim().toLowerCase();
+
     if (s.role !== 'superadmin') {
-      const set = new Set(s.units || []);
-      rows = rows.filter(v => set.has(v.unit));
+      const set = new Set((s.units || []).map(norm));
+      rows = rows.filter(v => set.has(norm(v.unit)));
     }
+
     res.setHeader('Cache-Control', 'no-store');
-    res.status(200).json({ vouchers: rows, errors: [], ts: Date.now(), source: 'db' });
+    const out = { vouchers: rows, errors: [], ts: Date.now(), source: 'db' };
+    if (req.query && req.query.debug) {
+      const all = await allVouchers();
+      out.debug = {
+        role: s.role,
+        sessionUnits: s.units || [],
+        distinctVoucherUnits: [...new Set(all.map(v => v.unit))],
+        totalInDb: all.length,
+        visibleToYou: rows.length,
+      };
+    }
+    res.status(200).json(out);
   } catch (e) {
     res.status(200).json({ vouchers: [], errors: ['DB: ' + String(e && e.message || e)], ts: Date.now() });
   }
