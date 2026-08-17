@@ -26,9 +26,9 @@ function db() {
 
 // Extra (import-only) CRM oszlopok — a plugin push nem küldi ezeket, ezért
 // upsertnél COALESCE-szal védjük, hogy egy későbbi push ne nullázza őket.
-const EXTRA_COLS = ['order_ref', 'label', 'buyer_name', 'buyer_phone', 'country',
-  'postcode', 'city', 'street', 'message', 'delivery_date', 'redeem_method',
-  'buyer_note', 'promo_code', 'payment_provider', 'paid_at', 'print_serial'];
+const EXTRA_COLS = ['order_ref', 'wc_order_id', 'label', 'buyer_name', 'buyer_phone', 'country',
+  'postcode', 'city', 'street', 'message',
+  'buyer_note', 'promo_code', 'payment_provider', 'transaction_id', 'paid_at'];
 
 let _schemaReady = false;
 async function ensureSchema() {
@@ -56,6 +56,7 @@ async function ensureSchema() {
   // Extra CRM oszlopok (idempotens bővítés meglévő táblán is).
   await sql`ALTER TABLE pgv_vouchers
     ADD COLUMN IF NOT EXISTS order_ref text,
+    ADD COLUMN IF NOT EXISTS wc_order_id text,
     ADD COLUMN IF NOT EXISTS label text,
     ADD COLUMN IF NOT EXISTS buyer_name text,
     ADD COLUMN IF NOT EXISTS buyer_phone text,
@@ -69,6 +70,7 @@ async function ensureSchema() {
     ADD COLUMN IF NOT EXISTS buyer_note text,
     ADD COLUMN IF NOT EXISTS promo_code text,
     ADD COLUMN IF NOT EXISTS payment_provider text,
+    ADD COLUMN IF NOT EXISTS transaction_id text,
     ADD COLUMN IF NOT EXISTS paid_at timestamptz,
     ADD COLUMN IF NOT EXISTS print_serial text`;
   _schemaReady = true;
@@ -104,6 +106,7 @@ function norm(v) {
     updated_at: d(v.updated_at) || d(v.created_at),
     // extra
     order_ref: s(v.order_ref),
+    wc_order_id: s(v.wc_order_id),
     label: s(v.label),
     buyer_name: s(v.buyer_name),
     buyer_phone: s(v.buyer_phone),
@@ -112,13 +115,11 @@ function norm(v) {
     city: s(v.city),
     street: s(v.street),
     message: s(v.message),
-    delivery_date: d(v.delivery_date),
-    redeem_method: s(v.redeem_method),
     buyer_note: s(v.buyer_note),
     promo_code: s(v.promo_code),
     payment_provider: s(v.payment_provider),
+    transaction_id: s(v.transaction_id),
     paid_at: d(v.paid_at),
-    print_serial: s(v.print_serial),
   };
 }
 

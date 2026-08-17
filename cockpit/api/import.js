@@ -2,7 +2,7 @@ const { readBody, getShops } = require('../lib/shops.js');
 const { resolveUser, canSeeUnit } = require('../lib/auth.js');
 const { ensureSchema, upsertVouchers } = require('../lib/db.js');
 const { parseCSV } = require('../lib/csv.js');
-const { normHeader, rowToRecord } = require('../lib/voucher_csv.js');
+const { normHeader, rowToRecord, serialColumnPresent } = require('../lib/voucher_csv.js');
 
 // Korábbi CSV-k importálása a vezérlőpultba (egységhez kötve, is_legacy jelöléssel).
 module.exports = async (req, res) => {
