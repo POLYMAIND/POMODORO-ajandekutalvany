@@ -243,7 +243,11 @@ tr:last-child td{border-bottom:none}tbody tr:hover{background:var(--surface-2)}
             <label class="fl">CSV fájl</label>
             <input class="fi" id="ioFile" type="file" accept=".csv,text/csv">
             <div class="uerr" id="ioMsg"></div>
-            <button type="button" class="btn" id="ioImport" style="margin-top:12px">Importálás</button>
+            <div style="display:flex;gap:8px;margin-top:12px">
+              <button type="button" class="btn" id="ioImport">Importálás</button>
+              <button type="button" class="btn ghost" id="ioUndo">Import visszavonása</button>
+            </div>
+            <p class="t-sub" style="margin:8px 0 0">A visszavonás a fent kiválasztott egység összes importált (korábbi) utalványát törli. Az élő, boltból szinkronizált utalványokat nem érinti.</p>
           </div>
           <div class="card" style="padding:18px 20px">
             <h3 style="font-size:14.5px;margin-bottom:6px">Export</h3>
@@ -397,17 +401,19 @@ function renderKpis(){
   $('#kpis').innerHTML=k.map(x=>'<div class="card kpi"><div class="kpi-label">'+x[0]+'</div><div class="kpi-val">'+x[1]+'</div></div>').join('');
 }
 function purchaseRow(x){
+  const buyer = x.buyer_name || x.giver_name || '—';
   return '<tr><td class="tnum">'+fdate(x.created_at)+'<div class="t-sub">'+ftime(x.created_at)+'</div></td>'+
     '<td>'+uchip(x.unit)+'</td><td class="mono t-sub">'+(x.serial||'')+'</td>'+
-    '<td class="t-strong">'+(x.giver_name||'—')+'</td>'+
+    '<td class="t-strong">'+buyer+'</td>'+
+    '<td>'+(x.recipient_name||'—')+'</td>'+
     '<td class="t-sub">'+(x.buyer_email||'')+'</td>'+
     '<td class="t-strong tnum">'+money(x.amount)+'</td><td>'+statusPill(x.status)+'</td></tr>';
 }
 function renderPurchases(){
-  const head='<thead><tr><th>Dátum</th><th>Egység</th><th>Sorszám</th><th>Vásárló</th><th>E-mail</th><th>Érték</th><th>Státusz</th></tr></thead>';
+  const head='<thead><tr><th>Dátum</th><th>Egység</th><th>Sorszám</th><th>Vásárló</th><th>Megajándékozott</th><th>E-mail</th><th>Érték</th><th>Státusz</th></tr></thead>';
   const v=filt(DATA.vouchers).slice().sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
-  const rows=v.length?v.map(purchaseRow).join(''):'<tr><td colspan="7" class="t-sub" style="padding:22px">Még nincs adat.</td></tr>';
-  $('#dashTable').innerHTML=head+'<tbody>'+(v.length?v.slice(0,6).map(purchaseRow).join(''):'<tr><td colspan="7" class="t-sub" style="padding:18px">Még nincs adat.</td></tr>')+'</tbody>';
+  const rows=v.length?v.map(purchaseRow).join(''):'<tr><td colspan="8" class="t-sub" style="padding:22px">Még nincs adat.</td></tr>';
+  $('#dashTable').innerHTML=head+'<tbody>'+(v.length?v.slice(0,6).map(purchaseRow).join(''):'<tr><td colspan="8" class="t-sub" style="padding:18px">Még nincs adat.</td></tr>')+'</tbody>';
   $('#purchasesTable').innerHTML=head+'<tbody>'+rows+'</tbody>';
 }
 function daysPill(d){
@@ -502,6 +508,21 @@ $('#ioImport').onclick=async()=>{
     }else{ msg.style.color=''; msg.textContent=j.error||'Az import nem sikerült.'; }
   }catch(e){ msg.textContent='Hiba: '+(e.message||e); }
   finally{ btn.disabled=false; btn.textContent='Importálás'; }
+};
+$('#ioUndo').onclick=async()=>{
+  const msg=$('#ioMsg'); msg.className='uerr'; msg.textContent='';
+  const unit=$('#ioImpUnit').value;
+  if(!unit){ msg.textContent='Válassz egységet.'; return; }
+  const label=$('#ioImpUnit').options[$('#ioImpUnit').selectedIndex].text;
+  if(!confirm('Biztosan törlöd a(z) '+label+' ÖSSZES importált (korábbi) utalványát? Ez nem vonható vissza.')) return;
+  const btn=$('#ioUndo'); btn.disabled=true; btn.textContent='Törlés…';
+  try{
+    const r=await fetch('/api/import',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({unit,mode:'undo'})});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok&&j.ok){ msg.style.color='var(--good)'; msg.textContent='Visszavonva: '+j.deleted+' importált utalvány törölve.'; refresh(); }
+    else { msg.style.color=''; msg.textContent=j.error||'A visszavonás nem sikerült.'; }
+  }catch(e){ msg.textContent='Hiba: '+(e.message||e); }
+  finally{ btn.disabled=false; btn.textContent='Import visszavonása'; }
 };
 // ---- users (superadmin) ----
 let USERS=[], UUNITS=[];

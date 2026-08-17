@@ -155,6 +155,14 @@ async function allVouchers() {
   return await sql`SELECT * FROM pgv_vouchers ORDER BY created_at DESC NULLS LAST`;
 }
 
+// Egy egység importált (legacy) utalványainak törlése — az import visszavonásához.
+async function deleteLegacyByUnit(unit) {
+  const sql = db();
+  const r = await sql`DELETE FROM pgv_vouchers
+    WHERE lower(unit) = lower(${String(unit)}) AND is_legacy = true`;
+  return r.count || 0;
+}
+
 // ---- Felhasználók (többfelhasználós admin) ----
 let _usersReady = false;
 async function ensureUsersSchema() {
@@ -212,6 +220,6 @@ async function deleteUser(id) {
 }
 
 module.exports = {
-  db, ensureSchema, upsertVouchers, allVouchers,
+  db, ensureSchema, upsertVouchers, allVouchers, deleteLegacyByUnit,
   ensureUsersSchema, countUsers, getUserByEmail, getUserById, listUsers, createUser, updateUser, deleteUser,
 };

@@ -1,10 +1,11 @@
 const { readBody, getShops } = require('../lib/shops.js');
 const { resolveUser, canSeeUnit } = require('../lib/auth.js');
-const { ensureSchema, upsertVouchers } = require('../lib/db.js');
+const { ensureSchema, upsertVouchers, deleteLegacyByUnit } = require('../lib/db.js');
 const { parseCSV } = require('../lib/csv.js');
 const { normHeader, rowToRecord, serialColumnPresent } = require('../lib/voucher_csv.js');
 
-// Korábbi CSV-k importálása a vezérlőpultba (egységhez kötve, is_legacy jelöléssel).
+// Korábbi CSV-k importálása a vezérlőpultba (egységhez kötve, is_legacy jelöléssel),
+// illetve egy egység importjának visszavonása (mode: 'undo').
 module.exports = async (req, res) => {
   if (req.method !== 'POST') { res.status(405).json({ error: 'POST' }); return; }
   const user = await resolveUser(req);
@@ -13,11 +14,25 @@ module.exports = async (req, res) => {
 
   const body = await readBody(req);
   const unit = String((body && body.unit) || '').trim().toLowerCase();
+  const mode = String((body && body.mode) || 'import');
   const csv = String((body && body.csv) || '');
 
   const shop = getShops().find(s => String(s.slug).toLowerCase() === unit);
   if (!shop) { res.status(400).json({ error: 'Ismeretlen egység.' }); return; }
   if (!canSeeUnit(user, shop.slug)) { res.status(403).json({ error: 'Nincs jogosultságod ehhez az egységhez.' }); return; }
+
+  // Import visszavonása: az egység összes importált (legacy) utalványának törlése.
+  if (mode === 'undo') {
+    try {
+      await ensureSchema();
+      const deleted = await deleteLegacyByUnit(shop.slug);
+      res.status(200).json({ ok: true, deleted, unit: shop.slug });
+    } catch (e) {
+      res.status(500).json({ error: String(e && e.message || e) });
+    }
+    return;
+  }
+
   if (!csv.trim()) { res.status(400).json({ error: 'Üres CSV.' }); return; }
 
   let rows;
