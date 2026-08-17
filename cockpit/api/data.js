@@ -1,10 +1,10 @@
-const { readSession } = require('../lib/auth.js');
+const { resolveUser } = require('../lib/auth.js');
 const { ensureSchema, allVouchers } = require('../lib/db.js');
 
 // A vezérlőpult adata a Neon DB-ből jön (a boltok pluginja push-olja ide).
 // A nem-superadmin felhasználó csak a saját egysége(i) utalványait kapja meg.
 module.exports = async (req, res) => {
-  const s = readSession(req);
+  const s = await resolveUser(req);
   if (!s) { res.status(401).json({ error: 'auth' }); return; }
   try {
     await ensureSchema();

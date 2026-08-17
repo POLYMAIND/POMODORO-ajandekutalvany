@@ -27,20 +27,15 @@ function hmac(v) {
     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-// user: { id, email, name, role, units[] }
+// A tokenbe CSAK az azonosítót (és a mester-jelzőt) tesszük — a szerep/egységek
+// minden kérésnél frissen az adatbázisból jönnek, így az átállítás/letiltás azonnal hat.
 function makeSession(user) {
-  const payload = {
-    uid: user.id || 0,
-    email: user.email || '',
-    name: user.name || '',
-    role: ROLES.includes(user.role) ? user.role : 'cashier',
-    units: Array.isArray(user.units) ? user.units : [],
-    ts: Date.now(),
-  };
+  const payload = { uid: user.id || 0, master: !!user.master, ts: Date.now() };
   const p = b64url(JSON.stringify(payload));
   return p + '.' + hmac(p);
 }
 
+// Csak a token aláírását/korát ellenőrzi; a nyers payloadot adja vissza.
 function readSession(req) {
   const tok = parseCookies(req)['pgv_auth'];
   if (!tok) return null;
@@ -52,8 +47,20 @@ function readSession(req) {
   try { payload = JSON.parse(b64urlDecode(p)); } catch (e) { return null; }
   if (!payload || !payload.ts) return null;
   if (Date.now() - payload.ts > 30 * 864e5) return null; // 30 nap
-  if (!Array.isArray(payload.units)) payload.units = [];
   return payload;
+}
+
+// A tokenből feloldja az AKTUÁLIS felhasználót az adatbázisból (friss szerep/egység).
+async function resolveUser(req) {
+  const t = readSession(req);
+  if (!t) return null;
+  if (t.master) return { id: 0, email: 'admin', name: 'Központi admin', role: 'superadmin', units: [] };
+  if (!t.uid) return null;
+  const { ensureUsersSchema, getUserById } = require('./db.js');
+  let u;
+  try { await ensureUsersSchema(); u = await getUserById(t.uid); } catch (e) { return null; }
+  if (!u || u.disabled) return null;
+  return { id: u.id, email: u.email, name: u.name || u.email, role: u.role, units: u.units || [] };
 }
 
 // ---- jelszó (scrypt) ----
@@ -79,4 +86,4 @@ function canSeeUnit(session, unit) {
   return Array.isArray(session.units) && session.units.map(n).includes(n(unit));
 }
 
-module.exports = { ROLES, ROLE_LABELS, makeSession, readSession, hashPassword, verifyPassword, canSeeUnit, secret };
+module.exports = { ROLES, ROLE_LABELS, makeSession, readSession, resolveUser, hashPassword, verifyPassword, canSeeUnit, secret };

@@ -1,10 +1,10 @@
 const { getShops, readBody, shopFetch } = require('../lib/shops.js');
-const { readSession, canSeeUnit } = require('../lib/auth.js');
+const { resolveUser, canSeeUnit } = require('../lib/auth.js');
 
 // Egységes kassza: sorszám -> a megfelelő bolt beváltó végpontja.
 module.exports = async (req, res) => {
   if (req.method !== 'POST') { res.status(405).json({ error: 'POST' }); return; }
-  const session = readSession(req);
+  const session = await resolveUser(req);
   if (!session) { res.status(401).json({ error: 'auth' }); return; }
 
   const body = await readBody(req);

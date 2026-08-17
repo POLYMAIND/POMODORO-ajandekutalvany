@@ -33,7 +33,7 @@ module.exports = async (req, res) => {
   // 2) Mester-belépés: APP_PASSWORD (üres vagy "admin" e-maillel) → központi admin.
   if (!session && process.env.APP_PASSWORD && pass === process.env.APP_PASSWORD
       && (!email || email.toLowerCase() === 'admin' || email.toLowerCase() === 'master')) {
-    session = { id: 0, email: 'admin', name: 'Központi admin', role: 'superadmin', units: [] };
+    session = { id: 0, master: true, name: 'Központi admin', role: 'superadmin' };
   }
 
   if (!session) { res.status(401).json({ error: 'Hibás e-mail vagy jelszó.' }); return; }

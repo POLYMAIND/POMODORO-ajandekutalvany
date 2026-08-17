@@ -145,6 +145,11 @@ async function getUserByEmail(email) {
   const r = await sql`SELECT * FROM pgv_users WHERE lower(email) = lower(${String(email)}) LIMIT 1`;
   return r[0] || null;
 }
+async function getUserById(id) {
+  const sql = db();
+  const r = await sql`SELECT * FROM pgv_users WHERE id = ${Number(id)} LIMIT 1`;
+  return r[0] || null;
+}
 async function listUsers() {
   const sql = db();
   return await sql`SELECT id, email, name, role, units, disabled, created_at
@@ -170,5 +175,5 @@ async function deleteUser(id) {
 
 module.exports = {
   db, ensureSchema, upsertVouchers, allVouchers,
-  ensureUsersSchema, countUsers, getUserByEmail, listUsers, createUser, updateUser, deleteUser,
+  ensureUsersSchema, countUsers, getUserByEmail, getUserById, listUsers, createUser, updateUser, deleteUser,
 };

@@ -1,8 +1,8 @@
 const { getShops } = require('../lib/shops.js');
-const { readSession } = require('../lib/auth.js');
+const { resolveUser } = require('../lib/auth.js');
 
 module.exports = async (req, res) => {
-  const s = readSession(req);
+  const s = await resolveUser(req);
   const all = getShops().map(x => ({ slug: x.slug, name: x.name, prefix: x.prefix }));
   // Nem-superadmin csak a saját egységeit látja.
   const n = u => String(u == null ? '' : u).trim().toLowerCase();
