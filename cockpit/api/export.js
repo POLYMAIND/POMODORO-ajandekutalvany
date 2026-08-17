@@ -22,6 +22,16 @@ module.exports = async (req, res) => {
     const only = n(req.query && req.query.unit);
     if (only) rows = rows.filter(v => n(v.unit) === only);
 
+    // Opcionális időszak-szűrő a vásárlás dátumára (?from=YYYY-MM-DD&to=YYYY-MM-DD).
+    const cd = v => {
+      const c = v.created_at;
+      return c instanceof Date ? c.toISOString().slice(0, 10) : String(c || '').slice(0, 10);
+    };
+    const from = req.query && req.query.from ? String(req.query.from).slice(0, 10) : '';
+    const to = req.query && req.query.to ? String(req.query.to).slice(0, 10) : '';
+    if (from) rows = rows.filter(v => { const d = cd(v); return d && d >= from; });
+    if (to) rows = rows.filter(v => { const d = cd(v); return d && d <= to; });
+
     const names = {};
     getShops().forEach(s => { names[n(s.slug)] = String(s.name || s.slug).replace(" Pomo d'Oro", ''); });
     const unitName = slug => names[n(slug)] || slug;
