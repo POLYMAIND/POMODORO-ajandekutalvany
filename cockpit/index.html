@@ -258,7 +258,10 @@ tbody tr.clickable{cursor:pointer}
       </section>
 
       <section class="section" id="sec-expiry">
-        <p class="section-intro">A közelgő és lejárt utalványok, sürgősség szerint.</p>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+          <p class="section-intro" style="margin:0">A közelgő és lejárt utalványok, sürgősség szerint.</p>
+          <input id="expSearch" class="fi" placeholder="Keresés: név, sorszám, e-mail…" autocomplete="off" style="margin-left:auto;max-width:340px">
+        </div>
         <div class="card" id="expiryCard"></div>
       </section>
 
@@ -512,15 +515,25 @@ async function sendReminder(unit,serial,btn){
     } else { alert(j.error||'Nem sikerült elküldeni.'); btn.disabled=false; btn.textContent=o; }
   }catch(e){ alert('Hiba: '+(e.message||e)); btn.disabled=false; btn.textContent=o; }
 }
-function renderExpiry(){
-  const v=filt(DATA.vouchers).filter(x=>x.status==='active'&&x.valid_until)
-    .map(x=>({x,d:daysLeft(x.valid_until)})).sort((a,b)=>a.d-b.d);
-  const soon=v.filter(e=>e.d>=0&&e.d<=14).length;
-  const c=$('#expCount'); if(soon>0){c.style.display='';c.textContent=soon;}else c.style.display='none';
-  const near=v.filter(e=>e.d>=0).slice(0,5);
-  $('#dashExpiry').innerHTML=near.length?near.map(e=>expRow(e.x)).join(''):'<div class="exp-item"><span class="t-sub">Nincs közelgő lejárat.</span></div>';
-  $('#expiryCard').innerHTML=v.length?v.map(e=>expRow(e.x)).join(''):'<div class="empty"><p>Nincs aktív, lejárattal rendelkező utalvány.</p></div>';
+let EXPQ='';
+function expMatch(x,q){
+  if(!q) return true;
+  const nz=s=>String(s||'').toLowerCase();
+  return nz(x.serial).includes(q)||nz(x.buyer_name).includes(q)||nz(x.giver_name).includes(q)||
+    nz(x.recipient_name).includes(q)||nz(x.buyer_email).includes(q)||nz(x.delivery_email).includes(q)||nz(x.buyer_phone).includes(q);
 }
+function renderExpiry(){
+  const all=filt(DATA.vouchers).filter(x=>x.status==='active'&&x.valid_until)
+    .map(x=>({x,d:daysLeft(x.valid_until)})).sort((a,b)=>a.d-b.d);
+  const soon=all.filter(e=>e.d>=0&&e.d<=14).length;
+  const c=$('#expCount'); if(soon>0){c.style.display='';c.textContent=soon;}else c.style.display='none';
+  const near=all.filter(e=>e.d>=0).slice(0,5);
+  $('#dashExpiry').innerHTML=near.length?near.map(e=>expRow(e.x)).join(''):'<div class="exp-item"><span class="t-sub">Nincs közelgő lejárat.</span></div>';
+  // A Lejáratok nézet listája a keresőre is szűr.
+  const v=EXPQ?all.filter(e=>expMatch(e.x,EXPQ)):all;
+  $('#expiryCard').innerHTML=v.length?v.map(e=>expRow(e.x)).join(''):'<div class="empty"><p>'+(EXPQ?'Nincs találat erre a keresésre.':'Nincs aktív, lejárattal rendelkező utalvány.')+'</p></div>';
+}
+$('#expSearch').addEventListener('input',e=>{EXPQ=e.target.value.trim().toLowerCase();renderExpiry();});
 
 // ---- cashier (élő kereső) ----
 function cashRow(v){
