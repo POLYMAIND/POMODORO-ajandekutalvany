@@ -41,8 +41,8 @@ module.exports = async (req, res) => {
 
   const headerIdx = {};
   rows[0].forEach((h, i) => { headerIdx[normHeader(h)] = i; });
-  if (headerIdx['utalvány kódja'] == null) {
-    res.status(400).json({ error: 'Hiányzik az „utalvány kódja” oszlop — biztos a tiszta formátumú CSV-t töltötted fel?' });
+  if (!serialColumnPresent(headerIdx)) {
+    res.status(400).json({ error: 'Nem találom az utalvány kódját tartalmazó oszlopot („utalvány kódja” vagy „azonosító”).' });
     return;
   }
 
