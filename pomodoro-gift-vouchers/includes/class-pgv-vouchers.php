@@ -254,6 +254,39 @@ class PGV_Vouchers {
 	}
 
 	/**
+	 * Szerkeszthető mezők módosítása (sorszám/összeg SOHA). Auditálva, és
+	 * felkerül a vezérlőpultra is (pgv_voucher_saved).
+	 */
+	public static function update_editable( $id, array $fields ) {
+		global $wpdb;
+		$v = self::get( $id );
+		if ( ! $v ) {
+			return new WP_Error( 'pgv_notfound', __( 'Nincs ilyen utalvány.', 'pomodoro-gift-vouchers' ) );
+		}
+		$allowed = array( 'recipient_name', 'giver_name', 'message', 'delivery_email' );
+		$data    = array();
+		foreach ( $allowed as $k ) {
+			if ( array_key_exists( $k, $fields ) ) {
+				$data[ $k ] = $fields[ $k ];
+			}
+		}
+		if ( ! $data ) {
+			return $v;
+		}
+		$data['updated_at'] = current_time( 'mysql' );
+		$wpdb->update(
+			PGV_Install::table( 'vouchers' ),
+			$data,
+			array( 'id' => (int) $id ),
+			array_fill( 0, count( $data ), '%s' ),
+			array( '%d' )
+		);
+		self::audit( $id, 'edited', $v['status'], $v['status'], self::actor(), array( 'fields' => array_keys( $data ) ) );
+		do_action( 'pgv_voucher_saved', $id );
+		return self::get( $id );
+	}
+
+	/**
 	 * Beváltás — kizárólag aktív + nem lejárt utalvány.
 	 */
 	public static function redeem( $id, $actor = null ) {

@@ -104,7 +104,51 @@ class PGV_Admin {
 			case 'sync_all':
 				$this->sync_all();
 				break;
+			case 'edit_voucher':
+				$this->save_voucher_edit();
+				break;
 		}
+	}
+
+	/**
+	 * Egy utalvány szerkeszthető mezőinek mentése (opcionális újraküldéssel).
+	 */
+	private function save_voucher_edit() {
+		check_admin_referer( 'pgv_edit_voucher' );
+		$in = wp_unslash( $_POST );
+		$id = absint( $in['voucher_id'] ?? 0 );
+
+		$res = PGV_Vouchers::update_editable(
+			$id,
+			array(
+				'recipient_name' => sanitize_text_field( $in['recipient_name'] ?? '' ),
+				'giver_name'     => sanitize_text_field( $in['giver_name'] ?? '' ),
+				'message'        => sanitize_textarea_field( $in['message'] ?? '' ),
+				'delivery_email' => sanitize_email( $in['delivery_email'] ?? '' ),
+			)
+		);
+
+		$notice = 'saved_voucher';
+		if ( ! is_wp_error( $res ) && ! empty( $in['resend'] ) ) {
+			$r      = PGV_Emails::resend( $id );
+			$notice = is_wp_error( $r ) ? 'resend_error' : 'saved_resent';
+		} elseif ( is_wp_error( $res ) ) {
+			$notice = 'save_error';
+		}
+
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'page'       => self::SLUG,
+					's'          => sanitize_text_field( $in['ret_s'] ?? '' ),
+					'status'     => sanitize_key( $in['ret_status'] ?? '' ),
+					'paged'      => max( 1, (int) ( $in['ret_paged'] ?? 1 ) ),
+					'pgv_notice' => $notice,
+				),
+				admin_url( 'admin.php' )
+			)
+		);
+		exit;
 	}
 
 	/**
@@ -435,9 +479,13 @@ class PGV_Admin {
 			'test_sent'      => __( 'Teszt e-mail elküldve a fiókod címére.', 'pomodoro-gift-vouchers' ),
 			'test_error'     => __( 'A teszt e-mail küldése nem sikerült (ellenőrizd a levélküldést / feladó címet).', 'pomodoro-gift-vouchers' ),
 			'sync_cfg'       => __( 'A vezérlőpult URL és/vagy titok nincs beállítva — előbb mentsd őket.', 'pomodoro-gift-vouchers' ),
+			'saved_voucher'  => __( 'Utalvány mentve.', 'pomodoro-gift-vouchers' ),
+			'saved_resent'   => __( 'Utalvány mentve, és a javított PDF újraküldve e-mailben.', 'pomodoro-gift-vouchers' ),
+			'resend_error'   => __( 'Utalvány mentve, de az e-mail újraküldése nem sikerült.', 'pomodoro-gift-vouchers' ),
+			'save_error'     => __( 'Az utalvány mentése nem sikerült.', 'pomodoro-gift-vouchers' ),
 		);
 		if ( isset( $map[ $key ] ) ) {
-			$type = in_array( $key, array( 'import_error', 'test_error', 'sync_cfg' ), true ) ? 'error' : 'success';
+			$type = in_array( $key, array( 'import_error', 'test_error', 'sync_cfg', 'resend_error', 'save_error' ), true ) ? 'error' : 'success';
 			printf( '<div class="notice notice-%s is-dismissible"><p>%s</p></div>', esc_attr( $type ), esc_html( $map[ $key ] ) );
 		}
 	}

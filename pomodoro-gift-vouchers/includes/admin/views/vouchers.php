@@ -10,6 +10,7 @@ defined( 'ABSPATH' ) || exit;
 
 $search    = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 $status    = isset( $_GET['status'] ) ? sanitize_key( wp_unslash( $_GET['status'] ) ) : '';
+$edit_id   = (int) ( $_GET['edit'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification
 $paged     = max( 1, (int) ( $_GET['paged'] ?? 1 ) );
 $per_page  = 20;
 $offset    = ( $paged - 1 ) * $per_page;
@@ -77,11 +78,52 @@ $export_url = wp_nonce_url(
 							<td><?php echo esc_html( $v['delivery_email'] ?: $v['buyer_email'] ); ?></td>
 							<td><?php echo esc_html( $v['valid_until'] ); ?></td>
 							<td class="pgv-row-actions">
+								<?php
+								$edit_url = add_query_arg(
+									array( 'page' => PGV_Admin::SLUG, 's' => $search, 'status' => $status, 'paged' => $paged, 'edit' => (int) $v['id'] ),
+									admin_url( 'admin.php' )
+								) . '#pgv-edit-' . (int) $v['id'];
+								?>
+								<a class="button-link" href="<?php echo esc_url( $edit_url ); ?>"><?php esc_html_e( 'Szerkesztés', 'pomodoro-gift-vouchers' ); ?></a>
 								<a class="button-link" href="<?php echo esc_url( PGV_Admin::pdf_url( (int) $v['id'] ) ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'PDF', 'pomodoro-gift-vouchers' ); ?></a>
 								<button type="button" class="button-link pgv-resend" data-id="<?php echo (int) $v['id']; ?>"><?php esc_html_e( 'E-mail újraküldés', 'pomodoro-gift-vouchers' ); ?></button>
 								<button type="button" class="button-link pgv-toggle-audit" data-id="<?php echo (int) $v['id']; ?>"><?php esc_html_e( 'Előzmény', 'pomodoro-gift-vouchers' ); ?></button>
 							</td>
 						</tr>
+						<?php if ( $edit_id === (int) $v['id'] ) : ?>
+							<tr class="pgv-edit-row" id="pgv-edit-<?php echo (int) $v['id']; ?>">
+								<td colspan="8">
+									<form method="post" class="pgv-edit-form">
+										<?php wp_nonce_field( 'pgv_edit_voucher' ); ?>
+										<input type="hidden" name="pgv_action" value="edit_voucher">
+										<input type="hidden" name="voucher_id" value="<?php echo (int) $v['id']; ?>">
+										<input type="hidden" name="ret_s" value="<?php echo esc_attr( $search ); ?>">
+										<input type="hidden" name="ret_status" value="<?php echo esc_attr( $status ); ?>">
+										<input type="hidden" name="ret_paged" value="<?php echo (int) $paged; ?>">
+										<p class="description" style="margin:0 0 10px">
+											<?php echo esc_html( sprintf( __( 'Szerkesztés — %s (a sorszám és az összeg nem módosítható).', 'pomodoro-gift-vouchers' ), $v['serial'] ) ); ?>
+										</p>
+										<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;max-width:820px">
+											<label><?php esc_html_e( 'Megajándékozott neve', 'pomodoro-gift-vouchers' ); ?><br>
+												<input type="text" name="recipient_name" class="regular-text" value="<?php echo esc_attr( $v['recipient_name'] ); ?>"></label>
+											<label><?php esc_html_e( 'Ajándékozó / vásárló neve', 'pomodoro-gift-vouchers' ); ?><br>
+												<input type="text" name="giver_name" class="regular-text" value="<?php echo esc_attr( $v['giver_name'] ); ?>"></label>
+											<label style="grid-column:1 / -1"><?php esc_html_e( 'Üzenet a megajándékozottnak', 'pomodoro-gift-vouchers' ); ?><br>
+												<textarea name="message" class="large-text" rows="3"><?php echo esc_textarea( $v['message'] ); ?></textarea></label>
+											<label><?php esc_html_e( 'Kézbesítési e-mail', 'pomodoro-gift-vouchers' ); ?><br>
+												<input type="email" name="delivery_email" class="regular-text" value="<?php echo esc_attr( $v['delivery_email'] ?: $v['buyer_email'] ); ?>"></label>
+										</div>
+										<p style="margin-top:12px">
+											<label><input type="checkbox" name="resend" value="1"> <?php esc_html_e( 'Mentés után a javított PDF-et küldd is újra e-mailben', 'pomodoro-gift-vouchers' ); ?></label>
+										</p>
+										<p>
+											<button type="submit" class="button button-primary"><?php esc_html_e( 'Mentés', 'pomodoro-gift-vouchers' ); ?></button>
+											<a class="button" href="<?php echo esc_url( remove_query_arg( 'edit' ) ); ?>"><?php esc_html_e( 'Mégse', 'pomodoro-gift-vouchers' ); ?></a>
+										</p>
+									</form>
+								</td>
+							</tr>
+						<?php endif; ?>
 						<tr class="pgv-audit-row" id="pgv-audit-<?php echo (int) $v['id']; ?>" style="display:none">
 							<td colspan="8">
 								<?php
