@@ -72,7 +72,8 @@ async function ensureSchema() {
     ADD COLUMN IF NOT EXISTS payment_provider text,
     ADD COLUMN IF NOT EXISTS transaction_id text,
     ADD COLUMN IF NOT EXISTS paid_at timestamptz,
-    ADD COLUMN IF NOT EXISTS print_serial text`;
+    ADD COLUMN IF NOT EXISTS print_serial text,
+    ADD COLUMN IF NOT EXISTS reminder_sent_at timestamptz`;
   _schemaReady = true;
 }
 
@@ -175,6 +176,14 @@ async function redeemVoucher(unit, serial) {
   return rows[0] || null;
 }
 
+// Emlékeztető-küldés megjelölése (hogy ne menjen ki kétszer ugyanarra).
+async function markReminderSent(unit, serial) {
+  const sql = db();
+  const rows = await sql`UPDATE pgv_vouchers SET reminder_sent_at = now()
+    WHERE lower(unit) = lower(${String(unit)}) AND serial = ${String(serial)} RETURNING *`;
+  return rows[0] || null;
+}
+
 // Egy egység importált (legacy) utalványainak törlése — az import visszavonásához.
 async function deleteLegacyByUnit(unit) {
   const sql = db();
@@ -240,6 +249,6 @@ async function deleteUser(id) {
 }
 
 module.exports = {
-  db, ensureSchema, upsertVouchers, allVouchers, getVoucher, redeemVoucher, deleteLegacyByUnit,
+  db, ensureSchema, upsertVouchers, allVouchers, getVoucher, redeemVoucher, markReminderSent, deleteLegacyByUnit,
   ensureUsersSchema, countUsers, getUserByEmail, getUserById, listUsers, createUser, updateUser, deleteUser,
 };

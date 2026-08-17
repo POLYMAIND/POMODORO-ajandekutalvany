@@ -26,6 +26,7 @@ function normalizeVoucher(v) {
   o.paid_at = ymdhms(v.paid_at);
   o.redeemed_at = ymdhms(v.redeemed_at);
   o.ingested_at = ymdhms(v.ingested_at);
+  o.reminder_sent_at = ymdhms(v.reminder_sent_at);
   o.valid_from = ymd(v.valid_from);
   // Egy éves érvényesség: ha nincs lejárat, a vásárlástól (vagy valid_fromtól) +1 év.
   o.valid_until = ymd(v.valid_until) || plusOneYear(v.created_at || v.valid_from);

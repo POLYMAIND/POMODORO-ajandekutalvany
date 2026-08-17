@@ -166,6 +166,12 @@ tbody tr.clickable{cursor:pointer}
 .phist .ph{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line-soft)}
 .phist .ph:last-child{border-bottom:none}
 .phist .ph.cur{background:var(--accent-soft);margin:0 -10px;padding:8px 10px;border-radius:8px}
+/* Kassza élő találatok + emlékeztető */
+.cash-hit{display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid var(--line-soft);cursor:pointer}
+.cash-hit:hover{background:var(--surface-2)}.cash-hit:last-child{border-bottom:none}
+.rem-btn{border:1px solid var(--line);background:var(--surface-2);color:var(--accent);border-radius:7px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
+.rem-btn:hover{background:var(--accent-soft)}
+.rem-done{font-size:11.5px;color:var(--good);font-weight:600;white-space:nowrap}
 .menu-btn{display:none}
 @media(max-width:960px){
   #app.show{grid-template-columns:1fr}
@@ -257,15 +263,15 @@ tbody tr.clickable{cursor:pointer}
       </section>
 
       <section class="section" id="sec-cashier">
-        <p class="section-intro">Írd be a sorszámot; a rendszer bármelyik egység utalványát megtalálja és a megfelelő boltban váltja be.</p>
+        <p class="section-intro">Kezdd el beírni a nevet, e-mailt vagy a sorszámot — a találatok írás közben frissülnek. Kattints a megfelelőre a beváltáshoz.</p>
         <div class="cashier">
           <div class="card" style="padding:18px 20px">
             <div class="search-box">
-              <input id="cashInput" placeholder="pl. CASA-2026-000042" autocomplete="off">
-              <button class="btn" id="cashBtn">Keresés</button>
+              <input id="cashInput" placeholder="pl. Kovács Anna, anna@…, vagy CASA-2026-000042" autocomplete="off">
             </div>
           </div>
-          <div class="card result hidden" id="cashResult"></div>
+          <div class="card" id="cashListCard" style="display:none;margin-top:12px"><div id="cashList"></div></div>
+          <div class="card result hidden" id="cashResult" style="margin-top:12px"></div>
         </div>
       </section>
 
@@ -488,7 +494,23 @@ function daysPill(d){
 }
 function expRow(x){
   const d=daysLeft(x.valid_until);
-  return '<div class="exp-item" data-serial="'+esc(x.serial)+'" data-unit="'+esc(x.unit)+'"><div><div class="exp-serial">'+x.serial+'</div><div class="exp-sub">'+shortName(x.unit)+' · '+(x.buyer_name||x.giver_name||'—')+' · lejár: '+fdate(x.valid_until)+'</div></div><div class="days">'+(d===null?'':daysPill(d))+'</div></div>';
+  const email=x.buyer_email||x.delivery_email||'';
+  let rem;
+  if(x.reminder_sent_at) rem='<span class="rem-done" title="Emlékeztető elküldve: '+esc(fdate(x.reminder_sent_at))+'">✓ emlékeztetve</span>';
+  else if(email) rem='<button class="rem-btn" data-remind="'+esc(x.serial)+'" data-unit="'+esc(x.unit)+'">E-mail</button>';
+  else rem='<span class="t-sub" title="Nincs e-mail cím">nincs e-mail</span>';
+  return '<div class="exp-item" data-serial="'+esc(x.serial)+'" data-unit="'+esc(x.unit)+'"><div><div class="exp-serial">'+esc(x.serial)+'</div><div class="exp-sub">'+esc(shortName(x.unit))+' · '+esc(x.buyer_name||x.giver_name||'—')+' · lejár: '+fdate(x.valid_until)+'</div></div><div class="days" style="display:flex;align-items:center;gap:10px">'+rem+(d===null?'':daysPill(d))+'</div></div>';
+}
+async function sendReminder(unit,serial,btn){
+  btn.disabled=true; const o=btn.textContent; btn.textContent='Küldés…';
+  try{
+    const r=await fetch('/api/reminder',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({unit,serial})});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok&&j.ok){
+      if(!j.sent && j.email){ window.location='mailto:'+encodeURIComponent(j.email)+'?subject='+encodeURIComponent(j.subject||'')+'&body='+encodeURIComponent(j.text||''); }
+      setTimeout(refresh,400);
+    } else { alert(j.error||'Nem sikerült elküldeni.'); btn.disabled=false; btn.textContent=o; }
+  }catch(e){ alert('Hiba: '+(e.message||e)); btn.disabled=false; btn.textContent=o; }
 }
 function renderExpiry(){
   const v=filt(DATA.vouchers).filter(x=>x.status==='active'&&x.valid_until)
@@ -500,22 +522,44 @@ function renderExpiry(){
   $('#expiryCard').innerHTML=v.length?v.map(e=>expRow(e.x)).join(''):'<div class="empty"><p>Nincs aktív, lejárattal rendelkező utalvány.</p></div>';
 }
 
-// ---- cashier ----
-function renderCash(serial){
-  serial=(serial||'').trim().toUpperCase();
+// ---- cashier (élő kereső) ----
+function cashRow(v){
+  const who=v.buyer_name||v.giver_name||'—';
+  return '<div class="cash-hit" data-serial="'+esc(v.serial)+'" data-unit="'+esc(v.unit)+'">'+
+    '<div style="min-width:0"><div class="mono" style="font-weight:600">'+esc(v.serial)+'</div>'+
+    '<div class="t-sub">'+esc(shortName(v.unit))+' · '+esc(who)+(v.buyer_email?' · '+esc(v.buyer_email):'')+'</div></div>'+
+    '<div style="margin-left:auto;display:flex;align-items:center;gap:10px"><span class="tnum t-strong">'+money(v.amount)+'</span>'+statusPill(v.status)+'</div></div>';
+}
+function searchCashier(q){
+  q=(q||'').trim().toLowerCase();
+  const listCard=$('#cashListCard'), list=$('#cashList');
+  $('#cashResult').classList.add('hidden');
+  if(q.length<2){ listCard.style.display='none'; list.innerHTML=''; return; }
+  const nz=s=>String(s||'').toLowerCase();
+  let matches=DATA.vouchers.filter(v=>
+    nz(v.serial).includes(q)||nz(v.buyer_name).includes(q)||nz(v.giver_name).includes(q)||
+    nz(v.recipient_name).includes(q)||nz(v.buyer_email).includes(q)||nz(v.buyer_phone).includes(q));
+  if(currentUnit!=='all') matches=matches.filter(v=>v.unit===currentUnit);
+  matches.sort((a,b)=>((a.status==='active'?0:1)-(b.status==='active'?0:1))||(new Date(b.created_at||0)-new Date(a.created_at||0)));
+  const total=matches.length; matches=matches.slice(0,30);
+  listCard.style.display='';
+  list.innerHTML=(matches.length?matches.map(cashRow).join(''):'<div class="empty" style="padding:18px">Nincs találat.</div>')+
+    (total>matches.length?'<div class="t-sub" style="padding:10px 16px">+ '+(total-matches.length)+' további találat — pontosíts a keresésen.</div>':'');
+}
+function showVoucherDetail(unit,serial){
+  const v=DATA.vouchers.find(x=>String(x.unit)===String(unit)&&String(x.serial)===String(serial));
   const box=$('#cashResult');
-  if(!serial){box.classList.add('hidden');return;}
-  const v=DATA.vouchers.find(x=>String(x.serial).toUpperCase()===serial);
-  if(!v){ box.classList.remove('hidden'); box.innerHTML='<div class="res-msg err">Nincs találat erre a sorszámra (lehet, hogy még nem szinkronizálódott).</div>'; return; }
+  if(!v){ box.classList.add('hidden'); return; }
   const d=daysLeft(v.valid_until);
   const redeemable = v.status==='active' && (d===null||d>=0);
   box.classList.remove('hidden');
-  box.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center"><div class="mono" style="font-size:16px;font-weight:700">'+v.serial+'</div>'+statusPill(v.status)+'</div>'+
-    '<div class="res-grid"><div><span class="res-k">Egység</span><span class="res-v">'+shortName(v.unit)+'</span></div>'+
+  box.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center"><div class="mono" style="font-size:16px;font-weight:700">'+esc(v.serial)+'</div>'+statusPill(v.status)+'</div>'+
+    '<div class="res-grid"><div><span class="res-k">Egység</span><span class="res-v">'+esc(shortName(v.unit))+'</span></div>'+
     '<div><span class="res-k">Érték</span><span class="res-v">'+money(v.amount)+'</span></div>'+
-    '<div><span class="res-k">Vásárló</span><span class="res-v">'+(v.buyer_name||v.giver_name||'—')+'</span></div>'+
-    '<div><span class="res-k">Érvényes</span><span class="res-v">'+(v.valid_until||'—')+'</span></div></div>'+
+    '<div><span class="res-k">Vásárló</span><span class="res-v">'+esc(v.buyer_name||v.giver_name||'—')+'</span></div>'+
+    '<div><span class="res-k">Érvényes</span><span class="res-v">'+fdate(v.valid_until)+(d!=null&&v.status==='active'?(d<0?' (lejárt)':' ('+d+' nap)'):'')+'</span></div></div>'+
     (redeemable?'<button class="btn" id="redeemBtn">Beváltás</button><p class="res-msg" id="redeemMsg"></p>':'<p class="res-msg err">Nem beváltható ('+statusPill(v.status)+').</p>');
+  box.scrollIntoView({block:'nearest'});
   const rb=$('#redeemBtn');
   if(rb) rb.onclick=async()=>{
     rb.disabled=true; const msg=$('#redeemMsg');
@@ -527,8 +571,8 @@ function renderCash(serial){
     }catch(e){ msg.className='res-msg err'; msg.textContent='Hálózati hiba.'; rb.disabled=false; }
   };
 }
-$('#cashBtn').onclick=()=>renderCash($('#cashInput').value);
-$('#cashInput').addEventListener('keydown',e=>{if(e.key==='Enter')renderCash(e.target.value);});
+$('#cashInput').addEventListener('input',e=>searchCashier(e.target.value));
+$('#cashList').addEventListener('click',e=>{const it=e.target.closest('.cash-hit'); if(it) showVoucherDetail(it.dataset.unit,it.dataset.serial);});
 
 // ---- nav / ui ----
 const titles={dash:'Áttekintés',purchases:'Vásárlások',expiry:'Lejáratok',cashier:'Kassza – beváltás',users:'Felhasználók',io:'Import / export'};
@@ -738,7 +782,11 @@ $('#profile').addEventListener('click',e=>{
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeProfile();});
 ['#dashExpiry','#expiryCard','#dashTable','#purchasesTable'].forEach(sel=>{
   const el=$(sel); if(!el)return;
-  el.addEventListener('click',e=>{const it=e.target.closest('[data-serial]'); if(it&&it.dataset.serial)openProfile(it.dataset.unit,it.dataset.serial);});
+  el.addEventListener('click',e=>{
+    const rb=e.target.closest('[data-remind]');
+    if(rb){ sendReminder(rb.dataset.unit,rb.dataset.remind,rb); return; }
+    const it=e.target.closest('[data-serial]'); if(it&&it.dataset.serial)openProfile(it.dataset.unit,it.dataset.serial);
+  });
 });
 
 $('#menuBtn').onclick=()=>$('#sidebar').classList.toggle('open');
