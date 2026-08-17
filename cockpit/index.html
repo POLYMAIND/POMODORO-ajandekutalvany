@@ -424,7 +424,7 @@ function daysPill(d){
 }
 function expRow(x){
   const d=daysLeft(x.valid_until);
-  return '<div class="exp-item"><div><div class="exp-serial">'+x.serial+'</div><div class="exp-sub">'+shortName(x.unit)+' · '+(x.recipient_name||'—')+' · '+(x.valid_until||'')+'</div></div><div class="days">'+(d===null?'':daysPill(d))+'</div></div>';
+  return '<div class="exp-item"><div><div class="exp-serial">'+x.serial+'</div><div class="exp-sub">'+shortName(x.unit)+' · '+(x.buyer_name||x.giver_name||'—')+' · lejár: '+fdate(x.valid_until)+'</div></div><div class="days">'+(d===null?'':daysPill(d))+'</div></div>';
 }
 function renderExpiry(){
   const v=filt(DATA.vouchers).filter(x=>x.status==='active'&&x.valid_until)
