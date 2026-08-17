@@ -291,6 +291,12 @@ tbody tr.clickable{cursor:pointer}
             <p class="t-sub" style="margin:0 0 8px">Letöltés a kanonikus CSV-formátumban (a jogosultságodnak megfelelő egységekre).</p>
             <label class="fl">Egység</label>
             <select class="fi" id="ioExpUnit"></select>
+            <label class="fl">Időszak (opcionális, vásárlás dátuma)</label>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input class="fi" type="date" id="ioExpFrom" aria-label="Tól" style="flex:1">
+              <span class="period-dash">–</span>
+              <input class="fi" type="date" id="ioExpTo" aria-label="Ig" style="flex:1">
+            </div>
             <button type="button" class="btn" id="ioExport" style="margin-top:12px">Export CSV letöltése</button>
           </div>
         </div>
@@ -530,6 +536,8 @@ document.querySelectorAll('.nav').forEach(n=>n.onclick=()=>{
   document.querySelectorAll('.section').forEach(s=>s.classList.toggle('show',s.id==='sec-'+n.dataset.sec));
   $('#pageTitle').textContent=titles[n.dataset.sec];
   $('#sidebar').classList.remove('open');
+  // A fejléc időszak-szűrője az Import/export és Felhasználók nézeteken nem releváns.
+  $('#period').style.display=(n.dataset.sec==='io'||n.dataset.sec==='users')?'none':'';
   if(n.dataset.sec==='users') loadUsers();
   if(n.dataset.sec==='io') initIO();
 });
@@ -545,11 +553,11 @@ function initIO(){
   $('#ioMsg').textContent='';
 }
 $('#ioExport').onclick=()=>{
-  const u=$('#ioExpUnit').value;
+  const u=$('#ioExpUnit').value, from=$('#ioExpFrom').value, to=$('#ioExpTo').value;
   const q=[];
   if(u)q.push('unit='+encodeURIComponent(u));
-  if(PERIOD.from)q.push('from='+encodeURIComponent(PERIOD.from));
-  if(PERIOD.to)q.push('to='+encodeURIComponent(PERIOD.to));
+  if(from)q.push('from='+encodeURIComponent(from));
+  if(to)q.push('to='+encodeURIComponent(to));
   window.location='/api/export'+(q.length?('?'+q.join('&')):'');
 };
 $('#ioImport').onclick=async()=>{
