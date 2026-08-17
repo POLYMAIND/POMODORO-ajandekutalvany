@@ -287,7 +287,8 @@ async function boot(){
   $('#login').classList.remove('show'); $('#app').classList.add('show');
   buildUnitSwitch();
   $('#navUsers').style.display = CFG.canManageUsers ? '' : 'none';
-  $('#whoami').textContent = (CFG.name||'') + (CFG.role?(' · '+(ROLE_LABELS[CFG.role]||CFG.role)):'');
+  const _rl = CFG.role ? (ROLE_LABELS[CFG.role]||CFG.role) : '';
+  $('#whoami').textContent = (CFG.name && CFG.name!==_rl) ? (CFG.name+' · '+_rl) : (CFG.name||_rl);
   $('#connInfo').textContent = CFG.configured ? (CFG.shops.length+' egység bekötve') : 'Nincs bolt bekötve';
   await refresh();
   startPolling();
