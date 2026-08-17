@@ -3,6 +3,15 @@ const { resolveUser } = require('../lib/auth.js');
 const { getConfig, setConfig } = require('../lib/db.js');
 const { getEmailConfig, senderFor, sendBrevo } = require('../lib/email.js');
 
+const DEFAULT_SUBJECT = 'Ajándékutalványod hamarosan lejár – {egyseg}';
+const DEFAULT_BODY =
+`Kedves {nev}!
+
+Ezúton szeretnénk emlékeztetni, hogy a nálunk vásárolt ajándékutalványod hamarosan lejár. Kérjük, használd fel a lejárat előtt – szeretettel várunk!
+
+Üdvözlettel:
+{egyseg}`;
+
 // E-mail (Brevo) beállítások — kizárólag központi admin (superadmin).
 module.exports = async (req, res) => {
   const u = await resolveUser(req);
@@ -14,11 +23,13 @@ module.exports = async (req, res) => {
   if (req.method === 'GET') {
     const c = (await getConfig('email')) || {};
     const key = c.apiKey || '';
+    const rem = c.reminder || {};
     res.status(200).json({
       provider: 'brevo',
       apiKeySet: !!key,
       apiKeyHint: key ? ('••••••' + key.slice(-4)) : '',
       from: c.from || {},
+      reminder: { subject: rem.subject || DEFAULT_SUBJECT, body: rem.body || DEFAULT_BODY },
       units,
     });
     return;
@@ -28,7 +39,15 @@ module.exports = async (req, res) => {
 
   const body = await readBody(req);
   const cur = (await getConfig('email')) || {};
-  const next = { apiKey: cur.apiKey || '', from: cur.from || {} };
+  const next = { apiKey: cur.apiKey || '', from: cur.from || {}, reminder: cur.reminder || {} };
+
+  // Emlékeztető szövege (tárgy + törzs, helykitöltőkkel).
+  if (body.reminder && typeof body.reminder === 'object') {
+    next.reminder = {
+      subject: String(body.reminder.subject || '').trim() || DEFAULT_SUBJECT,
+      body: String(body.reminder.body || '').trim() || DEFAULT_BODY,
+    };
+  }
 
   // API kulcs: csak akkor frissítjük, ha új, nem-maszkolt értéket küldtek.
   if (typeof body.apiKey === 'string' && body.apiKey.trim() && body.apiKey.indexOf('•') === -1) {

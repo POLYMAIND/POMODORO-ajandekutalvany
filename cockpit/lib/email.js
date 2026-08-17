@@ -7,6 +7,7 @@ async function getEmailConfig() {
   return {
     apiKey: c.apiKey || process.env.BREVO_API_KEY || '',
     from: c.from || {}, // { slug: {email,name} }
+    reminder: c.reminder || {}, // { subject, body }
   };
 }
 
@@ -17,17 +18,19 @@ function senderFor(cfg, unitSlug) {
   return null;
 }
 
-async function sendBrevo(apiKey, sender, toEmail, subject, text) {
+async function sendBrevo(apiKey, sender, toEmail, subject, text, html) {
   try {
+    const payload = {
+      sender: { email: sender.email, name: sender.name || sender.email },
+      to: [{ email: toEmail }],
+      subject,
+      textContent: text,
+    };
+    if (html) payload.htmlContent = html;
     const r = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: { 'api-key': apiKey, 'content-type': 'application/json', accept: 'application/json' },
-      body: JSON.stringify({
-        sender: { email: sender.email, name: sender.name || sender.email },
-        to: [{ email: toEmail }],
-        subject,
-        textContent: text,
-      }),
+      body: JSON.stringify(payload),
     });
     if (!r.ok) { const t = await r.text(); return { ok: false, error: t.slice(0, 300) }; }
     return { ok: true };

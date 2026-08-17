@@ -372,6 +372,16 @@ tbody tr.clickable{cursor:pointer}
             <div style="overflow-x:auto"><table id="emFromTable"></table></div>
           </div>
         </div>
+        <div class="card" style="padding:18px 20px;margin-top:16px">
+          <h3 style="font-size:14.5px;margin-bottom:6px">Emlékeztető levél szövege</h3>
+          <p class="t-sub" style="margin:0 0 10px">Helykitöltők: <code>{nev}</code> <code>{egyseg}</code> <code>{sorszam}</code> <code>{osszeg}</code> <code>{ervenyesseg}</code> <code>{napok}</code> <code>{uzenet}</code>. Az utalvány adatait (érték, sorszám, érvényesség) a rendszer külön, kiemelt dobozként is hozzáteszi a levélhez.</p>
+          <label class="fl">Tárgy</label>
+          <input class="fi" id="emSubject" type="text">
+          <label class="fl">Levél törzse</label>
+          <textarea class="fi" id="emBody" rows="8" style="font-family:inherit"></textarea>
+          <div class="uerr" id="emTplMsg"></div>
+          <button type="button" class="btn" id="emTplSave" style="margin-top:12px">Szöveg mentése</button>
+        </div>
       </section>
     </div>
   </div>
@@ -788,6 +798,7 @@ async function loadEmailSettings(){
     $('#emKeyState').textContent=j.apiKeySet?('Beállítva: '+j.apiKeyHint+' (hagyd üresen, ha marad)'):'Nincs beállítva.';
     $('#emKeyState').style.color=j.apiKeySet?'var(--good)':'var(--ink-faint)';
     $('#emTestUnit').innerHTML=EMUNITS.map(u=>'<option value="'+u.slug+'">'+shortName(u.slug)+'</option>').join('');
+    const rem=j.reminder||{}; $('#emSubject').value=rem.subject||''; $('#emBody').value=rem.body||'';
     const from=j.from||{};
     const head='<thead><tr><th>Egység</th><th>Feladó e-mail</th><th>Feladó név</th></tr></thead>';
     const rows=EMUNITS.map(u=>{
@@ -820,6 +831,17 @@ $('#emSave').onclick=async()=>{
     const r=await fetch('/api/settings',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(emPayload())});
     const j=await r.json().catch(()=>({}));
     if(r.ok&&j.ok){ msg.style.color='var(--good)'; msg.textContent='Mentve.'; loadEmailSettings(); }
+    else{ msg.style.color=''; msg.textContent=j.error||'Nem sikerült menteni.'; }
+  }catch(e){ msg.textContent='Hiba: '+(e.message||e); }
+  finally{ btn.disabled=false; btn.textContent=o; }
+};
+$('#emTplSave').onclick=async()=>{
+  const msg=$('#emTplMsg'); msg.className='uerr'; msg.textContent='';
+  const btn=$('#emTplSave'); btn.disabled=true; const o=btn.textContent; btn.textContent='Mentés…';
+  try{
+    const r=await fetch('/api/settings',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({reminder:{subject:$('#emSubject').value,body:$('#emBody').value}})});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok&&j.ok){ msg.style.color='var(--good)'; msg.textContent='Szöveg mentve.'; }
     else{ msg.style.color=''; msg.textContent=j.error||'Nem sikerült menteni.'; }
   }catch(e){ msg.textContent='Hiba: '+(e.message||e); }
   finally{ btn.disabled=false; btn.textContent=o; }
