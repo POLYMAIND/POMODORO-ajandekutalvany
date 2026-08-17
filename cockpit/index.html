@@ -208,6 +208,7 @@ tbody tr.clickable{cursor:pointer}
     <button class="nav" data-sec="cashier"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg>Kassza – beváltás</button>
     <button class="nav" data-sec="io" id="navIO" style="display:none"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>Import / export</button>
     <button class="nav" data-sec="users" id="navUsers" style="display:none"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Felhasználók</button>
+    <button class="nav" data-sec="email" id="navEmail" style="display:none"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>E-mail beállítások</button>
     <div class="side-foot">
       <div id="whoami" style="color:var(--ink-soft);font-weight:600;margin-bottom:2px"></div>
       <div id="connInfo">Nincs bolt bekötve</div>
@@ -344,6 +345,34 @@ tbody tr.clickable{cursor:pointer}
           </div>
         </div>
       </section>
+
+      <section class="section" id="sec-email">
+        <p class="section-intro">A lejárati (és egyéb) rendszerüzenetek Brevón keresztül mennek ki. Add meg a Brevo API kulcsot, és egységenként a feladó e-mail címet. Csak központi admin láthatja.</p>
+        <div class="urow">
+          <div class="card" style="padding:18px 20px">
+            <h3 style="font-size:14.5px;margin-bottom:6px">Brevo kapcsolat</h3>
+            <label class="fl">Brevo API kulcs</label>
+            <input class="fi" id="emKey" type="password" autocomplete="off" placeholder="xkeysib-…">
+            <p class="t-sub" id="emKeyState" style="margin:6px 0 0"></p>
+            <div class="uerr" id="emMsg"></div>
+            <div style="display:flex;gap:8px;margin-top:14px">
+              <button type="button" class="btn" id="emSave">Mentés</button>
+              <button type="button" class="btn ghost" id="emClearKey">Kulcs törlése</button>
+            </div>
+            <h3 style="font-size:14.5px;margin:20px 0 6px">Teszt e-mail</h3>
+            <label class="fl">Egység</label>
+            <select class="fi" id="emTestUnit"></select>
+            <label class="fl">Címzett</label>
+            <input class="fi" id="emTestTo" type="email" placeholder="teszt@pelda.hu">
+            <div class="uerr" id="emTestMsg"></div>
+            <button type="button" class="btn ghost" id="emTest" style="margin-top:12px">Teszt küldése</button>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>Feladó e-mail egységenként</h3></div>
+            <div style="overflow-x:auto"><table id="emFromTable"></table></div>
+          </div>
+        </div>
+      </section>
     </div>
   </div>
 </div>
@@ -373,6 +402,7 @@ async function boot(){
   $('#login').classList.remove('show'); $('#app').classList.add('show');
   buildUnitSwitch();
   $('#navUsers').style.display = CFG.canManageUsers ? '' : 'none';
+  $('#navEmail').style.display = CFG.canManageUsers ? '' : 'none';
   $('#navIO').style.display = (CFG.role==='superadmin'||CFG.role==='unit_manager') ? '' : 'none';
   const _rl = CFG.role ? (ROLE_LABELS[CFG.role]||CFG.role) : '';
   $('#whoami').textContent = (CFG.name && CFG.name!==_rl) ? (CFG.name+' · '+_rl) : (CFG.name||_rl);
@@ -499,15 +529,19 @@ function expRow(x){
   const d=daysLeft(x.valid_until);
   const email=x.buyer_email||x.delivery_email||'';
   let rem;
-  if(x.reminder_sent_at) rem='<span class="rem-done" title="Emlékeztető elküldve: '+esc(fdate(x.reminder_sent_at))+'">✓ emlékeztetve</span>';
-  else if(email) rem='<button class="rem-btn" data-remind="'+esc(x.serial)+'" data-unit="'+esc(x.unit)+'">E-mail</button>';
+  if(x.reminder_sent_at){
+    rem='<span class="rem-done" title="Utolsó emlékeztető">✓ '+esc(fdate(x.reminder_sent_at))+'</span>'+
+      (email?'<button class="rem-btn" data-remind="'+esc(x.serial)+'" data-unit="'+esc(x.unit)+'" data-force="1">Újra</button>':'');
+  } else if(email) rem='<button class="rem-btn" data-remind="'+esc(x.serial)+'" data-unit="'+esc(x.unit)+'">E-mail</button>';
   else rem='<span class="t-sub" title="Nincs e-mail cím">nincs e-mail</span>';
   return '<div class="exp-item" data-serial="'+esc(x.serial)+'" data-unit="'+esc(x.unit)+'"><div><div class="exp-serial">'+esc(x.serial)+'</div><div class="exp-sub">'+esc(shortName(x.unit))+' · '+esc(x.buyer_name||x.giver_name||'—')+' · lejár: '+fdate(x.valid_until)+'</div></div><div class="days" style="display:flex;align-items:center;gap:10px">'+rem+(d===null?'':daysPill(d))+'</div></div>';
 }
 async function sendReminder(unit,serial,btn){
+  const force=!!(btn&&btn.dataset&&btn.dataset.force);
+  if(force && !confirm('Már küldtünk emlékeztetőt erre. Küldesz újat?')) return;
   btn.disabled=true; const o=btn.textContent; btn.textContent='Küldés…';
   try{
-    const r=await fetch('/api/reminder',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({unit,serial})});
+    const r=await fetch('/api/reminder',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({unit,serial,force})});
     const j=await r.json().catch(()=>({}));
     if(r.ok&&j.ok){
       if(!j.sent && j.email){ window.location='mailto:'+encodeURIComponent(j.email)+'?subject='+encodeURIComponent(j.subject||'')+'&body='+encodeURIComponent(j.text||''); }
@@ -594,10 +628,11 @@ document.querySelectorAll('.nav').forEach(n=>n.onclick=()=>{
   document.querySelectorAll('.section').forEach(s=>s.classList.toggle('show',s.id==='sec-'+n.dataset.sec));
   $('#pageTitle').textContent=titles[n.dataset.sec];
   $('#sidebar').classList.remove('open');
-  // A fejléc időszak-szűrője az Import/export és Felhasználók nézeteken nem releváns.
-  $('#period').style.display=(n.dataset.sec==='io'||n.dataset.sec==='users')?'none':'';
+  // A fejléc időszak-szűrője a kezelő-nézeteken nem releváns.
+  $('#period').style.display=(['io','users','email'].includes(n.dataset.sec))?'none':'';
   if(n.dataset.sec==='users') loadUsers();
   if(n.dataset.sec==='io') initIO();
+  if(n.dataset.sec==='email') loadEmailSettings();
 });
 
 // ---- import / export ----
@@ -740,6 +775,73 @@ async function toggleUser(id){
   const r=await fetch('/api/users',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'update',id,disabled:!u.disabled})});
   if(r.ok) loadUsers();
 }
+
+// ---- e-mail beállítások (superadmin) ----
+let EMUNITS=[];
+async function loadEmailSettings(){
+  if(!CFG.canManageUsers) return;
+  $('#emMsg').textContent=''; $('#emTestMsg').textContent='';
+  try{
+    const j=await fetch('/api/settings').then(r=>r.json());
+    EMUNITS=j.units||[];
+    $('#emKey').value='';
+    $('#emKeyState').textContent=j.apiKeySet?('Beállítva: '+j.apiKeyHint+' (hagyd üresen, ha marad)'):'Nincs beállítva.';
+    $('#emKeyState').style.color=j.apiKeySet?'var(--good)':'var(--ink-faint)';
+    $('#emTestUnit').innerHTML=EMUNITS.map(u=>'<option value="'+u.slug+'">'+shortName(u.slug)+'</option>').join('');
+    const from=j.from||{};
+    const head='<thead><tr><th>Egység</th><th>Feladó e-mail</th><th>Feladó név</th></tr></thead>';
+    const rows=EMUNITS.map(u=>{
+      const f=from[u.slug]||{};
+      return '<tr><td class="t-strong">'+esc(shortName(u.slug))+'</td>'+
+        '<td><input class="fi em-email" data-slug="'+esc(u.slug)+'" type="email" value="'+esc(f.email||'')+'" placeholder="pl. utalvany@'+esc(u.slug)+'.hu"></td>'+
+        '<td><input class="fi em-name" data-slug="'+esc(u.slug)+'" type="text" value="'+esc(f.name||'')+'" placeholder="pl. '+esc(shortName(u.slug))+' Pomo d\'Oro"></td></tr>';
+    }).join('');
+    $('#emFromTable').innerHTML=head+'<tbody>'+rows+'</tbody>';
+  }catch(e){ $('#emMsg').textContent='Nem sikerült betölteni a beállításokat.'; }
+}
+function emGatherFrom(){
+  const from={};
+  document.querySelectorAll('#emFromTable .em-email').forEach(inp=>{
+    const slug=inp.dataset.slug;
+    const name=document.querySelector('#emFromTable .em-name[data-slug="'+slug+'"]');
+    from[slug]={email:inp.value.trim(), name:name?name.value.trim():''};
+  });
+  return from;
+}
+function emPayload(extra){
+  const p={from:emGatherFrom()};
+  const k=$('#emKey').value.trim(); if(k) p.apiKey=k;
+  return Object.assign(p, extra||{});
+}
+$('#emSave').onclick=async()=>{
+  const msg=$('#emMsg'); msg.className='uerr'; msg.textContent='';
+  const btn=$('#emSave'); btn.disabled=true; const o=btn.textContent; btn.textContent='Mentés…';
+  try{
+    const r=await fetch('/api/settings',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(emPayload())});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok&&j.ok){ msg.style.color='var(--good)'; msg.textContent='Mentve.'; loadEmailSettings(); }
+    else{ msg.style.color=''; msg.textContent=j.error||'Nem sikerült menteni.'; }
+  }catch(e){ msg.textContent='Hiba: '+(e.message||e); }
+  finally{ btn.disabled=false; btn.textContent=o; }
+};
+$('#emClearKey').onclick=async()=>{
+  if(!confirm('Törlöd a Brevo API kulcsot? Ezután nem megy automatikus e-mail.')) return;
+  const r=await fetch('/api/settings',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(emPayload({clearApiKey:true}))});
+  if(r.ok) loadEmailSettings();
+};
+$('#emTest').onclick=async()=>{
+  const msg=$('#emTestMsg'); msg.className='uerr'; msg.textContent='';
+  const unit=$('#emTestUnit').value, to=$('#emTestTo').value.trim();
+  if(!to){ msg.textContent='Adj meg címzettet.'; return; }
+  const btn=$('#emTest'); btn.disabled=true; const o=btn.textContent; btn.textContent='Küldés…';
+  try{
+    const r=await fetch('/api/settings',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(emPayload({test:{unit,to}}))});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok&&j.ok&&j.test&&j.test.ok){ msg.style.color='var(--good)'; msg.textContent='Teszt e-mail elküldve ide: '+to; }
+    else{ msg.style.color=''; msg.textContent=(j.test&&j.test.error)?('Teszt hiba: '+j.test.error):(j.error||'A teszt nem sikerült.'); }
+  }catch(e){ msg.textContent='Hiba: '+(e.message||e); }
+  finally{ btn.disabled=false; btn.textContent=o; }
+};
 
 // ---- profil (mini adatlap) ----
 function findVoucher(unit,serial){return DATA.vouchers.find(v=>String(v.unit)===String(unit)&&String(v.serial)===String(serial));}

@@ -192,6 +192,31 @@ async function deleteLegacyByUnit(unit) {
   return r.count || 0;
 }
 
+// ---- Konfiguráció (kulcs-érték, pl. e-mail/Brevo beállítások) ----
+let _cfgReady = false;
+async function ensureConfigSchema() {
+  if (_cfgReady) return;
+  const sql = db();
+  await sql`CREATE TABLE IF NOT EXISTS pgv_config (
+    k text PRIMARY KEY,
+    v jsonb,
+    updated_at timestamptz DEFAULT now()
+  )`;
+  _cfgReady = true;
+}
+async function getConfig(key) {
+  await ensureConfigSchema();
+  const sql = db();
+  const r = await sql`SELECT v FROM pgv_config WHERE k = ${String(key)} LIMIT 1`;
+  return r[0] ? r[0].v : null;
+}
+async function setConfig(key, value) {
+  await ensureConfigSchema();
+  const sql = db();
+  await sql`INSERT INTO pgv_config (k, v, updated_at) VALUES (${String(key)}, ${sql.json(value)}, now())
+    ON CONFLICT (k) DO UPDATE SET v = EXCLUDED.v, updated_at = now()`;
+}
+
 // ---- Felhasználók (többfelhasználós admin) ----
 let _usersReady = false;
 async function ensureUsersSchema() {
@@ -250,5 +275,6 @@ async function deleteUser(id) {
 
 module.exports = {
   db, ensureSchema, upsertVouchers, allVouchers, getVoucher, redeemVoucher, markReminderSent, deleteLegacyByUnit,
+  ensureConfigSchema, getConfig, setConfig,
   ensureUsersSchema, countUsers, getUserByEmail, getUserById, listUsers, createUser, updateUser, deleteUser,
 };

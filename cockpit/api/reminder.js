@@ -1,6 +1,7 @@
 const { readBody, getShops } = require('../lib/shops.js');
 const { resolveUser, canSeeUnit } = require('../lib/auth.js');
 const { ensureSchema, getVoucher, markReminderSent } = require('../lib/db.js');
+const { getEmailConfig, senderFor, sendBrevo } = require('../lib/email.js');
 
 // Lejárati emlékeztető: ha be van állítva e-mail szolgáltató (RESEND_API_KEY +
 // REMINDER_FROM), a szerver azonnal kiküldi; különben visszaadja az előre kitöltött
@@ -50,19 +51,18 @@ Kérjük, használd fel a lejárat előtt – szeretettel várunk!
 Üdvözlettel:
 ${unitName}`;
 
-    // Automatikus küldés, ha van konfigurált szolgáltató (Resend).
+    // Automatikus küldés Brevón át, ha be van állítva (E-mail beállítások).
     let sent = false;
-    const key = process.env.RESEND_API_KEY;
-    const from = process.env.REMINDER_FROM;
-    if (key && from) {
-      const r = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { Authorization: 'Bearer ' + key, 'content-type': 'application/json' },
-        body: JSON.stringify({ from, to: email, subject, text }),
-      });
+    const cfg = await getEmailConfig();
+    if (cfg.apiKey) {
+      const sender = senderFor(cfg, shop.slug);
+      if (!sender) {
+        res.status(400).json({ error: 'Ehhez az egységhez nincs feladó e-mail beállítva (E-mail beállítások).' });
+        return;
+      }
+      const r = await sendBrevo(cfg.apiKey, sender, email, subject, text);
       if (!r.ok) {
-        const t = await r.text();
-        res.status(502).json({ error: 'E-mail küldési hiba: ' + t.slice(0, 300) });
+        res.status(502).json({ error: 'E-mail küldési hiba (Brevo): ' + r.error });
         return;
       }
       sent = true;
