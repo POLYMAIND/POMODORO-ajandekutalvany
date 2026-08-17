@@ -24,6 +24,12 @@ function db() {
   return _sql;
 }
 
+// Extra (import-only) CRM oszlopok — a plugin push nem küldi ezeket, ezért
+// upsertnél COALESCE-szal védjük, hogy egy későbbi push ne nullázza őket.
+const EXTRA_COLS = ['order_ref', 'label', 'buyer_name', 'buyer_phone', 'country',
+  'postcode', 'city', 'street', 'message', 'delivery_date', 'redeem_method',
+  'buyer_note', 'promo_code', 'payment_provider', 'paid_at', 'print_serial'];
+
 let _schemaReady = false;
 async function ensureSchema() {
   if (_schemaReady) return;
@@ -47,6 +53,24 @@ async function ensureSchema() {
     ingested_at timestamptz DEFAULT now(),
     PRIMARY KEY (unit, serial)
   )`;
+  // Extra CRM oszlopok (idempotens bővítés meglévő táblán is).
+  await sql`ALTER TABLE pgv_vouchers
+    ADD COLUMN IF NOT EXISTS order_ref text,
+    ADD COLUMN IF NOT EXISTS label text,
+    ADD COLUMN IF NOT EXISTS buyer_name text,
+    ADD COLUMN IF NOT EXISTS buyer_phone text,
+    ADD COLUMN IF NOT EXISTS country text,
+    ADD COLUMN IF NOT EXISTS postcode text,
+    ADD COLUMN IF NOT EXISTS city text,
+    ADD COLUMN IF NOT EXISTS street text,
+    ADD COLUMN IF NOT EXISTS message text,
+    ADD COLUMN IF NOT EXISTS delivery_date date,
+    ADD COLUMN IF NOT EXISTS redeem_method text,
+    ADD COLUMN IF NOT EXISTS buyer_note text,
+    ADD COLUMN IF NOT EXISTS promo_code text,
+    ADD COLUMN IF NOT EXISTS payment_provider text,
+    ADD COLUMN IF NOT EXISTS paid_at timestamptz,
+    ADD COLUMN IF NOT EXISTS print_serial text`;
   _schemaReady = true;
 }
 
@@ -56,16 +80,21 @@ function d(v) { // dátum/idő normalizálás: üres / 0000 -> null
   if (!s || s.startsWith('0000')) return null;
   return s;
 }
+function s(v) { // szöveg: üres -> null
+  if (v == null) return null;
+  const t = String(v).trim();
+  return t === '' ? null : t;
+}
 function norm(v) {
   return {
     unit: String(v.unit || '').trim(),
     serial: String(v.serial || '').trim(),
     amount: v.amount != null ? (parseInt(v.amount, 10) || 0) : 0,
     status: v.status || null,
-    giver_name: v.giver_name || null,
-    recipient_name: v.recipient_name || null,
-    delivery_email: v.delivery_email || null,
-    buyer_email: v.buyer_email || null,
+    giver_name: s(v.giver_name),
+    recipient_name: s(v.recipient_name),
+    delivery_email: s(v.delivery_email),
+    buyer_email: s(v.buyer_email),
     marketing_opt_in: !!v.marketing_opt_in,
     valid_from: d(v.valid_from),
     valid_until: d(v.valid_until),
@@ -73,39 +102,48 @@ function norm(v) {
     is_legacy: !!v.is_legacy,
     created_at: d(v.created_at),
     updated_at: d(v.updated_at) || d(v.created_at),
+    // extra
+    order_ref: s(v.order_ref),
+    label: s(v.label),
+    buyer_name: s(v.buyer_name),
+    buyer_phone: s(v.buyer_phone),
+    country: s(v.country),
+    postcode: s(v.postcode),
+    city: s(v.city),
+    street: s(v.street),
+    message: s(v.message),
+    delivery_date: d(v.delivery_date),
+    redeem_method: s(v.redeem_method),
+    buyer_note: s(v.buyer_note),
+    promo_code: s(v.promo_code),
+    payment_provider: s(v.payment_provider),
+    paid_at: d(v.paid_at),
+    print_serial: s(v.print_serial),
   };
 }
 
-const COLS = ['unit', 'serial', 'amount', 'status', 'giver_name', 'recipient_name',
+const CORE_COLS = ['unit', 'serial', 'amount', 'status', 'giver_name', 'recipient_name',
   'delivery_email', 'buyer_email', 'marketing_opt_in', 'valid_from', 'valid_until',
   'redeemed_at', 'is_legacy', 'created_at', 'updated_at'];
+const COLS = CORE_COLS.concat(EXTRA_COLS);
 
 async function upsertVouchers(rows) {
   const clean = (rows || []).map(norm).filter(r => r.unit && r.serial);
   if (!clean.length) return 0;
   const sql = db();
-  // Kötegelt upsert (a Neon max ~soronkénti paraméterszámot elbírja; batch-eljük).
+  // A core mezőket felülírjuk; az extra CRM mezőket COALESCE-szal védjük.
+  const coreSet = CORE_COLS.filter(c => c !== 'unit' && c !== 'serial')
+    .map(c => `${c} = EXCLUDED.${c}`);
+  const extraSet = EXTRA_COLS.map(c => `${c} = COALESCE(EXCLUDED.${c}, pgv_vouchers.${c})`);
+  const setSql = coreSet.concat(extraSet).join(', ') + ', ingested_at = now()';
+
   const BATCH = 200;
   let total = 0;
   for (let i = 0; i < clean.length; i += BATCH) {
     const chunk = clean.slice(i, i + BATCH);
     await sql`
       INSERT INTO pgv_vouchers ${sql(chunk, ...COLS)}
-      ON CONFLICT (unit, serial) DO UPDATE SET
-        amount = EXCLUDED.amount,
-        status = EXCLUDED.status,
-        giver_name = EXCLUDED.giver_name,
-        recipient_name = EXCLUDED.recipient_name,
-        delivery_email = EXCLUDED.delivery_email,
-        buyer_email = EXCLUDED.buyer_email,
-        marketing_opt_in = EXCLUDED.marketing_opt_in,
-        valid_from = EXCLUDED.valid_from,
-        valid_until = EXCLUDED.valid_until,
-        redeemed_at = EXCLUDED.redeemed_at,
-        is_legacy = EXCLUDED.is_legacy,
-        created_at = EXCLUDED.created_at,
-        updated_at = EXCLUDED.updated_at,
-        ingested_at = now()
+      ON CONFLICT (unit, serial) DO UPDATE SET ${sql.unsafe(setSql)}
     `;
     total += chunk.length;
   }

@@ -170,6 +170,7 @@ tr:last-child td{border-bottom:none}tbody tr:hover{background:var(--surface-2)}
     <button class="nav" data-sec="expiry"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Lejáratok<span class="count" id="expCount" style="display:none">0</span></button>
     <div class="nav-label">Kezelés</div>
     <button class="nav" data-sec="cashier"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg>Kassza – beváltás</button>
+    <button class="nav" data-sec="io" id="navIO" style="display:none"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>Import / export</button>
     <button class="nav" data-sec="users" id="navUsers" style="display:none"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Felhasználók</button>
     <div class="side-foot">
       <div id="whoami" style="color:var(--ink-soft);font-weight:600;margin-bottom:2px"></div>
@@ -231,6 +232,29 @@ tr:last-child td{border-bottom:none}tbody tr:hover{background:var(--surface-2)}
         </div>
       </section>
 
+      <section class="section" id="sec-io">
+        <p class="section-intro">Korábbi utalványok importálása CSV-ből (egységhez kötve), és az adatok exportja ugyanebben a formátumban. Az importált tételek „korábbi” (legacy) jelölést kapnak.</p>
+        <div class="urow">
+          <div class="card" style="padding:18px 20px">
+            <h3 style="font-size:14.5px;margin-bottom:6px">Import</h3>
+            <p class="t-sub" style="margin:0 0 8px">A tiszta formátumú CSV-t töltsd fel (az „utalvány kódja” oszlop kötelező).</p>
+            <label class="fl">Melyik egységbe?</label>
+            <select class="fi" id="ioImpUnit"></select>
+            <label class="fl">CSV fájl</label>
+            <input class="fi" id="ioFile" type="file" accept=".csv,text/csv">
+            <div class="uerr" id="ioMsg"></div>
+            <button type="button" class="btn" id="ioImport" style="margin-top:12px">Importálás</button>
+          </div>
+          <div class="card" style="padding:18px 20px">
+            <h3 style="font-size:14.5px;margin-bottom:6px">Export</h3>
+            <p class="t-sub" style="margin:0 0 8px">Letöltés a kanonikus CSV-formátumban (a jogosultságodnak megfelelő egységekre).</p>
+            <label class="fl">Egység</label>
+            <select class="fi" id="ioExpUnit"></select>
+            <button type="button" class="btn" id="ioExport" style="margin-top:12px">Export CSV letöltése</button>
+          </div>
+        </div>
+      </section>
+
       <section class="section" id="sec-users">
         <p class="section-intro">Vedd fel a kezelőket, állítsd be a szerepüket és melyik egység(ek)re lássanak rá. Egy egység-kezelő / kasszás csak a saját egysége utalványait látja és váltja be.</p>
         <div class="urow">
@@ -287,6 +311,7 @@ async function boot(){
   $('#login').classList.remove('show'); $('#app').classList.add('show');
   buildUnitSwitch();
   $('#navUsers').style.display = CFG.canManageUsers ? '' : 'none';
+  $('#navIO').style.display = (CFG.role==='superadmin'||CFG.role==='unit_manager') ? '' : 'none';
   const _rl = CFG.role ? (ROLE_LABELS[CFG.role]||CFG.role) : '';
   $('#whoami').textContent = (CFG.name && CFG.name!==_rl) ? (CFG.name+' · '+_rl) : (CFG.name||_rl);
   $('#connInfo').textContent = !CFG.configured ? 'Nincs egység'
@@ -435,14 +460,49 @@ $('#cashBtn').onclick=()=>renderCash($('#cashInput').value);
 $('#cashInput').addEventListener('keydown',e=>{if(e.key==='Enter')renderCash(e.target.value);});
 
 // ---- nav / ui ----
-const titles={dash:'Áttekintés',purchases:'Vásárlások',expiry:'Lejáratok',cashier:'Kassza – beváltás',users:'Felhasználók'};
+const titles={dash:'Áttekintés',purchases:'Vásárlások',expiry:'Lejáratok',cashier:'Kassza – beváltás',users:'Felhasználók',io:'Import / export'};
 document.querySelectorAll('.nav').forEach(n=>n.onclick=()=>{
   document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x===n));
   document.querySelectorAll('.section').forEach(s=>s.classList.toggle('show',s.id==='sec-'+n.dataset.sec));
   $('#pageTitle').textContent=titles[n.dataset.sec];
   $('#sidebar').classList.remove('open');
   if(n.dataset.sec==='users') loadUsers();
+  if(n.dataset.sec==='io') initIO();
 });
+
+// ---- import / export ----
+function initIO(){
+  const imp=$('#ioImpUnit'), exp=$('#ioExpUnit');
+  if(!imp||!exp) return;
+  imp.innerHTML=CFG.shops.map(s=>'<option value="'+s.slug+'">'+shortName(s.slug)+'</option>').join('')||'<option value="">Nincs egység</option>';
+  const expOpts=(CFG.shops.length>1?['<option value="">Összes egység</option>']:[])
+    .concat(CFG.shops.map(s=>'<option value="'+s.slug+'">'+shortName(s.slug)+'</option>'));
+  exp.innerHTML=expOpts.join('');
+  $('#ioMsg').textContent='';
+}
+$('#ioExport').onclick=()=>{
+  const u=$('#ioExpUnit').value;
+  window.location='/api/export'+(u?('?unit='+encodeURIComponent(u)):'');
+};
+$('#ioImport').onclick=async()=>{
+  const msg=$('#ioMsg'); msg.className='uerr'; msg.textContent='';
+  const unit=$('#ioImpUnit').value;
+  const file=$('#ioFile').files&&$('#ioFile').files[0];
+  if(!unit){ msg.textContent='Válassz egységet.'; return; }
+  if(!file){ msg.textContent='Válassz CSV fájlt.'; return; }
+  const btn=$('#ioImport'); btn.disabled=true; btn.textContent='Importálás…';
+  try{
+    const csv=await file.text();
+    const r=await fetch('/api/import',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({unit,csv})});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok&&j.ok){
+      msg.style.color='var(--good)';
+      msg.textContent='Kész: '+j.imported+' utalvány importálva'+(j.skipped?(' · '+j.skipped+' kihagyva (üres kód)'):'')+'.';
+      $('#ioFile').value=''; refresh();
+    }else{ msg.style.color=''; msg.textContent=j.error||'Az import nem sikerült.'; }
+  }catch(e){ msg.textContent='Hiba: '+(e.message||e); }
+  finally{ btn.disabled=false; btn.textContent='Importálás'; }
+};
 // ---- users (superadmin) ----
 let USERS=[], UUNITS=[];
 function roleLabel(r){return ROLE_LABELS[r]||r;}
