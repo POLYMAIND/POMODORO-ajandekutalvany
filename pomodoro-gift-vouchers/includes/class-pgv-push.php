@@ -29,25 +29,64 @@ class PGV_Push {
 
 	/**
 	 * Voucher rekord → a vezérlőpult által várt mezők.
+	 * A CRM-mezőket (számlázási név, telefon, cím, megjegyzés) a WooCommerce
+	 * rendelésből is kiegészítjük, hogy a vezérlőpult exportja teljes legyen.
 	 */
 	public static function payload( array $v ) {
-		return array(
+		$data = array(
 			'unit'             => $v['unit_slug'],
 			'serial'           => $v['serial'],
+			'order_ref'        => '',
+			'label'            => isset( $v['denomination_label'] ) ? $v['denomination_label'] : '',
 			'amount'           => (int) $v['amount'],
 			'status'           => $v['status'],
 			'giver_name'       => $v['giver_name'],
 			'recipient_name'   => $v['recipient_name'],
+			'message'          => isset( $v['message'] ) ? $v['message'] : '',
 			'delivery_email'   => $v['delivery_email'],
 			'buyer_email'      => $v['buyer_email'],
+			'buyer_name'       => '',
+			'buyer_phone'      => '',
+			'country'          => '',
+			'postcode'         => '',
+			'city'             => '',
+			'street'           => '',
+			'buyer_note'       => '',
+			'payment_provider' => '',
 			'marketing_opt_in' => (bool) $v['marketing_opt_in'],
 			'valid_from'       => $v['valid_from'],
 			'valid_until'      => $v['valid_until'],
+			'paid_at'          => isset( $v['paid_at'] ) ? $v['paid_at'] : null,
 			'redeemed_at'      => $v['redeemed_at'],
 			'is_legacy'        => (bool) $v['is_legacy'],
 			'created_at'       => $v['created_at'],
 			'updated_at'       => $v['updated_at'],
 		);
+
+		if ( ! empty( $v['order_id'] ) && function_exists( 'wc_get_order' ) ) {
+			$order = wc_get_order( (int) $v['order_id'] );
+			if ( $order ) {
+				$data['order_ref']        = (string) $order->get_order_number();
+				$name                     = trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() );
+				$data['buyer_name']       = $name;
+				$data['buyer_phone']      = $order->get_billing_phone();
+				$data['country']          = $order->get_billing_country();
+				$data['postcode']         = $order->get_billing_postcode();
+				$data['city']             = $order->get_billing_city();
+				$data['street']           = trim( $order->get_billing_address_1() . ' ' . $order->get_billing_address_2() );
+				$data['buyer_note']       = $order->get_customer_note();
+				$data['payment_provider'] = $order->get_payment_method_title();
+				if ( empty( $data['buyer_email'] ) ) {
+					$data['buyer_email'] = $order->get_billing_email();
+				}
+				$paid = $order->get_date_paid();
+				if ( empty( $data['paid_at'] ) && $paid ) {
+					$data['paid_at'] = $paid->format( 'Y-m-d H:i:s' );
+				}
+			}
+		}
+
+		return $data;
 	}
 
 	/**
