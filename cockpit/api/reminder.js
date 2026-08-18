@@ -3,14 +3,42 @@ const { resolveUser, canSeeUnit } = require('../lib/auth.js');
 const { ensureSchema, getVoucher, markReminderSent } = require('../lib/db.js');
 const { getEmailConfig, senderFor, sendBrevo } = require('../lib/email.js');
 
-const DEFAULT_SUBJECT = 'Ajándékutalványod hamarosan lejár – {egyseg}';
+const DEFAULT_SUBJECT = '{egyseg} · Ajándékutalványod {napok}';
 const DEFAULT_BODY =
 `Kedves {nev}!
 
-Ezúton szeretnénk emlékeztetni, hogy a nálunk vásárolt ajándékutalványod hamarosan lejár. Kérjük, használd fel a lejárat előtt – szeretettel várunk!
+Öröm, hogy nálunk választottál ajándékutalványt. Csak finoman emlékeztetnénk: a(z) {osszeg} értékű utalványod {napok}, és {ervenyesseg}-ig váltható be nálunk, a(z) {egyseg} egységben.
 
-Üdvözlettel:
-{egyseg}`;
+Foglalj asztalt, hozd magaddal ezt a levelet vagy a mellékelt utalványt, a többiről pedig mi gondoskodunk. Szeretettel várunk egy kellemes vendéglátós élményre!
+
+Ha bármi kérdésed lenne, keress minket bizalommal.
+
+Viszontlátásra:
+a(z) {egyseg} csapata`;
+
+// A bolt pluginjától lekéri az utalvány PDF-jét (base64) a közös push-titokkal.
+// Csak plugin-eredetű (site_url-lel rendelkező, nem legacy) utalványnál működik;
+// bármilyen hiba esetén null-lal tér vissza, hogy a levél PDF nélkül is kimenjen.
+async function fetchVoucherPdf(siteUrl, serial) {
+  const secret = process.env.INGEST_SECRET || '';
+  if (!siteUrl || !secret) return null;
+  try {
+    const base = String(siteUrl).replace(/\/+$/, '');
+    const url = base + '/wp-json/pgv/v1/voucher-pdf?serial=' + encodeURIComponent(serial);
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 12000);
+    let r;
+    try {
+      r = await fetch(url, { headers: { 'x-ingest-secret': secret, accept: 'application/json' }, signal: ctrl.signal });
+    } finally { clearTimeout(timer); }
+    if (!r || !r.ok) return null;
+    const j = await r.json();
+    if (!j || !j.pdf_base64) return null;
+    return { content: j.pdf_base64, name: j.filename || ('ajandekutalvany-' + serial + '.pdf') };
+  } catch (e) {
+    return null;
+  }
+}
 
 function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
@@ -102,6 +130,14 @@ module.exports = async (req, res) => {
 
     const html = buildHtml({ bodyText, unitName, serial: v.serial, amount, valid, daysPhrase, daysLeft });
 
+    // Utalvány-PDF csatolása, ha a plugin elérhető (nem legacy, van site_url).
+    let attachments = null;
+    let pdfAttached = false;
+    if (!v.is_legacy && v.site_url) {
+      const pdf = await fetchVoucherPdf(v.site_url, v.serial);
+      if (pdf) { attachments = [pdf]; pdfAttached = true; }
+    }
+
     // Automatikus küldés Brevón át, ha be van állítva (E-mail beállítások).
     let sent = false;
     if (cfg.apiKey) {
@@ -110,7 +146,7 @@ module.exports = async (req, res) => {
         res.status(400).json({ error: 'Ehhez az egységhez nincs feladó e-mail beállítva (E-mail beállítások).' });
         return;
       }
-      const r = await sendBrevo(cfg.apiKey, sender, email, subject, text, html);
+      const r = await sendBrevo(cfg.apiKey, sender, email, subject, text, html, attachments);
       if (!r.ok) {
         res.status(502).json({ error: 'E-mail küldési hiba (Brevo): ' + r.error });
         return;
@@ -119,7 +155,7 @@ module.exports = async (req, res) => {
     }
 
     await markReminderSent(shop.slug, serial);
-    res.status(200).json({ ok: true, sent, email, subject, text });
+    res.status(200).json({ ok: true, sent, email, subject, text, pdfAttached });
   } catch (e) {
     res.status(500).json({ error: String(e && e.message || e) });
   }

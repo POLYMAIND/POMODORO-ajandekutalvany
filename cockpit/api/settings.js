@@ -3,14 +3,18 @@ const { resolveUser } = require('../lib/auth.js');
 const { getConfig, setConfig } = require('../lib/db.js');
 const { getEmailConfig, senderFor, sendBrevo } = require('../lib/email.js');
 
-const DEFAULT_SUBJECT = 'Ajándékutalványod hamarosan lejár – {egyseg}';
+const DEFAULT_SUBJECT = '{egyseg} · Ajándékutalványod {napok}';
 const DEFAULT_BODY =
 `Kedves {nev}!
 
-Ezúton szeretnénk emlékeztetni, hogy a nálunk vásárolt ajándékutalványod hamarosan lejár. Kérjük, használd fel a lejárat előtt – szeretettel várunk!
+Öröm, hogy nálunk választottál ajándékutalványt. Csak finoman emlékeztetnénk: a(z) {osszeg} értékű utalványod {napok}, és {ervenyesseg}-ig váltható be nálunk, a(z) {egyseg} egységben.
 
-Üdvözlettel:
-{egyseg}`;
+Foglalj asztalt, hozd magaddal ezt a levelet vagy a mellékelt utalványt, a többiről pedig mi gondoskodunk. Szeretettel várunk egy kellemes vendéglátós élményre!
+
+Ha bármi kérdésed lenne, keress minket bizalommal.
+
+Viszontlátásra:
+a(z) {egyseg} csapata`;
 
 // E-mail (Brevo) beállítások — kizárólag központi admin (superadmin).
 module.exports = async (req, res) => {

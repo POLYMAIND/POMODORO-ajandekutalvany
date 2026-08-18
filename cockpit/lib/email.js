@@ -18,7 +18,8 @@ function senderFor(cfg, unitSlug) {
   return null;
 }
 
-async function sendBrevo(apiKey, sender, toEmail, subject, text, html) {
+// attachments: [{ content: <base64>, name: 'utalvany.pdf' }]
+async function sendBrevo(apiKey, sender, toEmail, subject, text, html, attachments) {
   try {
     const payload = {
       sender: { email: sender.email, name: sender.name || sender.email },
@@ -27,6 +28,7 @@ async function sendBrevo(apiKey, sender, toEmail, subject, text, html) {
       textContent: text,
     };
     if (html) payload.htmlContent = html;
+    if (Array.isArray(attachments) && attachments.length) payload.attachment = attachments;
     const r = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: { 'api-key': apiKey, 'content-type': 'application/json', accept: 'application/json' },

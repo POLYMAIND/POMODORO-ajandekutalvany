@@ -36,6 +36,7 @@ class PGV_Push {
 		$data = array(
 			'unit'             => $v['unit_slug'],
 			'serial'           => $v['serial'],
+			'site_url'         => home_url(),
 			'order_ref'        => ! empty( $v['order_id'] ) ? (string) $v['order_id'] : '',
 			'transaction_id'   => '',
 			'label'            => isset( $v['denomination_label'] ) ? $v['denomination_label'] : '',

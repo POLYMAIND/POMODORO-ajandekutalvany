@@ -28,7 +28,8 @@ function db() {
 // upsertnél COALESCE-szal védjük, hogy egy későbbi push ne nullázza őket.
 const EXTRA_COLS = ['order_ref', 'label', 'buyer_name', 'buyer_phone', 'country',
   'postcode', 'city', 'street', 'message',
-  'buyer_note', 'promo_code', 'payment_provider', 'transaction_id', 'paid_at'];
+  'buyer_note', 'promo_code', 'payment_provider', 'transaction_id', 'paid_at',
+  'site_url'];
 
 let _schemaReady = false;
 async function ensureSchema() {
@@ -73,6 +74,7 @@ async function ensureSchema() {
     ADD COLUMN IF NOT EXISTS transaction_id text,
     ADD COLUMN IF NOT EXISTS paid_at timestamptz,
     ADD COLUMN IF NOT EXISTS print_serial text,
+    ADD COLUMN IF NOT EXISTS site_url text,
     ADD COLUMN IF NOT EXISTS reminder_sent_at timestamptz`;
   _schemaReady = true;
 }
@@ -120,6 +122,7 @@ function norm(v) {
     payment_provider: s(v.payment_provider),
     transaction_id: s(v.transaction_id),
     paid_at: d(v.paid_at),
+    site_url: s(v.site_url),
   };
 }
 

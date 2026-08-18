@@ -44,6 +44,62 @@ class PGV_REST {
 
 		// Egy utalvány lekérése sorszám alapján (a kassza-előnézethez).
 		register_rest_route( self::NS, '/voucher', array_merge( $args, array( 'callback' => array( $this, 'get_one' ) ) ) );
+
+		// Utalvány-PDF a központi vezérlőpultnak (emlékeztető-csatolás). A push-titokkal
+		// (cockpit_secret) hitelesítve, hogy ne kelljen az API-kulcsot újraéleszteni.
+		register_rest_route(
+			self::NS,
+			'/voucher-pdf',
+			array(
+				'permission_callback' => array( $this, 'check_cockpit_secret' ),
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_pdf' ),
+			)
+		);
+	}
+
+	/**
+	 * A vezérlőpult (push) közös titkának ellenőrzése — a PDF-lekéréshez.
+	 */
+	public function check_cockpit_secret( WP_REST_Request $request ) {
+		$secret = $request->get_header( 'x-ingest-secret' );
+		if ( ! $secret ) {
+			$secret = (string) $request->get_param( 'secret' );
+		}
+		$stored = trim( (string) PGV_Settings::get( 'cockpit_secret', '' ) );
+		if ( '' === $stored || ! is_string( $secret ) || ! hash_equals( $stored, trim( $secret ) ) ) {
+			return new WP_Error( 'pgv_bad_secret', __( 'Érvénytelen titok.', 'pomodoro-gift-vouchers' ), array( 'status' => 401 ) );
+		}
+		return true;
+	}
+
+	/**
+	 * GET /voucher-pdf?serial=… — a beépített utalvány-PDF base64-ben.
+	 */
+	public function get_pdf( WP_REST_Request $request ) {
+		$needle = sanitize_text_field( (string) $request->get_param( 'serial' ) );
+		if ( '' === $needle ) {
+			return new WP_Error( 'pgv_no_serial', __( 'Hiányzó sorszám.', 'pomodoro-gift-vouchers' ), array( 'status' => 400 ) );
+		}
+		$v = PGV_Vouchers::get_by_serial_or_token( $needle );
+		if ( ! $v ) {
+			return new WP_Error( 'pgv_notfound', __( 'Nincs ilyen utalvány.', 'pomodoro-gift-vouchers' ), array( 'status' => 404 ) );
+		}
+		if ( ! class_exists( 'PGV_Voucher_PDF' ) || ! PGV_Voucher_PDF::enabled() ) {
+			return new WP_Error( 'pgv_pdf_off', __( 'A beépített PDF nincs bekapcsolva.', 'pomodoro-gift-vouchers' ), array( 'status' => 409 ) );
+		}
+		$bytes = PGV_Voucher_PDF::bytes( $v );
+		if ( ! is_string( $bytes ) || '' === $bytes ) {
+			return new WP_Error( 'pgv_pdf_fail', __( 'A PDF előállítása sikertelen.', 'pomodoro-gift-vouchers' ), array( 'status' => 500 ) );
+		}
+		return rest_ensure_response(
+			array(
+				'ok'       => true,
+				'serial'   => $v['serial'],
+				'filename' => 'ajandekutalvany-' . sanitize_file_name( $v['serial'] ) . '.pdf',
+				'pdf_base64' => base64_encode( $bytes ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
+			)
+		);
 	}
 
 	/**
