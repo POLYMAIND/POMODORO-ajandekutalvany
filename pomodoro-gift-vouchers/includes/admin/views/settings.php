@@ -197,8 +197,25 @@ $units = array(
 				<tr>
 					<th><label for="cockpit_secret"><?php esc_html_e( 'Ingest titok', 'pomodoro-gift-vouchers' ); ?></label></th>
 					<td>
-						<input type="text" name="cockpit_secret" id="cockpit_secret" class="large-text" autocomplete="off" value="<?php echo esc_attr( isset( $s['cockpit_secret'] ) ? $s['cockpit_secret'] : '' ); ?>">
-						<p class="description"><?php esc_html_e( 'Ugyanaz a titok, mint a vezérlőpult INGEST_SECRET környezeti változója.', 'pomodoro-gift-vouchers' ); ?></p>
+						<?php
+						$pgv_has_secret = ! empty( $s['cockpit_secret'] );
+						$pgv_secret_hint = $pgv_has_secret ? ( '••••••' . substr( (string) $s['cockpit_secret'], -4 ) ) : '';
+						?>
+						<input type="password" name="cockpit_secret" id="cockpit_secret" class="large-text" autocomplete="new-password" value="" placeholder="<?php echo esc_attr( $pgv_has_secret ? $pgv_secret_hint : '' ); ?>">
+						<button type="button" class="button" onclick="var f=document.getElementById('cockpit_secret');f.type=f.type==='password'?'text':'password';">👁</button>
+						<p class="description">
+							<?php
+							if ( $pgv_has_secret ) {
+								printf(
+									/* translators: %s: maszkolt titok vége */
+									esc_html__( 'Már be van állítva (%s). Hagyd üresen, ha nem módosítod — csak új értéknél töltsd ki.', 'pomodoro-gift-vouchers' ),
+									esc_html( $pgv_secret_hint )
+								);
+							} else {
+								esc_html_e( 'Ugyanaz a titok, mint a vezérlőpult INGEST_SECRET környezeti változója.', 'pomodoro-gift-vouchers' );
+							}
+							?>
+						</p>
 					</td>
 				</tr>
 			</table>

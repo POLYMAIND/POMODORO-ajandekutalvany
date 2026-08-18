@@ -156,13 +156,15 @@ class PGV_Admin {
 	 */
 	private function save_cockpit() {
 		check_admin_referer( 'pgv_cockpit' );
-		$in = wp_unslash( $_POST );
-		PGV_Settings::save(
-			array(
-				'cockpit_url'    => esc_url_raw( trim( $in['cockpit_url'] ?? '' ) ),
-				'cockpit_secret' => sanitize_text_field( $in['cockpit_secret'] ?? '' ),
-			)
-		);
+		$in   = wp_unslash( $_POST );
+		$data = array( 'cockpit_url' => esc_url_raw( trim( $in['cockpit_url'] ?? '' ) ) );
+		// A titkot csak akkor frissítjük, ha ÚJ (nem üres, nem maszkolt) értéket kapunk.
+		// Üres mező = változatlan (a maszkolt UI így nem írja felül a mentett titkot).
+		$secret = sanitize_text_field( $in['cockpit_secret'] ?? '' );
+		if ( '' !== $secret && false === strpos( $secret, '•' ) ) {
+			$data['cockpit_secret'] = $secret;
+		}
+		PGV_Settings::save( $data );
 		$this->redirect_with( self::SLUG . '-settings', 'saved' );
 	}
 
