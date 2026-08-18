@@ -76,6 +76,16 @@ async function ensureSchema() {
     ADD COLUMN IF NOT EXISTS print_serial text,
     ADD COLUMN IF NOT EXISTS site_url text,
     ADD COLUMN IF NOT EXISTS reminder_sent_at timestamptz`;
+  // Az utalvány-PDF-ek külön táblában (a plugin push-olja fel base64-ben, mert a
+  // bolt bejövő REST-hívását a tárhely bot-védelme blokkolja). Külön tábla, hogy a
+  // fő lekérdezéseket (allVouchers, data) ne terhelje a nagy szöveges mező.
+  await sql`CREATE TABLE IF NOT EXISTS pgv_pdfs (
+    unit text NOT NULL,
+    serial text NOT NULL,
+    pdf_base64 text,
+    updated_at timestamptz DEFAULT now(),
+    PRIMARY KEY (unit, serial)
+  )`;
   _schemaReady = true;
 }
 
@@ -152,6 +162,34 @@ async function upsertVouchers(rows) {
     total += chunk.length;
   }
   return total;
+}
+
+// Utalvány-PDF-ek eltárolása a push payloadból (base64). Külön táblába, kis kötegekben
+// (a serverless kérés-törzs korlát miatt a plugin úgyis tételenként küldi fel).
+async function upsertVoucherPdfs(rows) {
+  const items = (rows || []).map(v => ({
+    unit: String((v && v.unit) || '').trim(),
+    serial: String((v && v.serial) || '').trim(),
+    pdf_base64: (v && typeof v.pdf_base64 === 'string' && v.pdf_base64.trim()) ? v.pdf_base64.trim() : null,
+  })).filter(r => r.unit && r.serial && r.pdf_base64);
+  if (!items.length) return 0;
+  const sql = db();
+  const BATCH = 10;
+  let total = 0;
+  for (let i = 0; i < items.length; i += BATCH) {
+    const chunk = items.slice(i, i + BATCH);
+    await sql`INSERT INTO pgv_pdfs ${sql(chunk, 'unit', 'serial', 'pdf_base64')}
+      ON CONFLICT (unit, serial) DO UPDATE SET pdf_base64 = EXCLUDED.pdf_base64, updated_at = now()`;
+    total += chunk.length;
+  }
+  return total;
+}
+
+async function getVoucherPdf(unit, serial) {
+  const sql = db();
+  const r = await sql`SELECT pdf_base64 FROM pgv_pdfs
+    WHERE lower(unit) = lower(${String(unit)}) AND serial = ${String(serial)} LIMIT 1`;
+  return (r[0] && r[0].pdf_base64) || null;
 }
 
 async function allVouchers() {
@@ -277,7 +315,7 @@ async function deleteUser(id) {
 }
 
 module.exports = {
-  db, ensureSchema, upsertVouchers, allVouchers, getVoucher, redeemVoucher, markReminderSent, deleteLegacyByUnit,
+  db, ensureSchema, upsertVouchers, upsertVoucherPdfs, getVoucherPdf, allVouchers, getVoucher, redeemVoucher, markReminderSent, deleteLegacyByUnit,
   ensureConfigSchema, getConfig, setConfig,
   ensureUsersSchema, countUsers, getUserByEmail, getUserById, listUsers, createUser, updateUser, deleteUser,
 };

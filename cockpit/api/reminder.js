@@ -1,6 +1,6 @@
 const { readBody, getShops } = require('../lib/shops.js');
 const { resolveUser, canSeeUnit } = require('../lib/auth.js');
-const { ensureSchema, getVoucher, markReminderSent } = require('../lib/db.js');
+const { ensureSchema, getVoucher, getVoucherPdf, markReminderSent } = require('../lib/db.js');
 const { getEmailConfig, senderFor, sendBrevo } = require('../lib/email.js');
 
 const DEFAULT_SUBJECT = '{egyseg} · Ajándékutalványod {napok}';
@@ -15,38 +15,6 @@ Ha bármi kérdésed lenne, keress minket bizalommal.
 
 Viszontlátásra:
 a(z) {egyseg} csapata`;
-
-// A bolt pluginjától lekéri az utalvány PDF-jét (base64) a közös push-titokkal.
-// Csak plugin-eredetű (site_url-lel rendelkező, nem legacy) utalványnál működik;
-// bármilyen hiba esetén null-lal tér vissza, hogy a levél PDF nélkül is kimenjen.
-async function fetchVoucherPdf(siteUrl, serial) {
-  const secret = process.env.INGEST_SECRET || '';
-  if (!secret) return { attachment: null, reason: 'no_ingest_secret' };
-  if (!siteUrl) return { attachment: null, reason: 'no_site_url' };
-  const base = String(siteUrl).replace(/\/+$/, '');
-  const url = base + '/wp-json/pgv/v1/voucher-pdf?serial=' + encodeURIComponent(serial);
-  try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 12000);
-    let r;
-    try {
-      r = await fetch(url, { headers: { 'x-ingest-secret': secret, accept: 'application/json' }, signal: ctrl.signal });
-    } finally { clearTimeout(timer); }
-    if (!r) return { attachment: null, reason: 'no_response' };
-    if (!r.ok) {
-      let snippet = '';
-      try { snippet = (await r.text()).slice(0, 200); } catch (e) {}
-      return { attachment: null, reason: 'http_' + r.status, status: r.status, body: snippet };
-    }
-    let j;
-    try { j = await r.json(); } catch (e) { return { attachment: null, reason: 'bad_json' }; }
-    if (!j || !j.pdf_base64) return { attachment: null, reason: 'no_pdf_field' };
-    return { attachment: { content: j.pdf_base64, name: j.filename || ('ajandekutalvany-' + serial + '.pdf') }, reason: 'ok' };
-  } catch (e) {
-    const msg = String(e && (e.name === 'AbortError' ? 'timeout' : (e.message || e)));
-    return { attachment: null, reason: 'fetch_error', error: msg };
-  }
-}
 
 function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
@@ -134,21 +102,20 @@ module.exports = async (req, res) => {
     // (van site_url, nem legacy) utalvány, és a plugin vissza is adta a PDF-et.
     // A régi / importált tételekhez nem mi generáltunk PDF-et → nincs csatolmány,
     // és a levél sem ígér mellékletet.
+    // A PDF-et a plugin push-olja fel (pgv_pdfs tábla) — a bolt bejövő hívását a
+    // tárhely blokkolja, ezért nem húzzuk le, hanem a tárolt base64-et csatoljuk.
     let attachments = null;
     let pdfAttached = false;
-    let pdfReason = v.is_legacy ? 'legacy' : (!v.site_url ? 'no_site_url' : 'skipped');
-    if (!v.is_legacy && v.site_url) {
-      const pdf = await fetchVoucherPdf(v.site_url, v.serial);
-      pdfReason = pdf.reason;
-      if (pdf.attachment) { attachments = [pdf.attachment]; pdfAttached = true; }
-      // Diagnosztika a Vercel runtime-logba (miért lett / nem lett PDF).
-      console.log('[reminder pdf]', JSON.stringify({
-        serial: v.serial, unit: shop.slug, site_url: v.site_url,
-        reason: pdf.reason, status: pdf.status, body: pdf.body, error: pdf.error,
-      }));
-    } else {
-      console.log('[reminder pdf]', JSON.stringify({ serial: v.serial, unit: shop.slug, reason: pdfReason, is_legacy: !!v.is_legacy, site_url: v.site_url || null }));
+    let pdfReason = v.is_legacy ? 'legacy' : 'no_pdf_stored';
+    if (!v.is_legacy) {
+      const b64 = await getVoucherPdf(shop.slug, v.serial);
+      if (b64) {
+        attachments = [{ content: b64, name: 'ajandekutalvany-' + v.serial + '.pdf' }];
+        pdfAttached = true;
+        pdfReason = 'ok';
+      }
     }
+    console.log('[reminder pdf]', JSON.stringify({ serial: v.serial, unit: shop.slug, reason: pdfReason }));
 
     // Egyszerű szöveges változat: a szerkeszthető törzs + az utalvány adatai.
     let text = bodyText + '\n\n———\n' +

@@ -1,5 +1,5 @@
 const { readBody } = require('../lib/shops.js');
-const { ensureSchema, upsertVouchers } = require('../lib/db.js');
+const { ensureSchema, upsertVouchers, upsertVoucherPdfs } = require('../lib/db.js');
 
 // A boltok pluginja ide küldi (push) az utalványokat. Titok-alapú hitelesítés.
 module.exports = async (req, res) => {
@@ -19,7 +19,8 @@ module.exports = async (req, res) => {
   try {
     await ensureSchema();
     const count = await upsertVouchers(vouchers);
-    res.status(200).json({ ok: true, count });
+    const pdfs = await upsertVoucherPdfs(vouchers); // base64 PDF-ek külön táblába (ha jött)
+    res.status(200).json({ ok: true, count, pdfs });
   } catch (e) {
     res.status(500).json({ error: String(e && e.message || e) });
   }

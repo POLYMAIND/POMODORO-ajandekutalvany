@@ -32,7 +32,7 @@ class PGV_Push {
 	 * A CRM-mezőket (számlázási név, telefon, cím, megjegyzés) a WooCommerce
 	 * rendelésből is kiegészítjük, hogy a vezérlőpult exportja teljes legyen.
 	 */
-	public static function payload( array $v ) {
+	public static function payload( array $v, $include_pdf = false ) {
 		$data = array(
 			'unit'             => $v['unit_slug'],
 			'serial'           => $v['serial'],
@@ -89,6 +89,17 @@ class PGV_Push {
 			}
 		}
 
+		// Az utalvány-PDF feltöltése (base64) — így az emlékeztetőnél a vezérlőpult
+		// tudja csatolni anélkül, hogy visszahívná a boltot (a bejövő kérést a tárhely
+		// bot-védelme blokkolná). Csak nem-legacy, sorszámmal bíró utalványnál.
+		if ( $include_pdf && empty( $v['is_legacy'] ) && ! empty( $v['serial'] )
+			&& class_exists( 'PGV_Voucher_PDF' ) && PGV_Voucher_PDF::enabled() ) {
+			$bytes = PGV_Voucher_PDF::bytes( $v );
+			if ( is_string( $bytes ) && '' !== $bytes ) {
+				$data['pdf_base64'] = base64_encode( $bytes ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
+			}
+		}
+
 		return $data;
 	}
 
@@ -105,7 +116,8 @@ class PGV_Push {
 			// a sorszám kiosztása után úgyis ismét lefut ez a hook.
 			return;
 		}
-		self::send( array( self::payload( $v ) ), false );
+		// A mentés/kibocsátás azonnali felküldése, az utalvány PDF-jével együtt.
+		self::send( array( self::payload( $v, true ) ), false );
 	}
 
 	/**
@@ -179,6 +191,25 @@ class PGV_Push {
 				$result['errors'][] = $r->get_error_message();
 			} else {
 				$result['sent'] += (int) $r['count'];
+			}
+		}
+
+		// PDF-ek back-fillje: tételenként (egy PDF/kérés), hogy ne lépjük túl a
+		// serverless kérés-törzs korlátot. Csak nem-legacy, sorszámmal bíró utalvány.
+		$result['pdfs'] = 0;
+		if ( class_exists( 'PGV_Voucher_PDF' ) && PGV_Voucher_PDF::enabled() ) {
+			foreach ( (array) $rows as $v ) {
+				if ( ! empty( $v['is_legacy'] ) || empty( $v['serial'] ) ) {
+					continue;
+				}
+				$p = self::payload( $v, true );
+				if ( empty( $p['pdf_base64'] ) ) {
+					continue;
+				}
+				$r = self::send( array( $p ), true );
+				if ( ! is_wp_error( $r ) ) {
+					$result['pdfs']++;
+				}
 			}
 		}
 		return $result;
