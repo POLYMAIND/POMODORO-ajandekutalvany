@@ -9,7 +9,7 @@ const DEFAULT_BODY =
 
 Öröm, hogy nálunk választottál ajándékutalványt. Csak finoman emlékeztetnénk: a(z) {osszeg} értékű utalványod {napok}, és {ervenyesseg}-ig váltható be nálunk, a(z) {egyseg} egységben.
 
-Foglalj asztalt, hozd magaddal ezt a levelet vagy a mellékelt utalványt, a többiről pedig mi gondoskodunk. Szeretettel várunk egy kellemes vendéglátós élményre!
+Foglalj asztalt, hozd magaddal ezt a levelet, a többiről pedig mi gondoskodunk. Szeretettel várunk egy kellemes vendéglátós élményre!
 
 Ha bármi kérdésed lenne, keress minket bizalommal.
 

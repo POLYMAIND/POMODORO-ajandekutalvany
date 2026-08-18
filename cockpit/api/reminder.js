@@ -9,7 +9,7 @@ const DEFAULT_BODY =
 
 Öröm, hogy nálunk választottál ajándékutalványt. Csak finoman emlékeztetnénk: a(z) {osszeg} értékű utalványod {napok}, és {ervenyesseg}-ig váltható be nálunk, a(z) {egyseg} egységben.
 
-Foglalj asztalt, hozd magaddal ezt a levelet vagy a mellékelt utalványt, a többiről pedig mi gondoskodunk. Szeretettel várunk egy kellemes vendéglátós élményre!
+Foglalj asztalt, hozd magaddal ezt a levelet, a többiről pedig mi gondoskodunk. Szeretettel várunk egy kellemes vendéglátós élményre!
 
 Ha bármi kérdésed lenne, keress minket bizalommal.
 
@@ -68,6 +68,7 @@ function buildHtml(d) {
       </td></tr>
     </table>
   </td></tr>
+  ${d.pdfAttached ? `<tr><td style="padding:0 28px 18px;font:13px Arial,sans-serif;color:#6d6357">📎 Az ajándékutalványt PDF-ben is mellékeltük ehhez a levélhez.</td></tr>` : ''}
   <tr><td style="padding:0 28px 26px;font:12px Arial,sans-serif;color:#9a9084">${esc(d.unitName)} · Ajándékutalvány</td></tr>
 </table>
 </td></tr></table>
@@ -121,22 +122,26 @@ module.exports = async (req, res) => {
     const subject = subst((cfg.reminder && cfg.reminder.subject) || DEFAULT_SUBJECT);
     const bodyText = subst((cfg.reminder && cfg.reminder.body) || DEFAULT_BODY);
 
-    // Egyszerű szöveges változat: a szerkeszthető törzs + az utalvány adatai.
-    const text = bodyText + '\n\n———\n' +
-      'Sorszám: ' + v.serial + '\n' +
-      'Érték: ' + amount + '\n' +
-      'Érvényes: ' + valid + '-ig' + (daysPhrase ? ' (' + daysPhrase + ')' : '') + '\n' +
-      'Beváltás helye: ' + unitName;
-
-    const html = buildHtml({ bodyText, unitName, serial: v.serial, amount, valid, daysPhrase, daysLeft });
-
-    // Utalvány-PDF csatolása, ha a plugin elérhető (nem legacy, van site_url).
+    // Utalvány-PDF csatolása CSAK akkor, ha tényleg van ilyen: azaz plugin-eredetű
+    // (van site_url, nem legacy) utalvány, és a plugin vissza is adta a PDF-et.
+    // A régi / importált tételekhez nem mi generáltunk PDF-et → nincs csatolmány,
+    // és a levél sem ígér mellékletet.
     let attachments = null;
     let pdfAttached = false;
     if (!v.is_legacy && v.site_url) {
       const pdf = await fetchVoucherPdf(v.site_url, v.serial);
       if (pdf) { attachments = [pdf]; pdfAttached = true; }
     }
+
+    // Egyszerű szöveges változat: a szerkeszthető törzs + az utalvány adatai.
+    let text = bodyText + '\n\n———\n' +
+      'Sorszám: ' + v.serial + '\n' +
+      'Érték: ' + amount + '\n' +
+      'Érvényes: ' + valid + '-ig' + (daysPhrase ? ' (' + daysPhrase + ')' : '') + '\n' +
+      'Beváltás helye: ' + unitName;
+    if (pdfAttached) text += '\n\nAz ajándékutalványt PDF-ben is mellékeltük ehhez a levélhez.';
+
+    const html = buildHtml({ bodyText, unitName, serial: v.serial, amount, valid, daysPhrase, daysLeft, pdfAttached });
 
     // Automatikus küldés Brevón át, ha be van állítva (E-mail beállítások).
     let sent = false;
