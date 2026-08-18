@@ -21,22 +21,30 @@ a(z) {egyseg} csapata`;
 // bármilyen hiba esetén null-lal tér vissza, hogy a levél PDF nélkül is kimenjen.
 async function fetchVoucherPdf(siteUrl, serial) {
   const secret = process.env.INGEST_SECRET || '';
-  if (!siteUrl || !secret) return null;
+  if (!secret) return { attachment: null, reason: 'no_ingest_secret' };
+  if (!siteUrl) return { attachment: null, reason: 'no_site_url' };
+  const base = String(siteUrl).replace(/\/+$/, '');
+  const url = base + '/wp-json/pgv/v1/voucher-pdf?serial=' + encodeURIComponent(serial);
   try {
-    const base = String(siteUrl).replace(/\/+$/, '');
-    const url = base + '/wp-json/pgv/v1/voucher-pdf?serial=' + encodeURIComponent(serial);
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 12000);
     let r;
     try {
       r = await fetch(url, { headers: { 'x-ingest-secret': secret, accept: 'application/json' }, signal: ctrl.signal });
     } finally { clearTimeout(timer); }
-    if (!r || !r.ok) return null;
-    const j = await r.json();
-    if (!j || !j.pdf_base64) return null;
-    return { content: j.pdf_base64, name: j.filename || ('ajandekutalvany-' + serial + '.pdf') };
+    if (!r) return { attachment: null, reason: 'no_response' };
+    if (!r.ok) {
+      let snippet = '';
+      try { snippet = (await r.text()).slice(0, 200); } catch (e) {}
+      return { attachment: null, reason: 'http_' + r.status, status: r.status, body: snippet };
+    }
+    let j;
+    try { j = await r.json(); } catch (e) { return { attachment: null, reason: 'bad_json' }; }
+    if (!j || !j.pdf_base64) return { attachment: null, reason: 'no_pdf_field' };
+    return { attachment: { content: j.pdf_base64, name: j.filename || ('ajandekutalvany-' + serial + '.pdf') }, reason: 'ok' };
   } catch (e) {
-    return null;
+    const msg = String(e && (e.name === 'AbortError' ? 'timeout' : (e.message || e)));
+    return { attachment: null, reason: 'fetch_error', error: msg };
   }
 }
 
@@ -128,9 +136,18 @@ module.exports = async (req, res) => {
     // és a levél sem ígér mellékletet.
     let attachments = null;
     let pdfAttached = false;
+    let pdfReason = v.is_legacy ? 'legacy' : (!v.site_url ? 'no_site_url' : 'skipped');
     if (!v.is_legacy && v.site_url) {
       const pdf = await fetchVoucherPdf(v.site_url, v.serial);
-      if (pdf) { attachments = [pdf]; pdfAttached = true; }
+      pdfReason = pdf.reason;
+      if (pdf.attachment) { attachments = [pdf.attachment]; pdfAttached = true; }
+      // Diagnosztika a Vercel runtime-logba (miért lett / nem lett PDF).
+      console.log('[reminder pdf]', JSON.stringify({
+        serial: v.serial, unit: shop.slug, site_url: v.site_url,
+        reason: pdf.reason, status: pdf.status, body: pdf.body, error: pdf.error,
+      }));
+    } else {
+      console.log('[reminder pdf]', JSON.stringify({ serial: v.serial, unit: shop.slug, reason: pdfReason, is_legacy: !!v.is_legacy, site_url: v.site_url || null }));
     }
 
     // Egyszerű szöveges változat: a szerkeszthető törzs + az utalvány adatai.
@@ -160,7 +177,7 @@ module.exports = async (req, res) => {
     }
 
     await markReminderSent(shop.slug, serial);
-    res.status(200).json({ ok: true, sent, email, subject, text, pdfAttached });
+    res.status(200).json({ ok: true, sent, email, subject, text, pdfAttached, pdfReason });
   } catch (e) {
     res.status(500).json({ error: String(e && e.message || e) });
   }
