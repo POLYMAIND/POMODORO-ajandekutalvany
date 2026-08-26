@@ -1,5 +1,5 @@
 const { resolveUser } = require('../lib/auth.js');
-const { ensureSchema, allVouchers } = require('../lib/db.js');
+const { ensureSchema, allVouchers, recentVoucherLog } = require('../lib/db.js');
 
 // Dátum-normalizálás: a DB Date-objektumait a frontend által várt sztringekre.
 function ymd(v) {
@@ -48,9 +48,20 @@ module.exports = async (req, res) => {
     }
     rows = rows.map(normalizeVoucher);
 
+    // Beváltási napló (beváltás / visszaállítás) — a kassza napi önellenőrzéséhez.
+    let log = [];
+    try {
+      log = await recentVoucherLog(90);
+      if (s.role !== 'superadmin') {
+        const set = new Set((s.units || []).map(norm));
+        log = log.filter(r => set.has(norm(r.unit)));
+      }
+      log = log.map(r => Object.assign({}, r, { created_at: ymdhms(r.created_at) }));
+    } catch (e) { log = []; }
+
     res.setHeader('Cache-Control', 'no-store');
-    res.status(200).json({ vouchers: rows, errors: [], ts: Date.now(), source: 'db' });
+    res.status(200).json({ vouchers: rows, log, errors: [], ts: Date.now(), source: 'db' });
   } catch (e) {
-    res.status(200).json({ vouchers: [], errors: ['DB: ' + String(e && e.message || e)], ts: Date.now() });
+    res.status(200).json({ vouchers: [], log: [], errors: ['DB: ' + String(e && e.message || e)], ts: Date.now() });
   }
 };

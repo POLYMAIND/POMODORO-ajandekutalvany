@@ -1,9 +1,10 @@
 const { getShops, readBody } = require('../lib/shops.js');
 const { resolveUser, canSeeUnit } = require('../lib/auth.js');
-const { ensureSchema, getVoucher, redeemVoucher, logVoucherAction } = require('../lib/db.js');
+const { ensureSchema, getVoucher, unredeemVoucher, logVoucherAction } = require('../lib/db.js');
 
-// Egységes kassza: beváltás a központi adatbázisban (legacy és élő utalványra is).
-// Atomikus — beváltott/lejárt/sztornó utalványt nem enged még egyszer beváltani.
+// Téves beváltás visszavonása: a beváltott utalvány visszaáll aktívra.
+// Atomikus — csak 'redeemed' állapotból, és csak egyszer. Minden visszaállítás
+// naplózódik (ki, mikor), hogy a napi összesítő utólag is ellenőrizhető maradjon.
 module.exports = async (req, res) => {
   if (req.method !== 'POST') { res.status(405).json({ error: 'POST' }); return; }
   const user = await resolveUser(req);
@@ -28,23 +29,17 @@ module.exports = async (req, res) => {
     await ensureSchema();
     const v = await getVoucher(shop.slug, serial);
     if (!v) { res.status(404).json({ error: 'Nincs ilyen utalvány ebben az egységben.' }); return; }
-
-    const labels = { active: 'Aktív', redeemed: 'Beváltva', cancelled: 'Sztornó', expired: 'Lejárt', pending: 'Függőben' };
-    if (v.status !== 'active') {
-      res.status(409).json({ error: 'Nem beváltható (állapot: ' + (labels[v.status] || v.status) + ').' });
+    if (v.status !== 'redeemed') {
+      res.status(409).json({ error: 'Csak beváltott utalvány állítható vissza.' });
       return;
     }
 
-    const done = await redeemVoucher(shop.slug, serial, user);
-    if (!done) {
-      // Aktív volt, de a feltétel mégsem teljesült → lejárt, vagy közben beváltották.
-      res.status(409).json({ error: 'Nem beváltható (lejárt, vagy időközben beváltották).' });
-      return;
-    }
+    const done = await unredeemVoucher(shop.slug, serial);
+    if (!done) { res.status(409).json({ error: 'Nem sikerült visszaállítani (időközben megváltozott az állapota).' }); return; }
     try {
-      await logVoucherAction({ unit: shop.slug, serial, action: 'redeem', amount: done.amount, user });
-    } catch (e) { /* a napló hibája ne buktassa el a beváltást */ }
-    res.status(200).json({ ok: true, status: 'redeemed', redeemed_at: done.redeemed_at });
+      await logVoucherAction({ unit: shop.slug, serial, action: 'unredeem', amount: done.amount, user });
+    } catch (e) { /* a napló hibája ne buktassa el a visszaállítást */ }
+    res.status(200).json({ ok: true, status: done.status });
   } catch (e) {
     res.status(500).json({ error: String(e && e.message || e) });
   }

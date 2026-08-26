@@ -166,6 +166,27 @@ tbody tr.clickable{cursor:pointer}
 .phist .ph{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line-soft)}
 .phist .ph:last-child{border-bottom:none}
 .phist .ph.cur{background:var(--accent-soft);margin:0 -10px;padding:8px 10px;border-radius:8px}
+/* Kassza: fülek + beváltott (felhasznált) utalványok nézet */
+.ctabs{display:inline-flex;gap:4px;padding:4px;background:var(--surface-3);border-radius:11px;margin-bottom:16px}
+.ctab{border:none;background:none;color:var(--ink-soft);font-size:13.5px;font-weight:600;padding:8px 15px;border-radius:8px;cursor:pointer}
+.ctab.active{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.cpane{display:none}.cpane.show{display:block}
+.rday{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chipbtn{border:1px solid var(--line);background:var(--surface-2);color:var(--ink-soft);border-radius:20px;padding:5px 12px;font-size:12.5px;font-weight:600;cursor:pointer}
+.chipbtn:hover{color:var(--ink)}
+.chipbtn.active{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.rrange{display:flex;align-items:center;gap:8px;margin-left:auto}
+.rrange .fi{width:auto;padding:7px 10px}
+.red-sum{display:flex;gap:30px;flex-wrap:wrap;margin-top:15px;padding-top:14px;border-top:1px solid var(--line-soft)}
+.red-sum .rs{display:flex;flex-direction:column;gap:3px}
+.red-sum .rs-k{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-faint)}
+.red-sum .rs-v{font-size:23px;font-weight:680;letter-spacing:-.02em}
+.red-sum .rs.sub .rs-v{font-size:15px;font-weight:600}
+#redTable th,#redTable td{white-space:nowrap}
+.log-item{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 18px;border-bottom:1px solid var(--line-soft);font-size:13px}
+.log-item:last-child{border-bottom:none}
+@media(max-width:960px){.rrange{margin-left:0}}
 /* Kassza élő találatok + emlékeztető */
 .cash-hit{display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid var(--line-soft);cursor:pointer}
 .cash-hit:hover{background:var(--surface-2)}.cash-hit:last-child{border-bottom:none}
@@ -267,15 +288,51 @@ tbody tr.clickable{cursor:pointer}
       </section>
 
       <section class="section" id="sec-cashier">
-        <p class="section-intro">Kezdd el beírni a nevet, e-mailt vagy a sorszámot — a találatok írás közben frissülnek. Kattints a megfelelőre a beváltáshoz.</p>
-        <div class="cashier">
-          <div class="card" style="padding:18px 20px">
-            <div class="search-box">
-              <input id="cashInput" placeholder="pl. Kovács Anna, anna@…, vagy CASA-2026-000042" autocomplete="off">
+        <div class="ctabs">
+          <button class="ctab active" data-ctab="redeem">Beváltás</button>
+          <button class="ctab" data-ctab="done">Beváltott utalványok</button>
+        </div>
+
+        <div class="cpane show" id="cpane-redeem">
+          <p class="section-intro">Kezdd el beírni a nevet, e-mailt vagy a sorszámot — a találatok írás közben frissülnek. Kattints a megfelelőre a beváltáshoz.</p>
+          <div class="cashier">
+            <div class="card" style="padding:18px 20px">
+              <div class="search-box">
+                <input id="cashInput" placeholder="pl. Kovács Anna, anna@…, vagy CASA-2026-000042" autocomplete="off">
+              </div>
             </div>
+            <div class="card" id="cashListCard" style="display:none;margin-top:12px"><div id="cashList"></div></div>
+            <div class="card result hidden" id="cashResult" style="margin-top:12px"></div>
           </div>
-          <div class="card" id="cashListCard" style="display:none;margin-top:12px"><div id="cashList"></div></div>
-          <div class="card result hidden" id="cashResult" style="margin-top:12px"></div>
+        </div>
+
+        <div class="cpane" id="cpane-done">
+          <p class="section-intro">Csak a felhasznált (beváltott) utalványok — a nap végi önellenőrzéshez. Az összesítő a kiválasztott időszakra és a fent kiválasztott egységre vonatkozik. Téves beváltás a sor végén visszaállítható.</p>
+          <div class="card" style="padding:15px 18px 17px">
+            <div class="rday">
+              <div class="chips" id="redQuick">
+                <button type="button" class="chipbtn active" data-rq="today">Ma</button>
+                <button type="button" class="chipbtn" data-rq="yesterday">Tegnap</button>
+                <button type="button" class="chipbtn" data-rq="7">Utolsó 7 nap</button>
+                <button type="button" class="chipbtn" data-rq="month">Ez a hónap</button>
+                <button type="button" class="chipbtn" data-rq="all">Összes</button>
+              </div>
+              <div class="rrange">
+                <input class="fi" type="date" id="redFrom" aria-label="Beváltás dátuma – tól">
+                <span class="period-dash">–</span>
+                <input class="fi" type="date" id="redTo" aria-label="Beváltás dátuma – ig">
+              </div>
+            </div>
+            <div class="red-sum" id="redSum"></div>
+          </div>
+          <div class="card" style="margin-top:12px">
+            <div class="card-head"><h3>Beváltott utalványok</h3><span class="t-sub" id="redPeriod"></span></div>
+            <div style="overflow-x:auto"><table id="redTable"></table></div>
+          </div>
+          <div class="card" id="redLogCard" style="margin-top:12px;display:none">
+            <div class="card-head"><h3>Visszaállítások az időszakban</h3></div>
+            <div id="redLog"></div>
+          </div>
         </div>
       </section>
 
@@ -498,7 +555,7 @@ function renderAll(){
   $('#errbar').innerHTML = (DATA.errors&&DATA.errors.length)?('<div class="errbar">Néhány bolt nem elérhető: '+DATA.errors.join(' · ')+'</div>'):'';
   if(!CFG.configured){ renderEmpty(); return; }
   $('#dashEmpty').style.display='none'; $('#dashBody').style.display='';
-  renderKpis(); renderPurchases(); renderExpiry();
+  renderKpis(); renderPurchases(); renderExpiry(); renderRedeemed();
 }
 function renderEmpty(){
   $('#dashBody').style.display='none';
@@ -614,9 +671,19 @@ function showVoucherDetail(unit,serial){
     '<div class="res-grid"><div><span class="res-k">Egység</span><span class="res-v">'+esc(shortName(v.unit))+'</span></div>'+
     '<div><span class="res-k">Érték</span><span class="res-v">'+money(v.amount)+'</span></div>'+
     '<div><span class="res-k">Vásárló</span><span class="res-v">'+esc(v.buyer_name||v.giver_name||'—')+'</span></div>'+
-    '<div><span class="res-k">Érvényes</span><span class="res-v">'+fdate(v.valid_until)+(d!=null&&v.status==='active'?(d<0?' (lejárt)':' ('+d+' nap)'):'')+'</span></div></div>'+
-    (redeemable?'<button class="btn" id="redeemBtn">Beváltás</button><p class="res-msg" id="redeemMsg"></p>':'<p class="res-msg err">Nem beváltható ('+statusPill(v.status)+').</p>');
+    '<div><span class="res-k">Érvényes</span><span class="res-v">'+fdate(v.valid_until)+(d!=null&&v.status==='active'?(d<0?' (lejárt)':' ('+d+' nap)'):'')+'</span></div>'+
+    (v.status==='redeemed'?'<div><span class="res-k">Beváltva</span><span class="res-v">'+(v.redeemed_at?fdate(v.redeemed_at)+' '+ftime(v.redeemed_at):'—')+(v.redeemed_by?' · '+esc(v.redeemed_by):'')+'</span></div>':'')+
+    '</div>'+
+    (redeemable?'<button class="btn" id="redeemBtn">Beváltás</button><p class="res-msg" id="redeemMsg"></p>'
+      :(v.status==='redeemed'
+        ? '<p class="res-msg">Ezt az utalványt már felhasználták.</p><button class="btn ghost" id="unredeemBtn">Téves beváltás — visszaállítás aktívra</button><p class="res-msg" id="redeemMsg"></p>'
+        : '<p class="res-msg err">Nem beváltható ('+statusPill(v.status)+').</p>'));
   box.scrollIntoView({block:'nearest'});
+  const ub=$('#unredeemBtn');
+  if(ub) ub.onclick=async()=>{
+    const ok=await unredeem(v.unit,v.serial,ub);
+    if(ok) showVoucherDetail(v.unit,v.serial);
+  };
   const rb=$('#redeemBtn');
   if(rb) rb.onclick=async()=>{
     rb.disabled=true; const msg=$('#redeemMsg');
@@ -631,6 +698,119 @@ function showVoucherDetail(unit,serial){
 $('#cashInput').addEventListener('input',e=>searchCashier(e.target.value));
 $('#cashList').addEventListener('click',e=>{const it=e.target.closest('.cash-hit'); if(it) showVoucherDetail(it.dataset.unit,it.dataset.serial);});
 
+// ---- kassza: beváltott (felhasznált) utalványok + visszaállítás ----
+// A napi önellenőrzéshez: csak a beváltottak, beváltás dátuma szerint szűrve, összegezve.
+let RED={mode:'today',from:'',to:''};
+function ymdLocal(d){return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10);}
+function redRange(){
+  const now=new Date();
+  if(RED.mode==='custom') return {from:RED.from,to:RED.to};
+  if(RED.mode==='today'){const t=ymdLocal(now);return{from:t,to:t};}
+  if(RED.mode==='yesterday'){const d=new Date(now);d.setDate(d.getDate()-1);const t=ymdLocal(d);return{from:t,to:t};}
+  if(RED.mode==='7'){const d=new Date(now);d.setDate(d.getDate()-6);return{from:ymdLocal(d),to:ymdLocal(now)};}
+  if(RED.mode==='month'){return{from:ymdLocal(new Date(now.getFullYear(),now.getMonth(),1)),to:ymdLocal(now)};}
+  return {from:'',to:''}; // összes
+}
+function inRedRange(ts,r){
+  const d=String(ts||'').slice(0,10);
+  if(!d) return !r.from&&!r.to;   // dátum nélküli (importált) beváltás csak az „Összes”-ben
+  if(r.from&&d<r.from) return false;
+  if(r.to&&d>r.to) return false;
+  return true;
+}
+function redPeriodLabel(r){
+  if(!r.from&&!r.to) return 'Teljes időszak';
+  if(r.from&&r.from===r.to) return fdate(r.from);
+  return (r.from?fdate(r.from):'…')+' – '+(r.to?fdate(r.to):'…');
+}
+function redRow(v){
+  const who=v.buyer_name||v.giver_name||v.recipient_name||'—';
+  return '<tr class="clickable" data-serial="'+esc(v.serial)+'" data-unit="'+esc(v.unit)+'">'+
+    '<td class="tnum">'+(v.redeemed_at?fdate(v.redeemed_at)+'<div class="t-sub">'+ftime(v.redeemed_at)+'</div>':'<span class="t-sub">nincs adat</span>')+'</td>'+
+    '<td>'+uchip(v.unit)+'</td>'+
+    '<td class="mono t-sub">'+esc(v.serial)+'</td>'+
+    '<td class="t-strong">'+esc(who)+'</td>'+
+    '<td class="t-sub">'+esc(v.redeemed_by||'—')+'</td>'+
+    '<td class="t-strong tnum">'+money(v.amount)+'</td>'+
+    '<td style="text-align:right;white-space:nowrap"><button class="tact danger" data-unredeem="'+esc(v.serial)+'" data-unit="'+esc(v.unit)+'">Visszaállítás</button></td></tr>';
+}
+function renderRedeemed(){
+  if(!$('#redTable')) return;
+  const r=redRange();
+  let list=DATA.vouchers.filter(v=>v.status==='redeemed'&&inRedRange(v.redeemed_at,r));
+  if(currentUnit!=='all') list=list.filter(v=>v.unit===currentUnit);
+  list.sort((a,b)=>String(b.redeemed_at||'').localeCompare(String(a.redeemed_at||'')));
+  const total=list.reduce((s,x)=>s+(+x.amount||0),0);
+
+  let sum='<div class="rs"><span class="rs-k">Beváltott utalvány</span><span class="rs-v">'+nf(list.length)+' db</span></div>'+
+    '<div class="rs"><span class="rs-k">Összesen</span><span class="rs-v">'+money(total)+'</span></div>';
+  if(currentUnit==='all'&&CFG.shops.length>1){
+    CFG.shops.forEach(sh=>{
+      const u=list.filter(x=>x.unit===sh.slug);
+      if(!u.length) return;
+      sum+='<div class="rs sub"><span class="rs-k">'+esc(shortName(sh.slug))+'</span><span class="rs-v">'+
+        money(u.reduce((a,x)=>a+(+x.amount||0),0))+' <span class="t-sub">('+u.length+' db)</span></span></div>';
+    });
+  }
+  $('#redSum').innerHTML=sum;
+  $('#redPeriod').textContent=redPeriodLabel(r);
+
+  const head='<thead><tr><th>Beváltva</th><th>Egység</th><th>Sorszám</th><th>Vásárló</th><th>Beváltotta</th><th>Érték</th><th></th></tr></thead>';
+  const rows=list.length?list.map(redRow).join('')
+    :'<tr><td colspan="7" class="t-sub" style="padding:22px">Ebben az időszakban nincs beváltott utalvány.</td></tr>';
+  $('#redTable').innerHTML=head+'<tbody>'+rows+'</tbody>';
+
+  // Visszaállítások — hogy a napi összesítő utólag is ellenőrizhető legyen.
+  let log=(DATA.log||[]).filter(x=>x.action==='unredeem'&&inRedRange(x.created_at,r));
+  if(currentUnit!=='all') log=log.filter(x=>x.unit===currentUnit);
+  $('#redLogCard').style.display=log.length?'':'none';
+  if(log.length){
+    $('#redLog').innerHTML=log.map(x=>'<div class="log-item"><span class="t-sub tnum">'+fdate(x.created_at)+' '+ftime(x.created_at)+'</span>'+
+      uchip(x.unit)+'<span class="mono">'+esc(x.serial)+'</span><span class="t-strong tnum" style="margin-left:auto">'+money(x.amount)+'</span>'+
+      '<span class="t-sub">'+esc(x.user_name||'—')+'</span></div>').join('');
+  }
+}
+async function unredeem(unit,serial,btn){
+  const v=findVoucher(unit,serial);
+  if(!confirm('Visszaállítod aktívra ezt az utalványt?\n\n'+serial+(v?(' · '+money(v.amount)):'')+'\n\nA visszaállítás naplózódik.')) return;
+  const o=btn.textContent; btn.disabled=true; btn.textContent='Visszaállítás…';
+  try{
+    const rs=await fetch('/api/unredeem',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({serial,unit})});
+    const j=await rs.json().catch(()=>({}));
+    if(rs.ok&&j.ok){
+      if(v){v.status='active';v.redeemed_at=null;v.redeemed_by=null;}
+      renderAll(); refresh();
+      return true;
+    }
+    alert(j.error||'A visszaállítás nem sikerült.');
+  }catch(e){ alert('Hiba: '+(e.message||e)); }
+  btn.disabled=false; btn.textContent=o;
+  return false;
+}
+$('#redTable').addEventListener('click',e=>{
+  const ub=e.target.closest('[data-unredeem]');
+  if(ub){ unredeem(ub.dataset.unit,ub.dataset.unredeem,ub); return; }
+  const tr=e.target.closest('tr[data-serial]');
+  if(tr&&tr.dataset.serial) openProfile(tr.dataset.unit,tr.dataset.serial);
+});
+document.querySelectorAll('.ctab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.ctab').forEach(x=>x.classList.toggle('active',x===t));
+  document.querySelectorAll('.cpane').forEach(p=>p.classList.toggle('show',p.id==='cpane-'+t.dataset.ctab));
+  if(t.dataset.ctab==='done') renderRedeemed(); else $('#cashInput').focus();
+});
+document.querySelectorAll('#redQuick .chipbtn').forEach(b=>b.onclick=()=>{
+  RED.mode=b.dataset.rq;
+  document.querySelectorAll('#redQuick .chipbtn').forEach(x=>x.classList.toggle('active',x===b));
+  const r=redRange(); $('#redFrom').value=r.from; $('#redTo').value=r.to;
+  renderRedeemed();
+});
+['#redFrom','#redTo'].forEach(sel=>$(sel).addEventListener('change',()=>{
+  RED.mode='custom'; RED.from=$('#redFrom').value; RED.to=$('#redTo').value;
+  document.querySelectorAll('#redQuick .chipbtn').forEach(x=>x.classList.remove('active'));
+  renderRedeemed();
+}));
+(function initRedDates(){const r=redRange();$('#redFrom').value=r.from;$('#redTo').value=r.to;})();
+
 // ---- nav / ui ----
 const titles={dash:'Áttekintés',purchases:'Vásárlások',expiry:'Lejáratok',cashier:'Kassza – beváltás',users:'Felhasználók',io:'Import / export'};
 document.querySelectorAll('.nav').forEach(n=>n.onclick=()=>{
@@ -639,7 +819,7 @@ document.querySelectorAll('.nav').forEach(n=>n.onclick=()=>{
   $('#pageTitle').textContent=titles[n.dataset.sec];
   $('#sidebar').classList.remove('open');
   // A fejléc időszak-szűrője a kezelő-nézeteken nem releváns.
-  $('#period').style.display=(['io','users','email'].includes(n.dataset.sec))?'none':'';
+  $('#period').style.display=(['cashier','io','users','email'].includes(n.dataset.sec))?'none':'';
   if(n.dataset.sec==='users') loadUsers();
   if(n.dataset.sec==='io') initIO();
   if(n.dataset.sec==='email') loadEmailSettings();
