@@ -40,6 +40,7 @@ module.exports = async (req, res) => {
       await logVoucherAction({
         unit: shop.slug, serial, action: 'unredeem', amount: done.amount, user,
         prev_redeemed_at: v.redeemed_at, prev_redeemed_by: v.redeemed_by,
+        prev_redeemed_by_email: v.redeemed_by_email,
       });
     } catch (e) { /* a napló hibája ne buktassa el a visszaállítást */ }
     res.status(200).json({ ok: true, status: done.status });

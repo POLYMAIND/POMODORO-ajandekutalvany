@@ -76,6 +76,7 @@ async function ensureSchema() {
     ADD COLUMN IF NOT EXISTS print_serial text,
     ADD COLUMN IF NOT EXISTS site_url text,
     ADD COLUMN IF NOT EXISTS redeemed_by text,
+    ADD COLUMN IF NOT EXISTS redeemed_by_email text,
     ADD COLUMN IF NOT EXISTS redeemed_via text,
     ADD COLUMN IF NOT EXISTS reminder_sent_at timestamptz`;
   // Az utalvány-PDF-ek külön táblában (a plugin push-olja fel base64-ben, mert a
@@ -227,9 +228,13 @@ function nowLocal(sql) { return sql`(now() AT TIME ZONE 'Europe/Budapest')`; }
 // A WHERE-feltétel biztosítja, hogy párhuzamos hívásnál se legyen dupla beváltás.
 async function redeemVoucher(unit, serial, actor) {
   const sql = db();
+  // Nevet ÉS e-mailt is eltesszük: névvel rendelkező felhasználónál különben
+  // sehol nem maradna nyoma a belépési címének (és nem lenne rá kereshető).
   const by = actor && (actor.name || actor.email) ? String(actor.name || actor.email) : null;
+  const byEmail = actor && actor.email ? String(actor.email) : null;
   const rows = await sql`UPDATE pgv_vouchers
-    SET status = 'redeemed', redeemed_at = ${nowLocal(sql)}, redeemed_by = ${by}, redeemed_via = 'cockpit'
+    SET status = 'redeemed', redeemed_at = ${nowLocal(sql)},
+      redeemed_by = ${by}, redeemed_by_email = ${byEmail}, redeemed_via = 'cockpit'
     WHERE lower(unit) = lower(${String(unit)}) AND serial = ${String(serial)}
       AND status = 'active'
       AND (valid_until IS NULL OR valid_until >= CURRENT_DATE)
@@ -242,7 +247,7 @@ async function redeemVoucher(unit, serial, actor) {
 async function unredeemVoucher(unit, serial) {
   const sql = db();
   const rows = await sql`UPDATE pgv_vouchers
-    SET status = 'active', redeemed_at = NULL, redeemed_by = NULL, redeemed_via = NULL
+    SET status = 'active', redeemed_at = NULL, redeemed_by = NULL, redeemed_by_email = NULL, redeemed_via = NULL
     WHERE lower(unit) = lower(${String(unit)}) AND serial = ${String(serial)}
       AND status = 'redeemed'
     RETURNING *`;
@@ -269,7 +274,9 @@ async function ensureLogSchema() {
   // A visszaállítás sorába eltesszük, mit írtunk felül (idempotens bővítés meglévő táblán is).
   await sql`ALTER TABLE pgv_voucher_log
     ADD COLUMN IF NOT EXISTS prev_redeemed_at timestamptz,
-    ADD COLUMN IF NOT EXISTS prev_redeemed_by text`;
+    ADD COLUMN IF NOT EXISTS prev_redeemed_by text,
+    ADD COLUMN IF NOT EXISTS user_email text,
+    ADD COLUMN IF NOT EXISTS prev_redeemed_by_email text`;
   await sql`CREATE INDEX IF NOT EXISTS pgv_voucher_log_created_idx ON pgv_voucher_log (created_at DESC)`;
   _logReady = true;
 }
@@ -279,10 +286,12 @@ async function logVoucherAction(e) {
   const sql = db();
   const u = e.user || {};
   await sql`INSERT INTO pgv_voucher_log
-      (unit, serial, action, amount, user_id, user_name, prev_redeemed_at, prev_redeemed_by, created_at)
+      (unit, serial, action, amount, user_id, user_name, user_email,
+       prev_redeemed_at, prev_redeemed_by, prev_redeemed_by_email, created_at)
     VALUES (${String(e.unit)}, ${String(e.serial)}, ${String(e.action)}, ${e.amount != null ? Number(e.amount) : null},
-      ${u.id != null ? Number(u.id) : null}, ${u.name || u.email || null},
-      ${e.prev_redeemed_at || null}, ${e.prev_redeemed_by || null}, ${nowLocal(sql)})`;
+      ${u.id != null ? Number(u.id) : null}, ${u.name || u.email || null}, ${u.email || null},
+      ${e.prev_redeemed_at || null}, ${e.prev_redeemed_by || null}, ${e.prev_redeemed_by_email || null},
+      ${nowLocal(sql)})`;
 }
 
 // Az utóbbi N nap naplója (a napi/időszaki önellenőrzéshez).
@@ -293,7 +302,8 @@ async function recentVoucherLog(days, action) {
   const sql = db();
   const n = Math.max(1, Math.min(3650, parseInt(days, 10) || 90));
   const since = sql`${nowLocal(sql)} - ${sql.unsafe("interval '" + n + " days'")}`;
-  const cols = sql`unit, serial, action, amount, user_name, prev_redeemed_at, prev_redeemed_by, created_at`;
+  const cols = sql`unit, serial, action, amount, user_name, user_email,
+    prev_redeemed_at, prev_redeemed_by, prev_redeemed_by_email, created_at`;
   if (action) {
     return await sql`SELECT ${cols} FROM pgv_voucher_log
       WHERE created_at >= ${since} AND action = ${String(action)}

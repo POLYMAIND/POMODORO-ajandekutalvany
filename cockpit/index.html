@@ -328,7 +328,7 @@ tbody tr.clickable{cursor:pointer}
                 <input class="fi" type="date" id="redTo" aria-label="Beváltás dátuma – ig">
               </div>
             </div>
-            <div class="rsearch"><input class="fi" id="redSearch" placeholder="Keresés: név, sorszám, e-mail, telefon…" autocomplete="off"></div>
+            <div class="rsearch"><input class="fi" id="redSearch" placeholder="Keresés: vásárló, sorszám, e-mail, telefon, kezelő…" autocomplete="off"></div>
             <div class="red-sum" id="redSum"></div>
           </div>
           <div class="card" style="margin-top:12px">
@@ -726,11 +726,20 @@ function inRedRange(ts,r){
 }
 // A keresés a listát szűri; a nagy összesítő marad az időszak (kasszazárás) összege.
 let REDQ='';
-function redMatch(v,q){ return expMatch(v,q)||String(v.redeemed_by||'').toLowerCase().includes(q); }
+const nz=s=>String(s||'').toLowerCase();
+// A kereső a vásárló adatai mellett a MŰVELETET VÉGZŐ nevére és belépési
+// e-mail-címére is illeszkedik (beváltó, visszaállító).
+function redMatch(v,q){ return expMatch(v,q)||nz(v.redeemed_by).includes(q)||nz(v.redeemed_by_email).includes(q); }
 function logMatch(x,q){
-  const nz=s=>String(s||'').toLowerCase();
   const v=findVoucher(x.unit,x.serial);
-  return nz(x.serial).includes(q)||nz(x.user_name).includes(q)||nz(x.prev_redeemed_by).includes(q)||(v?redMatch(v,q):false);
+  return nz(x.serial).includes(q)||nz(x.user_name).includes(q)||nz(x.user_email).includes(q)||
+    nz(x.prev_redeemed_by).includes(q)||nz(x.prev_redeemed_by_email).includes(q)||(v?redMatch(v,q):false);
+}
+// „Név” + alatta a belépési e-mail (ha van és nem ugyanaz, mint a név).
+function actorCell(name,email){
+  if(!name&&!email) return '—';
+  const n=name||email;
+  return esc(n)+((email&&email!==n)?'<div class="t-sub">'+esc(email)+'</div>':'');
 }
 function redPeriodLabel(r){
   if(!r.from&&!r.to) return 'Teljes időszak';
@@ -744,7 +753,7 @@ function redRow(v){
     '<td>'+uchip(v.unit)+'</td>'+
     '<td class="mono t-sub">'+esc(v.serial)+'</td>'+
     '<td class="t-strong">'+esc(who)+'</td>'+
-    '<td class="t-sub">'+esc(v.redeemed_by||'—')+'</td>'+
+    '<td>'+actorCell(v.redeemed_by,v.redeemed_by_email)+'</td>'+
     '<td class="t-strong tnum">'+money(v.amount)+'</td>'+
     '<td style="text-align:right;white-space:nowrap"><button class="tact danger" data-unredeem="'+esc(v.serial)+'" data-unit="'+esc(v.unit)+'">Visszaállítás</button></td></tr>';
 }
@@ -806,8 +815,9 @@ function renderRedeemLog(r){
     const v=findVoucher(x.unit,x.serial);
     const who=v?(v.buyer_name||v.giver_name||v.recipient_name||'—'):'—';
     const contact=v?(v.buyer_email||v.delivery_email||v.buyer_phone||''):'';
+    const origWho=[x.prev_redeemed_by,x.prev_redeemed_by_email].filter((z,i,a)=>z&&a.indexOf(z)===i).join(' · ');
     const orig=x.prev_redeemed_at
-      ? fdate(x.prev_redeemed_at)+' '+ftime(x.prev_redeemed_at)+(x.prev_redeemed_by?'<div class="t-sub">'+esc(x.prev_redeemed_by)+'</div>':'')
+      ? fdate(x.prev_redeemed_at)+' '+ftime(x.prev_redeemed_at)+(origWho?'<div class="t-sub">'+esc(origWho)+'</div>':'')
       : '<span class="t-sub">nincs adat</span>';
     // Csak akkor kattintható, ha az utalvány tényleg a betöltött adatok közt van.
     const attrs=v?' class="clickable" title="Kattints az adatlapért" data-serial="'+esc(x.serial)+'" data-unit="'+esc(x.unit)+'"':'';
@@ -817,7 +827,7 @@ function renderRedeemLog(r){
       '<td class="mono t-sub">'+esc(x.serial)+'</td>'+
       '<td class="t-strong">'+esc(who)+(contact?'<div class="t-sub">'+esc(contact)+'</div>':'')+'</td>'+
       '<td class="t-strong tnum">'+money(x.amount)+'</td>'+
-      '<td>'+esc(x.user_name||'—')+'</td>'+
+      '<td>'+actorCell(x.user_name,x.user_email)+'</td>'+
       '<td class="tnum">'+orig+'</td>'+
       '<td>'+(v?statusPill(v.status):'<span class="t-sub">—</span>')+'</td></tr>';
   }).join('')

@@ -14,7 +14,9 @@ Két fül:
   összeg-összesítővel (egységenkénti bontással is). Ez a nap végi kasszazáráshoz kell —
   nem kell hozzá exportálni.
 
-A lista **keresője** névre, sorszámra, e-mailre, telefonra és a beváltó nevére szűr.
+A lista **keresője** a vásárló nevére, sorszámra, e-mailre, telefonra, valamint a
+műveletet végző kezelő **nevére és belépési e-mail-címére** szűr (beváltó és
+visszaállító egyaránt) — a kezelőből ezért a nevet és az e-mailt is eltároljuk.
 A nagy összesítő marad az időszak teljes összege (ez a kasszazárás száma) — a
 kereséshez tartozó darabszám/összeg a lista fejlécében jelenik meg.
 
