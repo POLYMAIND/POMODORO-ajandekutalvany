@@ -183,6 +183,8 @@ tbody tr.clickable{cursor:pointer}
 .red-sum .rs-k{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-faint)}
 .red-sum .rs-v{font-size:23px;font-weight:680;letter-spacing:-.02em}
 .red-sum .rs.sub .rs-v{font-size:15px;font-weight:600}
+.rsearch{margin-top:12px}
+.rsearch .fi{max-width:420px}
 #redTable th,#redTable td{white-space:nowrap}
 .log-item{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 18px;border-bottom:1px solid var(--line-soft);font-size:13px}
 .log-item:last-child{border-bottom:none}
@@ -323,6 +325,7 @@ tbody tr.clickable{cursor:pointer}
                 <input class="fi" type="date" id="redTo" aria-label="Beváltás dátuma – ig">
               </div>
             </div>
+            <div class="rsearch"><input class="fi" id="redSearch" placeholder="Keresés: név, sorszám, e-mail, telefon…" autocomplete="off"></div>
             <div class="red-sum" id="redSum"></div>
           </div>
           <div class="card" style="margin-top:12px">
@@ -718,6 +721,9 @@ function inRedRange(ts,r){
   if(r.to&&d>r.to) return false;
   return true;
 }
+// A keresés a listát szűri; a nagy összesítő marad az időszak (kasszazárás) összege.
+let REDQ='';
+function redMatch(v,q){ return expMatch(v,q)||String(v.redeemed_by||'').toLowerCase().includes(q); }
 function redPeriodLabel(r){
   if(!r.from&&!r.to) return 'Teljes időszak';
   if(r.from&&r.from===r.to) return fdate(r.from);
@@ -737,27 +743,34 @@ function redRow(v){
 function renderRedeemed(){
   if(!$('#redTable')) return;
   const r=redRange();
-  let list=DATA.vouchers.filter(v=>v.status==='redeemed'&&inRedRange(v.redeemed_at,r));
-  if(currentUnit!=='all') list=list.filter(v=>v.unit===currentUnit);
-  list.sort((a,b)=>String(b.redeemed_at||'').localeCompare(String(a.redeemed_at||'')));
-  const total=list.reduce((s,x)=>s+(+x.amount||0),0);
+  let all=DATA.vouchers.filter(v=>v.status==='redeemed'&&inRedRange(v.redeemed_at,r));
+  if(currentUnit!=='all') all=all.filter(v=>v.unit===currentUnit);
+  all.sort((a,b)=>String(b.redeemed_at||'').localeCompare(String(a.redeemed_at||'')));
+  const total=all.reduce((s,x)=>s+(+x.amount||0),0);
 
-  let sum='<div class="rs"><span class="rs-k">Beváltott utalvány</span><span class="rs-v">'+nf(list.length)+' db</span></div>'+
+  // Az összesítő az egész időszakra vonatkozik (ez a kasszazárás száma), a keresés csak a listát szűri.
+  let sum='<div class="rs"><span class="rs-k">Beváltott utalvány</span><span class="rs-v">'+nf(all.length)+' db</span></div>'+
     '<div class="rs"><span class="rs-k">Összesen</span><span class="rs-v">'+money(total)+'</span></div>';
   if(currentUnit==='all'&&CFG.shops.length>1){
     CFG.shops.forEach(sh=>{
-      const u=list.filter(x=>x.unit===sh.slug);
+      const u=all.filter(x=>x.unit===sh.slug);
       if(!u.length) return;
       sum+='<div class="rs sub"><span class="rs-k">'+esc(shortName(sh.slug))+'</span><span class="rs-v">'+
         money(u.reduce((a,x)=>a+(+x.amount||0),0))+' <span class="t-sub">('+u.length+' db)</span></span></div>';
     });
   }
   $('#redSum').innerHTML=sum;
-  $('#redPeriod').textContent=redPeriodLabel(r);
+
+  const list=REDQ?all.filter(v=>redMatch(v,REDQ)):all;
+  $('#redPeriod').textContent=redPeriodLabel(r)+
+    (REDQ?' · '+list.length+' találat · '+money(list.reduce((s,x)=>s+(+x.amount||0),0)):'');
 
   const head='<thead><tr><th>Beváltva</th><th>Egység</th><th>Sorszám</th><th>Vásárló</th><th>Beváltotta</th><th>Érték</th><th></th></tr></thead>';
+  const empty=REDQ
+    ? 'Nincs találat erre a keresésre ebben az időszakban — próbáld az „Összes” gombbal.'
+    : 'Ebben az időszakban nincs beváltott utalvány.';
   const rows=list.length?list.map(redRow).join('')
-    :'<tr><td colspan="7" class="t-sub" style="padding:22px">Ebben az időszakban nincs beváltott utalvány.</td></tr>';
+    :'<tr><td colspan="7" class="t-sub" style="padding:22px">'+empty+'</td></tr>';
   $('#redTable').innerHTML=head+'<tbody>'+rows+'</tbody>';
 
   // Visszaállítások — hogy a napi összesítő utólag is ellenőrizhető legyen.
@@ -804,6 +817,7 @@ document.querySelectorAll('#redQuick .chipbtn').forEach(b=>b.onclick=()=>{
   const r=redRange(); $('#redFrom').value=r.from; $('#redTo').value=r.to;
   renderRedeemed();
 });
+$('#redSearch').addEventListener('input',e=>{REDQ=e.target.value.trim().toLowerCase();renderRedeemed();});
 ['#redFrom','#redTo'].forEach(sel=>$(sel).addEventListener('change',()=>{
   RED.mode='custom'; RED.from=$('#redFrom').value; RED.to=$('#redTo').value;
   document.querySelectorAll('#redQuick .chipbtn').forEach(x=>x.classList.remove('active'));
