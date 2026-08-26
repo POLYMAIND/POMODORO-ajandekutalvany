@@ -14,12 +14,26 @@ Két fül:
   összeg-összesítővel (egységenkénti bontással is). Ez a nap végi kasszazáráshoz kell —
   nem kell hozzá exportálni.
 
+A lista **keresője** névre, sorszámra, e-mailre, telefonra és a beváltó nevére szűr.
+A nagy összesítő marad az időszak teljes összege (ez a kasszazárás száma) — a
+kereséshez tartozó darabszám/összeg a lista fejlécében jelenik meg.
+
 **Téves beváltás visszaállítása:** a beváltott sor végén (és a keresőből nyíló adatlapon)
 a *Visszaállítás* gomb aktívra állítja vissza az utalványt (`POST /api/unredeem`).
-Minden beváltás és visszaállítás bekerül a `pgv_voucher_log` táblába (ki, mikor, mennyit),
-és a visszaállítások az adott időszak alatt külön listában is megjelennek, hogy az
-összesítő utólag is ellenőrizhető maradjon. Jogosultság: aki az egységet láthatja
-(kasszás is) — a visszaállítás naplózott, de nem külön engedélyhez kötött.
+Jogosultság: aki az egységet láthatja (kasszás is) — naplózott, de nem külön
+engedélyhez kötött.
+
+**Visszaállított (téves) beváltások** — külön táblázat ugyanezen a fülön, ugyanarra az
+időszakra: mikor, melyik egység, sorszám, érték, ki állította vissza, mi volt az
+**eredeti beváltás** (időpont + ki váltotta be), és mi a tétel **jelenlegi állapota**.
+A kártya akkor is látszik, ha nem volt visszaállítás. Ha volt, az összesítőben is
+megjelenik egy kiemelt „Visszaállítva: N db · X Ft” érték — a visszaállított tétel
+ugyanis kikerül a beváltott listából, e nélkül a napi összeg némán csökkenne.
+
+Minden beváltás és visszaállítás bekerül a `pgv_voucher_log` táblába (ki, mikor,
+mennyit; visszaállításnál a felülírt `prev_redeemed_at` / `prev_redeemed_by` is).
+A `/api/data` innen csak az `unredeem` sorokat adja vissza (365 nap), hogy a 8
+másodperces poll könnyű maradjon — a beváltás-sorok auditra a táblában maradnak.
 
 A kasszán történt beváltást a bolt plugin push-a nem írhatja vissza „aktív”-ra
 (`redeemed_via = 'cockpit'` őrfeltétel az upsertben), különben egy `sync_all` csendben

@@ -183,6 +183,9 @@ tbody tr.clickable{cursor:pointer}
 .red-sum .rs-k{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-faint)}
 .red-sum .rs-v{font-size:23px;font-weight:680;letter-spacing:-.02em}
 .red-sum .rs.sub .rs-v{font-size:15px;font-weight:600}
+.red-sum .rs.warn .rs-k{color:var(--crit)}
+.red-sum .rs.warn .rs-v{color:var(--crit);font-size:15px;font-weight:600}
+#redLogTable th,#redLogTable td{white-space:nowrap}
 .rsearch{margin-top:12px}
 .rsearch .fi{max-width:420px}
 #redTable th,#redTable td{white-space:nowrap}
@@ -332,9 +335,9 @@ tbody tr.clickable{cursor:pointer}
             <div class="card-head"><h3>Beváltott utalványok</h3><span class="t-sub" id="redPeriod"></span></div>
             <div style="overflow-x:auto"><table id="redTable"></table></div>
           </div>
-          <div class="card" id="redLogCard" style="margin-top:12px;display:none">
-            <div class="card-head"><h3>Visszaállítások az időszakban</h3></div>
-            <div id="redLog"></div>
+          <div class="card" id="redLogCard" style="margin-top:12px">
+            <div class="card-head"><h3>Visszaállított (téves) beváltások</h3><span class="t-sub" id="redLogPeriod"></span></div>
+            <div style="overflow-x:auto"><table id="redLogTable"></table></div>
           </div>
         </div>
       </section>
@@ -724,6 +727,11 @@ function inRedRange(ts,r){
 // A keresés a listát szűri; a nagy összesítő marad az időszak (kasszazárás) összege.
 let REDQ='';
 function redMatch(v,q){ return expMatch(v,q)||String(v.redeemed_by||'').toLowerCase().includes(q); }
+function logMatch(x,q){
+  const nz=s=>String(s||'').toLowerCase();
+  const v=findVoucher(x.unit,x.serial);
+  return nz(x.serial).includes(q)||nz(x.user_name).includes(q)||nz(x.prev_redeemed_by).includes(q)||(v?redMatch(v,q):false);
+}
 function redPeriodLabel(r){
   if(!r.from&&!r.to) return 'Teljes időszak';
   if(r.from&&r.from===r.to) return fdate(r.from);
@@ -759,6 +767,14 @@ function renderRedeemed(){
         money(u.reduce((a,x)=>a+(+x.amount||0),0))+' <span class="t-sub">('+u.length+' db)</span></span></div>';
     });
   }
+  // Ha volt visszaállítás az időszakban, az összesítőben is látszik — a nap végi
+  // egyeztetésnél ez magyarázza, ha kevesebb a beváltás, mint amire számítasz.
+  let undone=(DATA.log||[]).filter(x=>x.action==='unredeem'&&inRedRange(x.created_at,r));
+  if(currentUnit!=='all') undone=undone.filter(x=>x.unit===currentUnit);
+  if(undone.length){
+    sum+='<div class="rs warn"><span class="rs-k">Visszaállítva</span><span class="rs-v">'+
+      undone.length+' db · '+money(undone.reduce((a,x)=>a+(+x.amount||0),0))+'</span></div>';
+  }
   $('#redSum').innerHTML=sum;
 
   const list=REDQ?all.filter(v=>redMatch(v,REDQ)):all;
@@ -773,16 +789,41 @@ function renderRedeemed(){
     :'<tr><td colspan="7" class="t-sub" style="padding:22px">'+empty+'</td></tr>';
   $('#redTable').innerHTML=head+'<tbody>'+rows+'</tbody>';
 
-  // Visszaállítások — hogy a napi összesítő utólag is ellenőrizhető legyen.
+  renderRedeemLog(r);
+}
+// Visszaállított (téves) beváltások — a beváltásból visszavett tétel eltűnik a fenti
+// listából, ezért itt marad nyoma: mi volt az eredeti beváltás, ki vette vissza és mikor.
+function renderRedeemLog(r){
   let log=(DATA.log||[]).filter(x=>x.action==='unredeem'&&inRedRange(x.created_at,r));
   if(currentUnit!=='all') log=log.filter(x=>x.unit===currentUnit);
-  $('#redLogCard').style.display=log.length?'':'none';
-  if(log.length){
-    $('#redLog').innerHTML=log.map(x=>'<div class="log-item"><span class="t-sub tnum">'+fdate(x.created_at)+' '+ftime(x.created_at)+'</span>'+
-      uchip(x.unit)+'<span class="mono">'+esc(x.serial)+'</span><span class="t-strong tnum" style="margin-left:auto">'+money(x.amount)+'</span>'+
-      '<span class="t-sub">'+esc(x.user_name||'—')+'</span></div>').join('');
-  }
+  if(REDQ) log=log.filter(x=>logMatch(x,REDQ));
+  log.sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||'')));
+  const sum=log.reduce((a,x)=>a+(+x.amount||0),0);
+  $('#redLogPeriod').textContent=log.length?(log.length+' db · '+money(sum)):'';
+  const head='<thead><tr><th>Visszaállítva</th><th>Egység</th><th>Sorszám</th><th>Érték</th>'+
+    '<th>Visszaállította</th><th>Eredeti beváltás</th><th>Jelenlegi állapot</th></tr></thead>';
+  const rows=log.length?log.map(x=>{
+    const v=findVoucher(x.unit,x.serial);
+    const orig=x.prev_redeemed_at
+      ? fdate(x.prev_redeemed_at)+' '+ftime(x.prev_redeemed_at)+(x.prev_redeemed_by?'<div class="t-sub">'+esc(x.prev_redeemed_by)+'</div>':'')
+      : '<span class="t-sub">nincs adat</span>';
+    return '<tr class="clickable" data-serial="'+esc(x.serial)+'" data-unit="'+esc(x.unit)+'">'+
+      '<td class="tnum">'+fdate(x.created_at)+'<div class="t-sub">'+ftime(x.created_at)+'</div></td>'+
+      '<td>'+uchip(x.unit)+'</td>'+
+      '<td class="mono t-sub">'+esc(x.serial)+'</td>'+
+      '<td class="t-strong tnum">'+money(x.amount)+'</td>'+
+      '<td>'+esc(x.user_name||'—')+'</td>'+
+      '<td class="tnum">'+orig+'</td>'+
+      '<td>'+(v?statusPill(v.status):'<span class="t-sub">—</span>')+'</td></tr>';
+  }).join('')
+   :'<tr><td colspan="7" class="t-sub" style="padding:22px">'+
+     (REDQ?'Nincs találat erre a keresésre.':'Ebben az időszakban nem volt visszaállítás.')+'</td></tr>';
+  $('#redLogTable').innerHTML=head+'<tbody>'+rows+'</tbody>';
 }
+$('#redLogTable').addEventListener('click',e=>{
+  const tr=e.target.closest('tr[data-serial]');
+  if(tr&&tr.dataset.serial) openProfile(tr.dataset.unit,tr.dataset.serial);
+});
 async function unredeem(unit,serial,btn){
   const v=findVoucher(unit,serial);
   if(!confirm('Visszaállítod aktívra ezt az utalványt?\n\n'+serial+(v?(' · '+money(v.amount)):'')+'\n\nA visszaállítás naplózódik.')) return;

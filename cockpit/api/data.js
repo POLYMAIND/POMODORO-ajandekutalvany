@@ -48,15 +48,19 @@ module.exports = async (req, res) => {
     }
     rows = rows.map(normalizeVoucher);
 
-    // Beváltási napló (beváltás / visszaállítás) — a kassza napi önellenőrzéséhez.
+    // Visszaállítás-napló — hogy a beváltásból visszavett tételek követhetők legyenek.
+    // Csak az 'unredeem' sorok jönnek le (ritkák), így a 8 másodperces poll marad könnyű.
     let log = [];
     try {
-      log = await recentVoucherLog(90);
+      log = await recentVoucherLog(365, 'unredeem');
       if (s.role !== 'superadmin') {
         const set = new Set((s.units || []).map(norm));
         log = log.filter(r => set.has(norm(r.unit)));
       }
-      log = log.map(r => Object.assign({}, r, { created_at: ymdhms(r.created_at) }));
+      log = log.map(r => Object.assign({}, r, {
+        created_at: ymdhms(r.created_at),
+        prev_redeemed_at: ymdhms(r.prev_redeemed_at),
+      }));
     } catch (e) { log = []; }
 
     res.setHeader('Cache-Control', 'no-store');

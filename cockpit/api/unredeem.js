@@ -37,7 +37,10 @@ module.exports = async (req, res) => {
     const done = await unredeemVoucher(shop.slug, serial);
     if (!done) { res.status(409).json({ error: 'Nem sikerült visszaállítani (időközben megváltozott az állapota).' }); return; }
     try {
-      await logVoucherAction({ unit: shop.slug, serial, action: 'unredeem', amount: done.amount, user });
+      await logVoucherAction({
+        unit: shop.slug, serial, action: 'unredeem', amount: done.amount, user,
+        prev_redeemed_at: v.redeemed_at, prev_redeemed_by: v.redeemed_by,
+      });
     } catch (e) { /* a napló hibája ne buktassa el a visszaállítást */ }
     res.status(200).json({ ok: true, status: done.status });
   } catch (e) {

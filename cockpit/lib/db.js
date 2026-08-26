@@ -266,6 +266,10 @@ async function ensureLogSchema() {
     user_name text,
     created_at timestamptz DEFAULT now()
   )`;
+  // A visszaállítás sorába eltesszük, mit írtunk felül (idempotens bővítés meglévő táblán is).
+  await sql`ALTER TABLE pgv_voucher_log
+    ADD COLUMN IF NOT EXISTS prev_redeemed_at timestamptz,
+    ADD COLUMN IF NOT EXISTS prev_redeemed_by text`;
   await sql`CREATE INDEX IF NOT EXISTS pgv_voucher_log_created_idx ON pgv_voucher_log (created_at DESC)`;
   _logReady = true;
 }
@@ -274,19 +278,29 @@ async function logVoucherAction(e) {
   await ensureLogSchema();
   const sql = db();
   const u = e.user || {};
-  await sql`INSERT INTO pgv_voucher_log (unit, serial, action, amount, user_id, user_name, created_at)
+  await sql`INSERT INTO pgv_voucher_log
+      (unit, serial, action, amount, user_id, user_name, prev_redeemed_at, prev_redeemed_by, created_at)
     VALUES (${String(e.unit)}, ${String(e.serial)}, ${String(e.action)}, ${e.amount != null ? Number(e.amount) : null},
-      ${u.id != null ? Number(u.id) : null}, ${u.name || u.email || null}, ${nowLocal(sql)})`;
+      ${u.id != null ? Number(u.id) : null}, ${u.name || u.email || null},
+      ${e.prev_redeemed_at || null}, ${e.prev_redeemed_by || null}, ${nowLocal(sql)})`;
 }
 
 // Az utóbbi N nap naplója (a napi/időszaki önellenőrzéshez).
-async function recentVoucherLog(days) {
+// `action` megadásával csak az adott műveletet adja vissza — a vezérlőpult így
+// csak a ritka visszaállításokat kéri le, nem az összes beváltást.
+async function recentVoucherLog(days, action) {
   await ensureLogSchema();
   const sql = db();
   const n = Math.max(1, Math.min(3650, parseInt(days, 10) || 90));
-  return await sql`SELECT unit, serial, action, amount, user_name, created_at
-    FROM pgv_voucher_log
-    WHERE created_at >= ${nowLocal(sql)} - ${sql.unsafe("interval '" + n + " days'")}
+  const since = sql`${nowLocal(sql)} - ${sql.unsafe("interval '" + n + " days'")}`;
+  const cols = sql`unit, serial, action, amount, user_name, prev_redeemed_at, prev_redeemed_by, created_at`;
+  if (action) {
+    return await sql`SELECT ${cols} FROM pgv_voucher_log
+      WHERE created_at >= ${since} AND action = ${String(action)}
+      ORDER BY created_at DESC`;
+  }
+  return await sql`SELECT ${cols} FROM pgv_voucher_log
+    WHERE created_at >= ${since}
     ORDER BY created_at DESC`;
 }
 
