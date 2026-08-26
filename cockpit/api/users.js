@@ -45,6 +45,15 @@ module.exports = async (req, res) => {
       if (!id) { res.status(400).json({ error: 'Hiányzó azonosító.' }); return; }
       const patch = {};
       if (body.name != null) patch.name = String(body.name);
+      // Belépési e-mail módosítása (csak központi admin jut el idáig).
+      if (body.email != null) {
+        const email = String(body.email).trim().toLowerCase();
+        if (!email || /\s/.test(email)) { res.status(400).json({ error: 'Az e-mail nem lehet üres.' }); return; }
+        if (email === 'admin' || email === 'master') { res.status(400).json({ error: 'Ez az e-mail fenntartott.' }); return; }
+        const other = await getUserByEmail(email);
+        if (other && Number(other.id) !== id) { res.status(409).json({ error: 'Ez az e-mail már foglalt.' }); return; }
+        patch.email = email;
+      }
       if (body.role && ROLES.includes(body.role)) patch.role = body.role;
       if (body.units != null || body.role) {
         const role = patch.role || body.role;
@@ -67,6 +76,10 @@ module.exports = async (req, res) => {
 
     res.status(400).json({ error: 'Ismeretlen művelet.' });
   } catch (e) {
+    // Párhuzamos mentésnél az egyedi e-mail index üthet — ne nyers DB-hiba menjen ki.
+    if (e && (e.code === '23505' || /duplicate key/i.test(String(e.message || '')))) {
+      res.status(409).json({ error: 'Ez az e-mail már foglalt.' }); return;
+    }
     res.status(500).json({ error: String(e && e.message || e) });
   }
 };

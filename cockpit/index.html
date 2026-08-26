@@ -387,6 +387,7 @@ tbody tr.clickable{cursor:pointer}
               <input class="fi" id="uName" placeholder="Pl. Kiss Anna" autocomplete="off">
               <label class="fl">E-mail (belépéshez)</label>
               <input class="fi" id="uEmail" type="email" placeholder="anna@pomodoro.hu" autocomplete="off">
+              <p class="t-sub" id="uEmailHint" style="margin:5px 0 0;display:none">Módosítás után a felhasználó már az új címmel lép be. A jelszava marad.</p>
               <label class="fl" id="uPassLabel">Jelszó</label>
               <input class="fi" id="uPass" type="text" placeholder="Kezdő jelszó" autocomplete="new-password">
               <label class="fl">Szerep</label>
@@ -999,14 +1000,16 @@ function renderUsersTable(){
 }
 function resetUserForm(){
   $('#uId').value=''; $('#uName').value=''; $('#uEmail').value=''; $('#uPass').value='';
-  $('#uEmail').disabled=false; $('#uRole').value='cashier'; $('#uRole').onchange();
+  $('#uEmail').disabled=false; $('#uEmailHint').style.display='none';
+  $('#uRole').value='cashier'; $('#uRole').onchange();
   renderUnitChecks([]); $('#uErr').textContent='';
   $('#userFormTitle').textContent='Új felhasználó'; $('#uSave').textContent='Hozzáadás';
   $('#uPassLabel').textContent='Jelszó'; $('#uCancel').style.display='none';
 }
 function editUser(id){
   const u=USERS.find(x=>x.id===id); if(!u)return;
-  $('#uId').value=u.id; $('#uName').value=u.name||''; $('#uEmail').value=u.email; $('#uEmail').disabled=true;
+  $('#uId').value=u.id; $('#uName').value=u.name||''; $('#uEmail').value=u.email; $('#uEmail').disabled=false;
+  $('#uEmailHint').style.display='';
   $('#uPass').value=''; $('#uRole').value=u.role; $('#uRole').onchange(); renderUnitChecks(u.units||[]);
   $('#userFormTitle').textContent='Felhasználó szerkesztése'; $('#uSave').textContent='Mentés';
   $('#uPassLabel').textContent='Új jelszó (üres = marad)'; $('#uCancel').style.display=''; $('#uErr').textContent='';
@@ -1016,9 +1019,11 @@ $('#uCancel').onclick=resetUserForm;
 $('#userForm').addEventListener('submit',async e=>{
   e.preventDefault(); $('#uErr').textContent='';
   const id=$('#uId').value, role=$('#uRole').value;
-  const payload={action:id?'update':'create',name:$('#uName').value.trim(),role,units:selectedUnits()};
-  if(id) payload.id=+id; else payload.email=$('#uEmail').value.trim();
+  const email=$('#uEmail').value.trim();
+  const payload={action:id?'update':'create',name:$('#uName').value.trim(),role,units:selectedUnits(),email};
+  if(id) payload.id=+id;
   const pw=$('#uPass').value; if(pw) payload.password=pw;
+  if(!email){ $('#uErr').textContent='Adj meg e-mail címet.'; return; }
   if(!id && !pw){ $('#uErr').textContent='Adj meg kezdő jelszót.'; return; }
   const r=await fetch('/api/users',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
   const j=await r.json().catch(()=>({}));
