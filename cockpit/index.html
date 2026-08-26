@@ -800,23 +800,28 @@ function renderRedeemLog(r){
   log.sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||'')));
   const sum=log.reduce((a,x)=>a+(+x.amount||0),0);
   $('#redLogPeriod').textContent=log.length?(log.length+' db · '+money(sum)):'';
-  const head='<thead><tr><th>Visszaállítva</th><th>Egység</th><th>Sorszám</th><th>Érték</th>'+
+  const head='<thead><tr><th>Visszaállítva</th><th>Egység</th><th>Sorszám</th><th>Vásárló</th><th>Érték</th>'+
     '<th>Visszaállította</th><th>Eredeti beváltás</th><th>Jelenlegi állapot</th></tr></thead>';
   const rows=log.length?log.map(x=>{
     const v=findVoucher(x.unit,x.serial);
+    const who=v?(v.buyer_name||v.giver_name||v.recipient_name||'—'):'—';
+    const contact=v?(v.buyer_email||v.delivery_email||v.buyer_phone||''):'';
     const orig=x.prev_redeemed_at
       ? fdate(x.prev_redeemed_at)+' '+ftime(x.prev_redeemed_at)+(x.prev_redeemed_by?'<div class="t-sub">'+esc(x.prev_redeemed_by)+'</div>':'')
       : '<span class="t-sub">nincs adat</span>';
-    return '<tr class="clickable" data-serial="'+esc(x.serial)+'" data-unit="'+esc(x.unit)+'">'+
+    // Csak akkor kattintható, ha az utalvány tényleg a betöltött adatok közt van.
+    const attrs=v?' class="clickable" title="Kattints az adatlapért" data-serial="'+esc(x.serial)+'" data-unit="'+esc(x.unit)+'"':'';
+    return '<tr'+attrs+'>'+
       '<td class="tnum">'+fdate(x.created_at)+'<div class="t-sub">'+ftime(x.created_at)+'</div></td>'+
       '<td>'+uchip(x.unit)+'</td>'+
       '<td class="mono t-sub">'+esc(x.serial)+'</td>'+
+      '<td class="t-strong">'+esc(who)+(contact?'<div class="t-sub">'+esc(contact)+'</div>':'')+'</td>'+
       '<td class="t-strong tnum">'+money(x.amount)+'</td>'+
       '<td>'+esc(x.user_name||'—')+'</td>'+
       '<td class="tnum">'+orig+'</td>'+
       '<td>'+(v?statusPill(v.status):'<span class="t-sub">—</span>')+'</td></tr>';
   }).join('')
-   :'<tr><td colspan="7" class="t-sub" style="padding:22px">'+
+   :'<tr><td colspan="8" class="t-sub" style="padding:22px">'+
      (REDQ?'Nincs találat erre a keresésre.':'Ebben az időszakban nem volt visszaállítás.')+'</td></tr>';
   $('#redLogTable').innerHTML=head+'<tbody>'+rows+'</tbody>';
 }
