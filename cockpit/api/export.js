@@ -3,6 +3,7 @@ const { resolveUser } = require('../lib/auth.js');
 const { ensureSchema, allVouchers } = require('../lib/db.js');
 const { toCSV } = require('../lib/csv.js');
 const { exportHeader, recordToRow } = require('../lib/voucher_csv.js');
+const { effectivePurchaseDay, effectiveValidFrom, effectiveValidUntil } = require('../lib/dates.js');
 
 // Utalványok exportja a kanonikus CSV-formátumban (a felhasználó egységeire szűrve).
 module.exports = async (req, res) => {
@@ -23,10 +24,9 @@ module.exports = async (req, res) => {
     if (only) rows = rows.filter(v => n(v.unit) === only);
 
     // Opcionális időszak-szűrő a vásárlás dátumára (?from=YYYY-MM-DD&to=YYYY-MM-DD).
-    const cd = v => {
-      const c = v.created_at;
-      return c instanceof Date ? c.toISOString().slice(0, 10) : String(c || '').slice(0, 10);
-    };
+    // Ahol az importból hiányzik a vásárlás dátuma, ott az érvényesség végéből
+    // számoljuk vissza — különben ezek a tételek némán kimaradnának a szűrésből.
+    const cd = v => effectivePurchaseDay(v) || '';
     const from = req.query && req.query.from ? String(req.query.from).slice(0, 10) : '';
     const to = req.query && req.query.to ? String(req.query.to).slice(0, 10) : '';
     if (from) rows = rows.filter(v => { const d = cd(v); return d && d >= from; });
@@ -46,8 +46,19 @@ module.exports = async (req, res) => {
       return;
     }
 
+    // Az érvényesség kezdete/vége levezetve, ha az importból hiányzott.
+    // A „vásárlás időpontja” oszlopba viszont nem írunk kitalált értéket:
+    // az maradjon üres, ha a forrás nem tartalmazta.
     const out = [exportHeader()];
-    for (const v of rows) out.push(recordToRow(v, unitName(v.unit)));
+    for (const v of rows) {
+      out.push(recordToRow(
+        Object.assign({}, v, {
+          valid_from: effectiveValidFrom(v),
+          valid_until: effectiveValidUntil(v),
+        }),
+        unitName(v.unit)
+      ));
+    }
 
     const stamp = new Date().toISOString().slice(0, 10);
     const base = (only ? only : 'pomodoro') + (st ? '-' + st : ''); // egység slug (+ státusz)

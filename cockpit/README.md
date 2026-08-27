@@ -67,6 +67,16 @@ az új kóddal; foglalt kódra vagy már átnevezett sorra a művelet nem csiná
 
 ## Import / export
 
+**Hiányzó dátumok levezetése** (`lib/dates.js`): a régi rendszerből importált
+tételeknél gyakran nincs vásárlás-dátum és érvényesség-kezdet, de az érvényesség
+VÉGE mindig megvan. Mivel az érvényesség a vásárlástól számított 12 hónap, a
+hiányzó dátumok visszaszámolhatók. Ezért:
+- az **érvényesség kezdete** = a vásárlás napja (ha az sincs: érvényesség vége −12 hó),
+- az **időszak-szűrés** is erre a levezetett vásárlási napra megy, különben a
+  dátum nélküli tételek némán kimaradnának a kimutatásból;
+- a **„vásárlás időpontja” oszlopba viszont nem írunk kitalált értéket** — az
+  marad üres, ha a forrás nem tartalmazta.
+
 Az **export** egységre, **státuszra** és időszakra (vásárlás dátuma) szűrhető; a
 státusz bekerül a fájlnévbe is (`casa-redeemed-utalvanyok-2026-08-27.csv`), hogy a
 letöltött fájlokat meg lehessen különböztetni. A **Vásárlások** lista tetején
