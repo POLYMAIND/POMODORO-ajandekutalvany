@@ -144,6 +144,63 @@ class PGV_Vouchers {
 	}
 
 	/**
+	 * Az utalvány kódjának újragenerálása (teszteléshez / elgépelt kód javításához).
+	 *
+	 * A belső, hézagmentes sorszám (seq_no) NEM változik — a könyvelés folytonos
+	 * marad. Beváltott, sztornózott vagy importált utalványt nem érintünk: ott a
+	 * kód cseréje elvágná az auditnyomot.
+	 *
+	 * @return array|WP_Error array( old, new )
+	 */
+	public static function regenerate_serial( $id ) {
+		global $wpdb;
+		$v = self::get( $id );
+		if ( ! $v ) {
+			return new WP_Error( 'pgv_regen', __( 'Nincs ilyen utalvány.', 'pomodoro-gift-vouchers' ) );
+		}
+		if ( ! empty( $v['is_legacy'] ) ) {
+			return new WP_Error( 'pgv_regen', __( 'Importált (korábbi) utalvány kódja nem cserélhető.', 'pomodoro-gift-vouchers' ) );
+		}
+		if ( ! in_array( $v['status'], array( self::STATUS_ACTIVE, self::STATUS_PENDING ), true ) ) {
+			return new WP_Error( 'pgv_regen', __( 'Csak aktív vagy függőben lévő utalvány kódja cserélhető — beváltottnál az auditnyom miatt nem.', 'pomodoro-gift-vouchers' ) );
+		}
+
+		$prefix = (string) PGV_Settings::get( 'serial_prefix', '' );
+		$new    = self::random_code( $v['unit_slug'], $prefix );
+		if ( is_wp_error( $new ) ) {
+			return $new;
+		}
+
+		$ok = $wpdb->update(
+			PGV_Install::table( 'vouchers' ),
+			array( 'serial' => $new, 'updated_at' => current_time( 'mysql' ) ),
+			array( 'id' => (int) $id ),
+			array( '%s', '%s' ),
+			array( '%d' )
+		);
+		if ( false === $ok ) {
+			return new WP_Error( 'pgv_regen', __( 'A kód cseréje nem sikerült.', 'pomodoro-gift-vouchers' ) );
+		}
+
+		self::audit(
+			$id,
+			'serial_changed',
+			$v['status'],
+			$v['status'],
+			self::actor(),
+			array( 'old_serial' => $v['serial'], 'new_serial' => $new )
+		);
+
+		// A vezérlőpulton az (egység + sorszám) a kulcs: meg kell mondanunk, melyik
+		// régi sort nevezze át, különben ott két bejegyzés maradna ugyanarról.
+		if ( class_exists( 'PGV_Push' ) ) {
+			PGV_Push::push_renamed( self::get( $id ), $v['serial'] );
+		}
+
+		return array( 'old' => $v['serial'], 'new' => $new );
+	}
+
+	/**
 	 * Utalvány rekord létrehozása (pending állapotban vagy már aktívan).
 	 *
 	 * @param array $data Mezők.

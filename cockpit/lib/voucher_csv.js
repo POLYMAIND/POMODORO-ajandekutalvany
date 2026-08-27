@@ -4,6 +4,7 @@
 // Sorrend = export oszlopsorrend (az "egység" az export elején külön kezelve).
 const FIELDS = [
   ['utalvány kódja', 'serial'],
+  ['belső sorszám', 'seq_label'],
   ['megrendelési azonosító', 'order_ref'],
   ['utalvány neve', 'label'],
   ['érték', 'amount'],
@@ -33,6 +34,7 @@ const FIELDS = [
 // Elfogadott fejléc-nevek mezőnként (a kanonikus + a régi SimplePay/WP-admin exportok).
 const ALIASES = {
   serial: ['utalvány kódja', 'azonosító', 'sorszám', 'serial'],
+  seq_label: ['belső sorszám'],
   order_ref: ['megrendelési azonosító', 'woocommerce rendelésszám'],
   label: ['utalvány neve'],
   amount: ['érték', 'ár', 'összeg', 'amount'],
@@ -137,6 +139,10 @@ function exportHeader() {
 // Egy DB-utalvány -> export CSV-sor (unitName az egység olvasható neve).
 function recordToRow(v, unitName) {
   const val = field => {
+    if (field === 'seq_label') {
+      return (v.seq_no == null || v.seq_no === '') ? ''
+        : String(v.seq_year || '') + '/' + String(v.seq_no).padStart(6, '0');
+    }
     if (field === 'amount') return String(v.amount == null ? 0 : v.amount);
     if (field === 'status') return EXPORT_STATUS[v.status] || (v.status || '');
     if (field === 'marketing_opt_in') return v.marketing_opt_in ? 'igen' : 'nem';

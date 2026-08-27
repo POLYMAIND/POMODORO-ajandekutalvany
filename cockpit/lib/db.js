@@ -29,7 +29,7 @@ function db() {
 const EXTRA_COLS = ['order_ref', 'label', 'buyer_name', 'buyer_phone', 'country',
   'postcode', 'city', 'street', 'message',
   'buyer_note', 'promo_code', 'payment_provider', 'transaction_id', 'paid_at',
-  'site_url'];
+  'site_url', 'seq_no', 'seq_year'];
 
 let _schemaReady = false;
 async function ensureSchema() {
@@ -75,6 +75,8 @@ async function ensureSchema() {
     ADD COLUMN IF NOT EXISTS paid_at timestamptz,
     ADD COLUMN IF NOT EXISTS print_serial text,
     ADD COLUMN IF NOT EXISTS site_url text,
+    ADD COLUMN IF NOT EXISTS seq_no bigint,
+    ADD COLUMN IF NOT EXISTS seq_year integer,
     ADD COLUMN IF NOT EXISTS redeemed_by text,
     ADD COLUMN IF NOT EXISTS redeemed_by_email text,
     ADD COLUMN IF NOT EXISTS redeemed_via text,
@@ -136,6 +138,8 @@ function norm(v) {
     transaction_id: s(v.transaction_id),
     paid_at: d(v.paid_at),
     site_url: s(v.site_url),
+    seq_no: v.seq_no != null && v.seq_no !== '' ? (parseInt(v.seq_no, 10) || null) : null,
+    seq_year: v.seq_year != null && v.seq_year !== '' ? (parseInt(v.seq_year, 10) || null) : null,
   };
 }
 
@@ -216,6 +220,27 @@ async function getVoucherPdf(unit, serial) {
 async function allVouchers() {
   const sql = db();
   return await sql`SELECT * FROM pgv_vouchers ORDER BY created_at DESC NULLS LAST`;
+}
+
+// Az utalvány kódjának cseréje a boltban: a meglévő sort NEVEZZÜK ÁT, hogy ne
+// keletkezzen két bejegyzés ugyanarról az utalványról. A beváltás állapota,
+// a naplóbejegyzések és a PDF is átkerülnek az új kódra.
+async function renameVoucher(unit, oldSerial, newSerial) {
+  const sql = db();
+  const u = String(unit), o = String(oldSerial), n = String(newSerial);
+  if (!u || !o || !n || o === n) return false;
+  const rows = await sql`UPDATE pgv_vouchers SET serial = ${n}
+    WHERE lower(unit) = lower(${u}) AND serial = ${o}
+      AND NOT EXISTS (SELECT 1 FROM pgv_vouchers x WHERE lower(x.unit) = lower(${u}) AND x.serial = ${n})
+    RETURNING serial`;
+  if (!rows.length) return false;
+  await sql`UPDATE pgv_pdfs SET serial = ${n} WHERE lower(unit) = lower(${u}) AND serial = ${o}
+    AND NOT EXISTS (SELECT 1 FROM pgv_pdfs y WHERE lower(y.unit) = lower(${u}) AND y.serial = ${n})`;
+  try {
+    await ensureLogSchema();
+    await sql`UPDATE pgv_voucher_log SET serial = ${n} WHERE lower(unit) = lower(${u}) AND serial = ${o}`;
+  } catch (e) { /* a napló hiánya ne akassza meg az átnevezést */ }
+  return true;
 }
 
 async function getVoucher(unit, serial) {
@@ -419,7 +444,7 @@ async function deleteUser(id) {
 
 module.exports = {
   db, ensureSchema, upsertVouchers, upsertVoucherPdfs, getVoucherPdf, allVouchers, getVoucher,
-  redeemVoucher, unredeemVoucher, markReminderSent, deleteLegacyByUnit,
+  redeemVoucher, unredeemVoucher, renameVoucher, markReminderSent, deleteLegacyByUnit,
   ensureLogSchema, logVoucherAction, recentVoucherLog,
   ensureConfigSchema, getConfig, setConfig,
   ensureUsersSchema, countUsers, getUserByEmail, getUserById, listUsers, createUser, updateUser, deleteUser,

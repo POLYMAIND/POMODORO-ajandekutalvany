@@ -1,5 +1,5 @@
 const { readBody } = require('../lib/shops.js');
-const { ensureSchema, upsertVouchers, upsertVoucherPdfs } = require('../lib/db.js');
+const { ensureSchema, upsertVouchers, upsertVoucherPdfs, renameVoucher } = require('../lib/db.js');
 
 // A boltok pluginja ide küldi (push) az utalványokat. Titok-alapú hitelesítés.
 module.exports = async (req, res) => {
@@ -18,9 +18,20 @@ module.exports = async (req, res) => {
 
   try {
     await ensureSchema();
+
+    // Kód-csere a boltban: előbb átnevezzük a meglévő sort, csak utána
+    // upsertelünk — így nem keletkezik két bejegyzés ugyanarról az utalványról.
+    let renamed = 0;
+    for (const v of vouchers) {
+      if (v && v.previous_serial && v.serial && v.previous_serial !== v.serial) {
+        try { if (await renameVoucher(v.unit, v.previous_serial, v.serial)) renamed++; }
+        catch (e) { /* ha nem sikerül, az upsert így is létrehozza az új sort */ }
+      }
+    }
+
     const { total: count } = await upsertVouchers(vouchers);
     const pdfs = await upsertVoucherPdfs(vouchers); // base64 PDF-ek külön táblába (ha jött)
-    res.status(200).json({ ok: true, count, pdfs });
+    res.status(200).json({ ok: true, count, pdfs, renamed });
   } catch (e) {
     res.status(500).json({ error: String(e && e.message || e) });
   }

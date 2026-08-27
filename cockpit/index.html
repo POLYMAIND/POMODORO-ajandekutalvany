@@ -1174,6 +1174,7 @@ function openProfile(unit,serial){
       prow('Cím',addr,!!addr)+
       '<div class="psec">Utalvány</div>'+
       prow('Érték',money(v.amount))+
+      prow('Belső sorszám', v.seq_no?((v.seq_year||'')+'/'+String(v.seq_no).padStart(6,'0')):'')+
       '<div class="prow"><span class="pk">Státusz</span><span class="pv">'+statusPill(v.status)+'</span></div>'+
       prow('Érvényes',fdate(v.valid_until)+(d!=null&&v.status==='active'?(d<0?' (lejárt)':' ('+d+' nap)'):''))+
       prow('Megajándékozott',v.recipient_name)+

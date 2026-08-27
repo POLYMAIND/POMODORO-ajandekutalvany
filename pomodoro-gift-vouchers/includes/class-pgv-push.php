@@ -32,7 +32,7 @@ class PGV_Push {
 	 * A CRM-mezőket (számlázási név, telefon, cím, megjegyzés) a WooCommerce
 	 * rendelésből is kiegészítjük, hogy a vezérlőpult exportja teljes legyen.
 	 */
-	public static function payload( array $v, $include_pdf = false ) {
+	public static function payload( array $v, $include_pdf = false, $previous_serial = '' ) {
 		$data = array(
 			'unit'             => $v['unit_slug'],
 			'serial'           => $v['serial'],
@@ -61,9 +61,17 @@ class PGV_Push {
 			'paid_at'          => isset( $v['paid_at'] ) ? $v['paid_at'] : null,
 			'redeemed_at'      => $v['redeemed_at'],
 			'is_legacy'        => (bool) $v['is_legacy'],
+			'seq_no'           => isset( $v['seq_no'] ) && '' !== $v['seq_no'] ? (int) $v['seq_no'] : null,
+			'seq_year'         => isset( $v['seq_year'] ) && '' !== $v['seq_year'] ? (int) $v['seq_year'] : null,
 			'created_at'       => $v['created_at'],
 			'updated_at'       => $v['updated_at'],
 		);
+
+		// Kód-csere: a vezérlőpulton a (egység + sorszám) a kulcs, ezért meg kell
+		// mondanunk, melyik régi sort kell átnevezni — különben ott duplikátum lenne.
+		if ( $previous_serial && $previous_serial !== $v['serial'] ) {
+			$data['previous_serial'] = (string) $previous_serial;
+		}
 
 		if ( ! empty( $v['order_id'] ) && function_exists( 'wc_get_order' ) ) {
 			$order = wc_get_order( (int) $v['order_id'] );
@@ -118,6 +126,16 @@ class PGV_Push {
 		}
 		// A mentés/kibocsátás azonnali felküldése, az utalvány PDF-jével együtt.
 		self::send( array( self::payload( $v, true ) ), false );
+	}
+
+	/**
+	 * Egy utalvány azonnali felküldése kód-csere után (a régi sor átnevezésével).
+	 */
+	public static function push_renamed( array $v, $previous_serial ) {
+		if ( ! self::configured() ) {
+			return;
+		}
+		self::send( array( self::payload( $v, true, $previous_serial ) ), false );
 	}
 
 	/**

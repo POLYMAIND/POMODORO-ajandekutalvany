@@ -91,6 +91,22 @@ $export_url = wp_nonce_url(
 								<a class="button-link" href="<?php echo esc_url( PGV_Admin::pdf_url( (int) $v['id'] ) ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'PDF', 'pomodoro-gift-vouchers' ); ?></a>
 								<button type="button" class="button-link pgv-resend" data-id="<?php echo (int) $v['id']; ?>"><?php esc_html_e( 'E-mail újraküldés', 'pomodoro-gift-vouchers' ); ?></button>
 								<button type="button" class="button-link pgv-toggle-audit" data-id="<?php echo (int) $v['id']; ?>"><?php esc_html_e( 'Előzmény', 'pomodoro-gift-vouchers' ); ?></button>
+								<?php
+								// Kód-csere: csak ott, ahol biztonságos (nem beváltott, nem importált).
+								$pgv_can_regen = empty( $v['is_legacy'] )
+									&& in_array( $v['status'], array( PGV_Vouchers::STATUS_ACTIVE, PGV_Vouchers::STATUS_PENDING ), true );
+								?>
+								<?php if ( $pgv_can_regen ) : ?>
+									<form method="post" style="display:inline" onsubmit="return confirm('<?php echo esc_js( sprintf( __( 'Új kódot generálunk ennek az utalványnak (%s). A régi kód ezután érvénytelen, a már kiküldött PDF-en viszont az szerepel — a vásárlónak új levelet kell küldeni. A belső sorszám nem változik. Folytatod?', 'pomodoro-gift-vouchers' ), $v['serial'] ) ); ?>');">
+										<?php wp_nonce_field( 'pgv_regen_serial' ); ?>
+										<input type="hidden" name="pgv_action" value="regen_serial">
+										<input type="hidden" name="voucher_id" value="<?php echo (int) $v['id']; ?>">
+										<input type="hidden" name="ret_s" value="<?php echo esc_attr( $search ); ?>">
+										<input type="hidden" name="ret_status" value="<?php echo esc_attr( $status ); ?>">
+										<input type="hidden" name="ret_paged" value="<?php echo (int) $paged; ?>">
+										<button type="submit" class="button-link"><?php esc_html_e( 'Új kód', 'pomodoro-gift-vouchers' ); ?></button>
+									</form>
+								<?php endif; ?>
 							</td>
 						</tr>
 						<?php if ( $edit_id === (int) $v['id'] ) : ?>

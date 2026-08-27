@@ -41,6 +41,17 @@ A kasszán történt beváltást a bolt plugin push-a nem írhatja vissza „akt
 (`redeemed_via = 'cockpit'` őrfeltétel az upsertben), különben egy `sync_all` csendben
 eltüntetné a napi beváltásokat.
 
+## Belső sorszám és kód-csere
+
+Az utalványra nyomtatott kód véletlen (`CASA-7K3M9QP2`), mellette a bolt felküldi
+a **hézagmentes belső sorszámot** is (`seq_no` / `seq_year`) — látszik az utalvány
+adatlapján és külön oszlopként (`belső sorszám`) az exportban.
+
+Ha a boltban új kódot generálnak egy utalványhoz, a push `previous_serial`
+mezővel érkezik, és az ingest a **meglévő sort nevezi át** — nem hoz létre
+másodikat. A beváltás állapota, a PDF és a naplóbejegyzések együtt mozognak
+az új kóddal; foglalt kódra vagy már átnevezett sorra a művelet nem csinál semmit.
+
 ## Import / export
 
 Az import **CSV** és **Excel (.xlsx / .xlsm)** fájlt is fogad. Az Excelnél a fájl

@@ -107,7 +107,46 @@ class PGV_Admin {
 			case 'edit_voucher':
 				$this->save_voucher_edit();
 				break;
+			case 'regen_serial':
+				$this->regen_serial();
+				break;
 		}
+	}
+
+	/**
+	 * Utalvány-kód újragenerálása (teszteléshez). A belső sorszám nem változik.
+	 */
+	private function regen_serial() {
+		check_admin_referer( 'pgv_regen_serial' );
+		$in = wp_unslash( $_POST );
+		$id = absint( $in['voucher_id'] ?? 0 );
+
+		$res    = PGV_Vouchers::regenerate_serial( $id );
+		$notice = is_wp_error( $res ) ? 'regen_error' : 'regen_ok';
+		if ( is_wp_error( $res ) ) {
+			set_transient( 'pgv_regen_msg', $res->get_error_message(), 60 );
+		} else {
+			set_transient( 'pgv_regen_msg', sprintf(
+				/* translators: 1: régi kód, 2: új kód */
+				__( '%1$s → %2$s', 'pomodoro-gift-vouchers' ),
+				$res['old'],
+				$res['new']
+			), 60 );
+		}
+
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'page'       => self::SLUG,
+					's'          => sanitize_text_field( $in['ret_s'] ?? '' ),
+					'status'     => sanitize_key( $in['ret_status'] ?? '' ),
+					'paged'      => max( 1, (int) ( $in['ret_paged'] ?? 1 ) ),
+					'pgv_notice' => $notice,
+				),
+				admin_url( 'admin.php' )
+			)
+		);
+		exit;
 	}
 
 	/**
@@ -470,6 +509,21 @@ class PGV_Admin {
 				'<div class="notice notice-%s is-dismissible"><p>%s</p></div>',
 				'sync_ok' === $key ? 'success' : 'error',
 				esc_html( $this->sync_notice_text() )
+			);
+			return;
+		}
+
+		// A kód-csere üzenetébe beletesszük a régi és az új kódot.
+		if ( 'regen_ok' === $key || 'regen_error' === $key ) {
+			$detail = get_transient( 'pgv_regen_msg' );
+			delete_transient( 'pgv_regen_msg' );
+			printf(
+				'<div class="notice notice-%s is-dismissible"><p>%s%s</p></div>',
+				'regen_ok' === $key ? 'success' : 'error',
+				'regen_ok' === $key
+					? esc_html__( 'Új utalvány-kód generálva: ', 'pomodoro-gift-vouchers' )
+					: esc_html__( 'A kód cseréje nem sikerült: ', 'pomodoro-gift-vouchers' ),
+				esc_html( (string) $detail )
 			);
 			return;
 		}
