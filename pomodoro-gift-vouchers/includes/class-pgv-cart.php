@@ -134,7 +134,6 @@ class PGV_Cart {
 		$p = self::preview_data();
 		?>
 		<div class="pgv-preview pgv-preview--<?php echo esc_attr( $where ); ?>" data-pgv-preview hidden>
-			<span class="pgv-preview-title"><?php esc_html_e( 'Így fog kinézni', 'pomodoro-gift-vouchers' ); ?></span>
 			<div class="pgv-card" data-pgv-card>
 				<div class="pgv-card-img"><img alt="" data-pgv-img></div>
 				<div class="pgv-card-body">

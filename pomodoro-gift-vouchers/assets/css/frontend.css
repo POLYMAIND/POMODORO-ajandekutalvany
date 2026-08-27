@@ -95,12 +95,6 @@
 	margin: 0 0 1.5em;
 }
 
-.pgv-preview-title {
-	display: block;
-	font-weight: 600;
-	margin-bottom: 0.35em;
-}
-
 .pgv-card {
 	position: relative;
 	display: flex;
@@ -124,15 +118,24 @@
 	overflow: hidden;
 }
 
+/* A kártya a galéria helyén a WooCommerce galéria-osztályait viseli, ezért a
+   sablon kép-szabályai (jellemzően `div.images img { height: auto }`) ránk is
+   vonatkoznának, és a kép nem töltené ki a felét. A PDF viszont teljes
+   magasságra vágja középre — itt ugyanazt kell látni, ezért írjuk felül. */
 .pgv-card-img img {
-	width: 100%;
-	height: 100%;
+	width: 100% !important;
+	height: 100% !important;
+	min-height: 100% !important;
+	max-width: none !important;
+	max-height: none !important;
 	object-fit: cover;
 	object-position: center;
 	display: block;
-	margin: 0;
-	border-radius: 0;
-	max-width: none;
+	margin: 0 !important;
+	padding: 0 !important;
+	border: 0 !important;
+	border-radius: 0 !important;
+	box-shadow: none !important;
 }
 
 /* Jobb fél: szövegoszlop. Belső margó = a PDF 10 mm-e (4,76em), felül 16 mm. */
@@ -145,16 +148,21 @@
 	min-width: 0;
 }
 
-/* A logó doboza a PDF-ben fix 52 × 30 mm, a kép bal-felülre igazítva. */
+/* A logó doboza a PDF-ben fix 52 × 30 mm, a kép bal-felülre igazítva.
+   (A sablon kép-szabályait itt is felül kell írni — lásd fent.) */
 .pgv-card-logo {
-	width: 24.76em;
-	height: 14.29em;
+	width: 24.76em !important;
+	height: 14.29em !important;
+	max-width: none !important;
+	max-height: none !important;
 	object-fit: contain;
 	object-position: left top;
-	margin: 0 0 6.67em;
+	margin: 0 0 6.67em !important;
+	padding: 0 !important;
 	display: block;
-	border-radius: 0;
-	max-width: none;
+	border: 0 !important;
+	border-radius: 0 !important;
+	box-shadow: none !important;
 }
 
 .pgv-card-unit {
@@ -269,18 +277,8 @@
 	border-radius: 10px;
 }
 
-.pgv-preview--gallery .pgv-preview-title,
 .pgv-preview--gallery .pgv-preview-note {
 	text-align: center;
-}
-
-.pgv-preview--gallery .pgv-preview-title {
-	font-size: .8em;
-	letter-spacing: .09em;
-	text-transform: uppercase;
-	opacity: .55;
-	font-weight: 600;
-	margin-bottom: .6em;
 }
 
 /* --- A mezők fölött (kicsi): ott a kártya „letapad” gépelés közben --- */
