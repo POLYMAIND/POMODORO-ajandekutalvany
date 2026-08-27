@@ -41,6 +41,21 @@ A kasszán történt beváltást a bolt plugin push-a nem írhatja vissza „akt
 (`redeemed_via = 'cockpit'` őrfeltétel az upsertben), különben egy `sync_all` csendben
 eltüntetné a napi beváltásokat.
 
+## Import / export
+
+Az import **sorszám szerint azonosít** (`unit` + `utalvány kódja` az elsődleges kulcs),
+ezért ugyanaz a tétel nem duplikálódik: a meglévő sor **felülíródik** a fájl adataival,
+csak a valóban új sorszámok kerülnek be újként. A visszajelzés külön írja ki, mennyi
+volt új és mennyi frissült. Sorszám nélküli sor kimarad (a „kihagyva” számban látszik).
+
+Két dolgot az import nem írhat felül:
+- a **vezérlőpulton beváltott** utalvány állapotát (`redeemed_via = 'cockpit'`),
+- egy **élő, boltból push-olt** utalvány `is_legacy` jelzését — így az „Import
+  visszavonása” (ami az egység legacy sorait törli) nem viheti el őket.
+
+Ugyanaz a fájl **másik egységbe** importálva külön tételeket hoz létre (az egység a
+kulcs része) — ez szándékos, de figyelni kell rá.
+
 ## Környezeti változók (Vercel → Settings → Environment Variables)
 - `APP_PASSWORD` — belépési jelszó a vezérlőpulthoz.
 - `AUTH_SECRET` — hosszú véletlen string a süti-aláíráshoz.

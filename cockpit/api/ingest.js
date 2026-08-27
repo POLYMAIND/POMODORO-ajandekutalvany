@@ -18,7 +18,7 @@ module.exports = async (req, res) => {
 
   try {
     await ensureSchema();
-    const count = await upsertVouchers(vouchers);
+    const { total: count } = await upsertVouchers(vouchers);
     const pdfs = await upsertVoucherPdfs(vouchers); // base64 PDF-ek külön táblába (ha jött)
     res.status(200).json({ ok: true, count, pdfs });
   } catch (e) {

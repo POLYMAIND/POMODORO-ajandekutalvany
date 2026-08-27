@@ -148,8 +148,12 @@ const COLS = CORE_COLS.concat(EXTRA_COLS);
 // „aktív”-ra: a bolt saját adatbázisa erről a beváltásról nem tud, és egy
 // sync_all különben csendben eltüntetné a napi beváltásokat. Ha a boltban
 // váltják be (onnan jön redeemed / redeemed_at), az normálisan felülír.
-const GUARDED_COLS = ['status', 'redeemed_at'];
+const GUARDED_COLS = ['status', 'redeemed_at', 'is_legacy'];
 const GUARDED_SET = [
+  // Élő (boltból push-olt) utalványt egy CSV-import nem minősíthet „korábbi”-vá —
+  // különben az „Import visszavonása” (ami a legacy sorokat törli) elvinné őket.
+  // Visszafelé szabad: ha a bolt push-olja, az addig legacy sor élővé válik.
+  `is_legacy = CASE WHEN pgv_vouchers.is_legacy = false THEN false ELSE EXCLUDED.is_legacy END`,
   `status = CASE WHEN pgv_vouchers.redeemed_via = 'cockpit' AND pgv_vouchers.status = 'redeemed'
       AND EXCLUDED.status IS DISTINCT FROM 'redeemed' THEN pgv_vouchers.status ELSE EXCLUDED.status END`,
   `redeemed_at = CASE WHEN pgv_vouchers.redeemed_via = 'cockpit' AND pgv_vouchers.status = 'redeemed'
@@ -167,16 +171,18 @@ async function upsertVouchers(rows) {
   const setSql = coreSet.concat(GUARDED_SET, extraSet).join(', ') + ', ingested_at = now()';
 
   const BATCH = 200;
-  let total = 0;
+  let inserted = 0, updated = 0;
   for (let i = 0; i < clean.length; i += BATCH) {
     const chunk = clean.slice(i, i + BATCH);
-    await sql`
+    // xmax = 0 → ez a sor most jött létre; egyébként meglévőt írtunk felül.
+    const out = await sql`
       INSERT INTO pgv_vouchers ${sql(chunk, ...COLS)}
       ON CONFLICT (unit, serial) DO UPDATE SET ${sql.unsafe(setSql)}
+      RETURNING (xmax = 0) AS inserted
     `;
-    total += chunk.length;
+    out.forEach(r => { if (r.inserted) inserted++; else updated++; });
   }
-  return total;
+  return { total: inserted + updated, inserted, updated };
 }
 
 // Utalvány-PDF-ek eltárolása a push payloadból (base64). Külön táblába, kis kötegekben

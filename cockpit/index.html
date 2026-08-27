@@ -347,7 +347,7 @@ tbody tr.clickable{cursor:pointer}
         <div class="urow">
           <div class="card" style="padding:18px 20px">
             <h3 style="font-size:14.5px;margin-bottom:6px">Import</h3>
-            <p class="t-sub" style="margin:0 0 8px">A tiszta formátumú CSV-t töltsd fel (az „utalvány kódja” oszlop kötelező).</p>
+            <p class="t-sub" style="margin:0 0 8px">A tiszta formátumú CSV-t töltsd fel (az „utalvány kódja” oszlop kötelező). Ugyanaz a sorszám nem duplikálódik: a meglévő tétel <b>felülíródik</b> a fájl adataival.</p>
             <label class="fl">Melyik egységbe?</label>
             <select class="fi" id="ioImpUnit"></select>
             <label class="fl">CSV fájl</label>
@@ -940,7 +940,13 @@ $('#ioImport').onclick=async()=>{
     const j=await r.json().catch(()=>({}));
     if(r.ok&&j.ok){
       msg.style.color='var(--good)';
-      msg.textContent='Kész: '+j.imported+' utalvány importálva'+(j.skipped?(' · '+j.skipped+' kihagyva (üres kód)'):'')+'.';
+      // Az azonos sorszámú tétel nem duplikálódik: felülíródik. Ezért külön írjuk ki,
+      // mennyi volt tényleg új és mennyi frissült.
+      const parts=[];
+      if(j.added!=null){ parts.push(j.added+' új'); if(j.updated) parts.push(j.updated+' frissítve (már megvolt)'); }
+      else parts.push(j.imported+' utalvány importálva');
+      if(j.skipped) parts.push(j.skipped+' kihagyva (üres kód)');
+      msg.textContent='Kész: '+parts.join(' · ')+'.';
       $('#ioFile').value=''; refresh();
     }else{ msg.style.color=''; msg.textContent=j.error||'Az import nem sikerült.'; }
   }catch(e){ msg.textContent='Hiba: '+(e.message||e); }
