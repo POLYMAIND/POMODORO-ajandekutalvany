@@ -2,7 +2,7 @@ const { getShops } = require('../lib/shops.js');
 const { resolveUser } = require('../lib/auth.js');
 const { ensureSchema, allVouchers } = require('../lib/db.js');
 const { toCSV } = require('../lib/csv.js');
-const { exportHeader, recordToRow } = require('../lib/voucher_csv.js');
+const { exportHeader, recordToRow, effectiveLabel } = require('../lib/voucher_csv.js');
 const { effectivePurchaseDay, effectiveValidFrom, effectiveValidUntil } = require('../lib/dates.js');
 
 // Utalványok exportja a kanonikus CSV-formátumban (a felhasználó egységeire szűrve).
@@ -55,6 +55,7 @@ module.exports = async (req, res) => {
       out.push(recordToRow(
         Object.assign({}, v, {
           created_at: v.created_at || effectivePurchaseDay(v),
+          label: effectiveLabel(v),
           valid_from: effectiveValidFrom(v),
           valid_until: effectiveValidUntil(v),
         }),

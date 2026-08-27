@@ -1,5 +1,6 @@
 const { resolveUser } = require('../lib/auth.js');
 const { ensureSchema, allVouchers, recentVoucherLog } = require('../lib/db.js');
+const { effectiveLabel } = require('../lib/voucher_csv.js');
 
 // Dátum-segédek és a hiányzó dátumok levezetése — közösen az exporttal.
 const { ymd, ymdhms, effectiveValidFrom, effectiveValidUntil, effectivePurchaseDay } = require('../lib/dates.js');
@@ -19,6 +20,7 @@ function normalizeVoucher(v) {
   // A vásárlás napja a listákhoz és a szűrőkhöz: ahol az import nem hozta a
   // pontos időpontot, ott az érvényességből visszaszámolt nap. A felület
   // megjelöli, hogy ez levezetett érték, a created_at pedig üres marad.
+  o.label = effectiveLabel(v);
   o.purchase_day = effectivePurchaseDay(v);
   o.purchase_day_derived = !ymd(v.created_at) && !!o.purchase_day;
   return o;

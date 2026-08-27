@@ -169,6 +169,20 @@ function rowToRecord(headerIdx, row, unitSlug) {
   return rec;
 }
 
+// Az „utalvány neve” levezetése az értékből. A régi rendszer a sorok 98%-ában
+// pontosan ebben a formában írja („25 000 Ft értékű ajándékutalvány”), ezért a
+// szűkebb exportokból hiányzó terméknév ebből rekonstruálható. Csak akkor
+// használjuk, ha a forrás nem hozott nevet.
+function labelFromAmount(amount) {
+  const n = parseInt(amount, 10);
+  if (!n || n <= 0) return '';
+  return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' Ft értékű ajándékutalvány';
+}
+function effectiveLabel(v) {
+  const l = String(v && v.label != null ? v.label : '').trim();
+  return l || labelFromAmount(v && v.amount);
+}
+
 // Export fejléc (egység + kanonikus oszlopok).
 function exportHeader() {
   return ['egység'].concat(FIELDS.map(f => f[0]));
@@ -192,4 +206,5 @@ function recordToRow(v, unitName) {
   return [unitName].concat(FIELDS.map(f => val(f[1])));
 }
 
-module.exports = { FIELDS, ALIASES, IMPORT_STATUS, EXPORT_STATUS, CANONICAL_STATUS, normalizeStatus, normHeader, headersFor, serialColumnPresent, rowToRecord, exportHeader, recordToRow };
+module.exports = {
+  labelFromAmount, effectiveLabel, FIELDS, ALIASES, IMPORT_STATUS, EXPORT_STATUS, CANONICAL_STATUS, normalizeStatus, normHeader, headersFor, serialColumnPresent, rowToRecord, exportHeader, recordToRow };
