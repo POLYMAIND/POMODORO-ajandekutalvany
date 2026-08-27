@@ -192,6 +192,10 @@ function PGV_Settings_Defaults() {
 		// (tiszta utalvány-rendelésnél nincs mit csomagolni/szállítani).
 		'autocomplete_orders'     => 0,
 
+		// Az élő előnézet helye a termékoldalon:
+		// 'gallery' = a termékkép helyén (nagy), 'fields' = a mezők fölött, 'off' = nincs.
+		'preview_position'        => 'gallery',
+
 		// Központi vezérlőpult (push szinkron): minden mentett utalvány kimenő
 		// HTTP-hívással felkerül a vezérlőpult /api/ingest végpontjára.
 		'cockpit_url'             => '',

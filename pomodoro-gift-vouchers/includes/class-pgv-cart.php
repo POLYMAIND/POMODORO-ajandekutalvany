@@ -17,6 +17,10 @@ class PGV_Cart {
 		// Termékoldali mezők a kosárba tétel gomb előtt.
 		add_action( 'woocommerce_before_add_to_cart_button', array( $this, 'render_fields' ) );
 
+		// Az előnézet a termékkép helyén: a galéria kirajzolása előtt döntünk
+		// (ekkor már ismert a $product, tehát csak utalvány-terméknél cseréljük).
+		add_action( 'woocommerce_before_single_product_summary', array( $this, 'maybe_swap_gallery' ), 1 );
+
 		// Kosárba tétel validáció + adatok csatolása.
 		add_filter( 'woocommerce_add_to_cart_validation', array( $this, 'validate' ), 10, 3 );
 		add_filter( 'woocommerce_add_cart_item_data', array( $this, 'add_cart_item_data' ), 10, 3 );
@@ -82,14 +86,48 @@ class PGV_Cart {
 	}
 
 	/**
+	 * Utalvány-terméknél a termékgaléria helyére tesszük az élő előnézetet.
+	 * A WordPress a hook futása közben felvett, magasabb prioritású callbacket
+	 * még meghívja, így a 20-as galéria helyére a sajátunk kerül.
+	 */
+	public function maybe_swap_gallery() {
+		global $product;
+		if ( 'gallery' !== PGV_Settings::get( 'preview_position', 'gallery' ) ) {
+			return;
+		}
+		if ( ! PGV_Product::is_voucher_product( $product ) ) {
+			return;
+		}
+		if ( ! remove_action( 'woocommerce_before_single_product_summary', 'woocommerce_show_product_images', 20 ) ) {
+			// A sablon nem a szokásos módon rajzolja a galériát — ilyenkor nem
+			// erőltetjük: marad a mezők fölötti (kisebb) előnézet.
+			return;
+		}
+		self::$gallery_swapped = true;
+		add_action( 'woocommerce_before_single_product_summary', array( $this, 'render_preview_gallery' ), 20 );
+	}
+
+	/** @var bool Sikerült-e a galéria helyére tenni az előnézetet. */
+	private static $gallery_swapped = false;
+
+	/**
+	 * A nagy előnézet a galéria helyén.
+	 */
+	public function render_preview_gallery() {
+		echo '<div class="pgv-preview-gallery">';
+		$this->render_preview( 'gallery' );
+		echo '</div>';
+	}
+
+	/**
 	 * Az előnézet-kártya váza. A tartalmat a JS tölti ki élőben; szerveroldalon
 	 * csak a keret és a nem változó feliratok készülnek el, hogy JS nélkül se
 	 * legyen félkész doboz (ilyenkor a kártya rejtve marad).
 	 */
-	private function render_preview() {
+	private function render_preview( $where = 'fields' ) {
 		$p = self::preview_data();
 		?>
-		<div class="pgv-preview" data-pgv-preview hidden>
+		<div class="pgv-preview pgv-preview--<?php echo esc_attr( $where ); ?>" data-pgv-preview hidden>
 			<span class="pgv-preview-title"><?php esc_html_e( 'Így fog kinézni', 'pomodoro-gift-vouchers' ); ?></span>
 			<div class="pgv-card" data-pgv-card>
 				<div class="pgv-card-img"><img alt="" data-pgv-img></div>
@@ -131,7 +169,11 @@ class PGV_Cart {
 		echo '<div class="pgv-fields" data-pgv>';
 
 		// --- Élő előnézet (a kiküldendő PDF kártya mása, sorszám nélkül) ---
-		$this->render_preview();
+		// Ha már a termékkép helyén megjelent, itt nem ismételjük meg.
+		$pos = PGV_Settings::get( 'preview_position', 'gallery' );
+		if ( 'off' !== $pos && ! self::$gallery_swapped ) {
+			$this->render_preview( 'fields' );
+		}
 
 		// --- Utalványkép választása ---
 		if ( ! empty( $images ) ) {

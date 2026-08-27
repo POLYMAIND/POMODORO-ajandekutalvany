@@ -216,17 +216,21 @@
 /* Vízjel — hogy az előnézet ne legyen összetéveszthető a valódi utalvánnyal. */
 .pgv-card-mark {
 	position: absolute;
-	inset: 0;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 50%; /* csak a világos, szöveges félen — a sötét fotón nem látszana */
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	transform: rotate(-24deg);
-	font-size: 9.5em;
+	transform: rotate(-28deg);
+	font-size: 7.5em;
 	font-weight: 800;
-	letter-spacing: .22em;
-	color: rgba(0, 0, 0, .085);
-	text-shadow: 0 1px 0 rgba(255, 255, 255, .25);
+	letter-spacing: .2em;
+	white-space: nowrap;
+	color: rgba(0, 0, 0, .07);
 	pointer-events: none;
+	overflow: hidden;
 }
 
 .pgv-preview-note {
@@ -241,9 +245,36 @@
 	color: #7a2e1d;
 }
 
-/* Szélesebb képernyőn a kártya „letapad”, így gépelés közben is látszik. */
+/* --- A termékkép helyén (nagy) --- */
+.pgv-preview-gallery {
+	margin-bottom: 1.5em;
+}
+
+.pgv-preview--gallery {
+	margin: 0;
+}
+
+.pgv-preview--gallery .pgv-card {
+	border-radius: 10px;
+}
+
+.pgv-preview--gallery .pgv-preview-title,
+.pgv-preview--gallery .pgv-preview-note {
+	text-align: center;
+}
+
+.pgv-preview--gallery .pgv-preview-title {
+	font-size: .8em;
+	letter-spacing: .09em;
+	text-transform: uppercase;
+	opacity: .55;
+	font-weight: 600;
+	margin-bottom: .6em;
+}
+
+/* --- A mezők fölött (kicsi): ott a kártya „letapad” gépelés közben --- */
 @media (min-width: 782px) {
-	.pgv-preview {
+	.pgv-preview--fields {
 		position: sticky;
 		top: 12px;
 		z-index: 2;

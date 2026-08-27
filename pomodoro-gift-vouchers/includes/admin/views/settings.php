@@ -166,6 +166,18 @@ $units = array(
 				</td>
 			</tr>
 			<tr>
+				<th><label for="preview_position"><?php esc_html_e( 'Utalvány-előnézet', 'pomodoro-gift-vouchers' ); ?></label></th>
+				<td>
+					<?php $pgv_pos = isset( $s['preview_position'] ) ? $s['preview_position'] : 'gallery'; ?>
+					<select name="preview_position" id="preview_position">
+						<option value="gallery" <?php selected( $pgv_pos, 'gallery' ); ?>><?php esc_html_e( 'A termékkép helyén (nagy)', 'pomodoro-gift-vouchers' ); ?></option>
+						<option value="fields" <?php selected( $pgv_pos, 'fields' ); ?>><?php esc_html_e( 'A személyre szabó mezők fölött (kicsi)', 'pomodoro-gift-vouchers' ); ?></option>
+						<option value="off" <?php selected( $pgv_pos, 'off' ); ?>><?php esc_html_e( 'Ne jelenjen meg', 'pomodoro-gift-vouchers' ); ?></option>
+					</select>
+					<p class="description"><?php esc_html_e( 'A vásárló élőben látja, milyen lesz a kiküldött utalvány. A termékkép helyén a legnagyobb és legszebb; ha a sablonod nem a szokásos módon jeleníti meg a galériát, válaszd a mezők fölötti helyet.', 'pomodoro-gift-vouchers' ); ?></p>
+				</td>
+			</tr>
+			<tr>
 				<th><?php esc_html_e( 'Rendelés lezárása', 'pomodoro-gift-vouchers' ); ?></th>
 				<td>
 					<label><input type="checkbox" name="autocomplete_orders" value="1" <?php checked( $s['autocomplete_orders'], 1 ); ?>> <?php esc_html_e( 'Fizetés után a rendelés automatikusan „Teljesítve” állapotba kerüljön, ha csak ajándékutalványt tartalmaz', 'pomodoro-gift-vouchers' ); ?></label>
