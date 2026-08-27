@@ -69,6 +69,9 @@ $export_url = wp_nonce_url(
 						<tr>
 							<td>
 								<code><?php echo esc_html( $v['serial'] ); ?></code>
+								<?php if ( ! empty( $v['seq_no'] ) ) : ?>
+									<div class="pgv-seq description"><?php echo esc_html( sprintf( __( 'belső sorszám: %1$s/%2$06d', 'pomodoro-gift-vouchers' ), $v['seq_year'], $v['seq_no'] ) ); ?></div>
+								<?php endif; ?>
 								<?php if ( (int) $v['is_legacy'] ) : ?><span class="pgv-badge pgv-badge-legacy">legacy</span><?php endif; ?>
 							</td>
 							<td><span class="pgv-status pgv-status-<?php echo esc_attr( $v['status'] ); ?>"><?php echo esc_html( PGV_Vouchers::status_label( $v['status'] ) ); ?></span></td>

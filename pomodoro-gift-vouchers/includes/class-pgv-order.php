@@ -93,11 +93,12 @@ class PGV_Order {
 
 			// Mennyiség szerint külön sorszámú utalvány.
 			for ( $n = 0; $n < $qty; $n++ ) {
-				$serial = PGV_Vouchers::allocate_serial( $unit, $prefix );
-				if ( is_wp_error( $serial ) ) {
-					$order->add_order_note( 'Utalvány sorszám-allokálás hiba: ' . $serial->get_error_message() );
+				$alloc = PGV_Vouchers::allocate_serial( $unit, $prefix );
+				if ( is_wp_error( $alloc ) ) {
+					$order->add_order_note( 'Utalvány sorszám-allokálás hiba: ' . $alloc->get_error_message() );
 					continue;
 				}
+				$serial = $alloc['serial'];
 
 				$vid = PGV_Vouchers::create(
 					array(
@@ -105,6 +106,8 @@ class PGV_Order {
 						'order_id'           => $order_id,
 						'order_item_id'      => $item_id,
 						'serial'             => $serial,
+						'seq_no'             => $alloc['seq_no'],
+						'seq_year'           => $alloc['seq_year'],
 						'is_legacy'          => 0,
 						'amount'             => $amount,
 						'denomination_label' => $item->get_name(),

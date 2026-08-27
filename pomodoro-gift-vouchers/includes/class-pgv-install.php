@@ -15,7 +15,7 @@ defined( 'ABSPATH' ) || exit;
 class PGV_Install {
 
 	const DB_VERSION_OPTION = 'pgv_db_version';
-	const DB_VERSION        = '1.0.0';
+	const DB_VERSION        = '1.1.0';
 
 	/**
 	 * Táblanevek.
@@ -67,6 +67,8 @@ class PGV_Install {
 			order_id BIGINT UNSIGNED NULL,
 			order_item_id BIGINT UNSIGNED NULL,
 			serial VARCHAR(64) NOT NULL,
+			seq_no BIGINT UNSIGNED NULL,
+			seq_year SMALLINT UNSIGNED NULL,
 			is_legacy TINYINT(1) NOT NULL DEFAULT 0,
 			amount BIGINT NOT NULL DEFAULT 0,
 			denomination_label VARCHAR(191) NULL,
@@ -90,6 +92,7 @@ class PGV_Install {
 			updated_at DATETIME NOT NULL DEFAULT '0000-00-00 00:00:00',
 			PRIMARY KEY  (id),
 			UNIQUE KEY serial_unit (unit_slug, serial),
+			KEY seq (unit_slug, seq_year, seq_no),
 			UNIQUE KEY qr_token (qr_token),
 			KEY status (unit_slug, status),
 			KEY order_id (order_id),
@@ -173,6 +176,12 @@ function PGV_Settings_Defaults() {
 		'corporate_warn'      => 1,
 		'corporate_block'     => 0,
 		'gapless_serial'      => 1,
+
+		// A kinyomtatott utalvány-kód formátuma:
+		// 'random' = előtag + 8 véletlen karakter (a kasszán 2-3 karakter után egyedi),
+		// 'sequential' = a régi, folytonos forma (CASA-2026-000041).
+		// A hézagmentes belső sorszám (seq_no) mindkettőnél megmarad.
+		'serial_format'       => 'random',
 		'delivery_default'    => 'recipient',
 
 		// E-mail sablon (szerkeszthető az adminból).

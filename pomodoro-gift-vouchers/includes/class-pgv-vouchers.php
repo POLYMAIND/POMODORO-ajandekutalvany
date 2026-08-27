@@ -39,8 +39,49 @@ class PGV_Vouchers {
 	}
 
 	/**
+	 * A kinyomtatott kód ábécéje: nincs benne 0/O és 1/I/L, hogy a kasszán ne
+	 * lehessen félreolvasni vagy félregépelni.
+	 */
+	const CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+	const CODE_LENGTH   = 8;
+
+	/**
+	 * Véletlen, egyedi utalvány-kód az adott egységre (előtag + 8 karakter).
+	 * Ütközésnél újrapróbál; az adatbázis UNIQUE(unit_slug, serial) a végső védelem.
+	 */
+	public static function random_code( $unit_slug, $prefix ) {
+		global $wpdb;
+		$table = PGV_Install::table( 'vouchers' );
+		$alpha = self::CODE_ALPHABET;
+		$max   = strlen( $alpha ) - 1;
+
+		for ( $try = 0; $try < 12; $try++ ) {
+			$code = '';
+			for ( $i = 0; $i < self::CODE_LENGTH; $i++ ) {
+				$code .= $alpha[ random_int( 0, $max ) ];
+			}
+			$serial = strtoupper( $prefix ) . '-' . $code;
+			$taken  = $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT id FROM {$table} WHERE unit_slug = %s AND serial = %s LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					sanitize_key( $unit_slug ),
+					$serial
+				)
+			);
+			if ( ! $taken ) {
+				return $serial;
+			}
+		}
+		return new WP_Error( 'pgv_serial', __( 'Nem sikerült egyedi utalvány-kódot előállítani.', 'pomodoro-gift-vouchers' ) );
+	}
+
+	/**
 	 * Hézagmentes sorszám-allokálás — atomikus (InnoDB tranzakció + FOR UPDATE).
 	 * A hézagmentesség per egység + év garantált.
+	 *
+	 * Visszaad: array( serial, seq_no, seq_year ). A `serial` a kinyomtatott kód
+	 * (beállítástól függően véletlen vagy folytonos), a `seq_no` pedig a
+	 * könyveléshez megmaradó, hézagmentes sorszám — akkor is, ha a kód véletlen.
 	 */
 	public static function allocate_serial( $unit_slug, $prefix ) {
 		global $wpdb;
@@ -87,7 +128,19 @@ class PGV_Vouchers {
 
 		$wpdb->query( 'COMMIT' );
 
-		return sprintf( '%s-%d-%06d', strtoupper( $prefix ), $year, $next );
+		$sequential = sprintf( '%s-%d-%06d', strtoupper( $prefix ), $year, $next );
+
+		if ( 'sequential' === PGV_Settings::get( 'serial_format', 'random' ) ) {
+			return array( 'serial' => $sequential, 'seq_no' => $next, 'seq_year' => $year );
+		}
+
+		$code = self::random_code( $unit_slug, $prefix );
+		if ( is_wp_error( $code ) ) {
+			// Ha a véletlen kód nem sikerülne, inkább a folytonos formát adjuk,
+			// mint hogy a vásárlás elhasaljon a fizetés után.
+			$code = $sequential;
+		}
+		return array( 'serial' => $code, 'seq_no' => $next, 'seq_year' => $year );
 	}
 
 	/**
@@ -108,6 +161,8 @@ class PGV_Vouchers {
 				'order_id'           => null,
 				'order_item_id'      => null,
 				'serial'             => '',
+				'seq_no'             => null,
+				'seq_year'           => null,
 				'is_legacy'          => 0,
 				'amount'             => 0,
 				'denomination_label' => '',
@@ -135,6 +190,8 @@ class PGV_Vouchers {
 			'order_id'           => '%d',
 			'order_item_id'      => '%d',
 			'serial'             => '%s',
+			'seq_no'             => '%d',
+			'seq_year'           => '%d',
 			'is_legacy'          => '%d',
 			'amount'             => '%d',
 			'denomination_label' => '%s',

@@ -192,8 +192,15 @@ $units = array(
 				</td>
 			</tr>
 			<tr>
-				<th><?php esc_html_e( 'Hézagmentes sorszám', 'pomodoro-gift-vouchers' ); ?></th>
-				<td><label><input type="checkbox" name="gapless_serial" value="1" <?php checked( $s['gapless_serial'], 1 ); ?>> <?php esc_html_e( 'Hézagmentes, per-egység + év sorszám', 'pomodoro-gift-vouchers' ); ?></label></td>
+				<th><label for="serial_format"><?php esc_html_e( 'Utalvány-kód', 'pomodoro-gift-vouchers' ); ?></label></th>
+				<td>
+					<?php $pgv_sf = isset( $s['serial_format'] ) ? $s['serial_format'] : 'random'; ?>
+					<select name="serial_format" id="serial_format">
+						<option value="random" <?php selected( $pgv_sf, 'random' ); ?>><?php esc_html_e( 'Véletlen kód (pl. CASA-7K3M9QP2) — a kasszán gyorsan kereshető', 'pomodoro-gift-vouchers' ); ?></option>
+						<option value="sequential" <?php selected( $pgv_sf, 'sequential' ); ?>><?php esc_html_e( 'Folytonos sorszám (pl. CASA-2026-000041)', 'pomodoro-gift-vouchers' ); ?></option>
+					</select>
+					<p class="description"><?php esc_html_e( 'A hézagmentes belső sorszám mindkét esetben megmarad (az utalvány adatlapján és az exportban látszik) — csak az utalványra nyomtatott kód változik. A már kiadott utalványok kódja nem módosul.', 'pomodoro-gift-vouchers' ); ?></p>
+				</td>
 			</tr>
 		</table>
 

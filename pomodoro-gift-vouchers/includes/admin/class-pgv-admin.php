@@ -215,7 +215,7 @@ class PGV_Admin {
 				'marketing_label'  => sanitize_text_field( $in['marketing_label'] ?? '' ),
 				'corporate_warn'   => empty( $in['corporate_warn'] ) ? 0 : 1,
 				'corporate_block'  => empty( $in['corporate_block'] ) ? 0 : 1,
-				'gapless_serial'   => empty( $in['gapless_serial'] ) ? 0 : 1,
+				'serial_format'    => in_array( $in['serial_format'] ?? 'random', array( 'random', 'sequential' ), true ) ? $in['serial_format'] : 'random',
 				'delivery_default' => in_array( $in['delivery_default'] ?? 'recipient', array( 'recipient', 'buyer' ), true ) ? $in['delivery_default'] : 'recipient',
 
 				// E-mail sablon.

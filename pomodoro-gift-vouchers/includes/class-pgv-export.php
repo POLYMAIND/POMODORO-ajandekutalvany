@@ -23,6 +23,7 @@ class PGV_Export {
 	public static function columns() {
 		return array(
 			'Azonosító',
+			'Belső sorszám',
 			'Státusz',
 			'Vásárlás dátuma',
 			'Fizetés dátuma',
@@ -51,6 +52,7 @@ class PGV_Export {
 		$email = ! empty( $v['delivery_email'] ) ? $v['delivery_email'] : $v['buyer_email'];
 		return array(
 			$v['serial'],
+			empty( $v['seq_no'] ) ? '' : sprintf( '%1$s/%2$06d', $v['seq_year'], $v['seq_no'] ),
 			self::status_hu( $v['status'] ),
 			self::fmt_datetime( $v['created_at'] ),
 			self::fmt_datetime( $v['paid_at'] ),
