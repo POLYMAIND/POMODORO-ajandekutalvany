@@ -178,6 +178,13 @@ $units = array(
 				</td>
 			</tr>
 			<tr>
+				<th><?php esc_html_e( 'Gyorsfizetés', 'pomodoro-gift-vouchers' ); ?></th>
+				<td>
+					<label><input type="checkbox" name="hide_express_on_product" value="1" <?php checked( isset( $s['hide_express_on_product'] ) ? $s['hide_express_on_product'] : 1, 1 ); ?>> <?php esc_html_e( 'Apple Pay / Google Pay gomb elrejtése az utalvány termékoldalán', 'pomodoro-gift-vouchers' ); ?></label>
+					<p class="description"><?php esc_html_e( 'A gyorsfizetés a termékoldalról azonnal fizetésre ugrik, és nem viszi magával a személyre szabást (kép, megajándékozott, üzenet, kézbesítés). A pénztárban és a kosárban továbbra is elérhető, ott már együtt van minden adat.', 'pomodoro-gift-vouchers' ); ?></p>
+				</td>
+			</tr>
+			<tr>
 				<th><?php esc_html_e( 'Rendelés lezárása', 'pomodoro-gift-vouchers' ); ?></th>
 				<td>
 					<label><input type="checkbox" name="autocomplete_orders" value="1" <?php checked( $s['autocomplete_orders'], 1 ); ?>> <?php esc_html_e( 'Fizetés után a rendelés automatikusan „Teljesítve” állapotba kerüljön, ha csak ajándékutalványt tartalmaz', 'pomodoro-gift-vouchers' ); ?></label>

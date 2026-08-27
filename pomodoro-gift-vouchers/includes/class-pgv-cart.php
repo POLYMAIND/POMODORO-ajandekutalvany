@@ -21,6 +21,10 @@ class PGV_Cart {
 		// (ekkor már ismert a $product, tehát csak utalvány-terméknél cseréljük).
 		add_action( 'woocommerce_before_single_product_summary', array( $this, 'maybe_swap_gallery' ), 1 );
 
+		// Gyorsfizetés (Apple Pay / Google Pay) elrejtése az utalvány termékoldalán.
+		add_action( 'wp', array( $this, 'maybe_hide_express_checkout' ) );
+		add_filter( 'body_class', array( $this, 'body_class' ) );
+
 		// Kosárba tétel validáció + adatok csatolása.
 		add_filter( 'woocommerce_add_to_cart_validation', array( $this, 'validate' ), 10, 3 );
 		add_filter( 'woocommerce_add_cart_item_data', array( $this, 'add_cart_item_data' ), 10, 3 );
@@ -83,6 +87,39 @@ class PGV_Cart {
 			'watermark'   => __( 'MINTA', 'pomodoro-gift-vouchers' ),
 			'tooLong'     => __( 'Ennél hosszabb üzenet nem fér rá az utalványra — a maradékot levágjuk.', 'pomodoro-gift-vouchers' ),
 		);
+	}
+
+	/**
+	 * Utalvány-termékoldalon jelöljük a body-t, hogy a stíluslap el tudja rejteni
+	 * a gyorsfizetés-gombokat (azoknál a bővítményeknél, ahol nincs saját szűrő).
+	 */
+	public function body_class( $classes ) {
+		if ( function_exists( 'is_product' ) && is_product() && self::is_voucher_page() ) {
+			$classes[] = 'pgv-voucher-product';
+		}
+		return $classes;
+	}
+
+	private static function is_voucher_page() {
+		global $post;
+		return $post && PGV_Product::is_voucher_product( $post->ID );
+	}
+
+	/**
+	 * A termékoldali gyorsfizetés (Apple Pay / Google Pay) kikapcsolása utalványnál:
+	 * a saját AJAX-hívásával a személyre szabó mezők nélkül tenné kosárba a terméket.
+	 * A kosárban és a pénztárban változatlanul elérhető marad.
+	 */
+	public function maybe_hide_express_checkout() {
+		if ( ! function_exists( 'is_product' ) || ! is_product() ) {
+			return;
+		}
+		if ( empty( PGV_Settings::get( 'hide_express_on_product', 1 ) ) || ! self::is_voucher_page() ) {
+			return;
+		}
+		add_filter( 'wc_stripe_hide_payment_request_on_product_page', '__return_true' );
+		add_filter( 'wcpay_payment_request_is_product_supported', '__return_false' );
+		add_filter( 'wcpay_express_checkout_button_is_product_supported', '__return_false' );
 	}
 
 	/**
@@ -172,6 +209,9 @@ class PGV_Cart {
 		$delivery_default = PGV_Settings::get( 'delivery_default', 'recipient' );
 
 		echo '<div class="pgv-fields" data-pgv>';
+		// Jelölő: erről ismerjük fel, hogy a kosárba tétel a személyre szabó
+		// űrlapról jött. Gyorsfizetésnél (Apple Pay / Google Pay) ez hiányzik.
+		echo '<input type="hidden" name="pgv_form" value="1">';
 
 		// --- Élő előnézet (a kiküldendő PDF kártya mása, sorszám nélkül) ---
 		// Ha már a termékkép helyén megjelent, itt nem ismételjük meg.
@@ -246,6 +286,18 @@ class PGV_Cart {
 	public function validate( $passed, $product_id, $quantity ) {
 		if ( ! PGV_Product::is_voucher_product( $product_id ) ) {
 			return $passed;
+		}
+
+		// A személyre szabó űrlap nélküli kosárba tétel (pl. termékoldali
+		// gyorsfizetés-gomb, „rendelés újra”) elvesztené a kép/megajándékozott/
+		// üzenet/kézbesítés adatokat, és üres utalvány jönne létre. Inkább
+		// megállítjuk, és elmondjuk, mit tegyen a vásárló.
+		if ( empty( $_POST['pgv_form'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+			wc_add_notice(
+				__( 'Az ajándékutalványt a termékoldalon, a „Kosárba teszem” gombbal tudod megvenni — így tudjuk elmenteni a képet, a megajándékozott nevét, az üzenetet és a kézbesítés módját.', 'pomodoro-gift-vouchers' ),
+				'error'
+			);
+			return false;
 		}
 
 		$delivery = isset( $_POST['pgv_delivery'] ) ? sanitize_key( wp_unslash( $_POST['pgv_delivery'] ) ) : 'recipient'; // phpcs:ignore WordPress.Security.NonceVerification

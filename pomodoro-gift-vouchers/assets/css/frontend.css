@@ -293,3 +293,24 @@
 @media print {
 	.pgv-preview { display: none; }
 }
+
+/* ------------------------------------------------------------------
+   Gyorsfizetés (Apple Pay / Google Pay) elrejtése az utalvány
+   termékoldalán. Ahol a fizetési bővítménynek van saját szűrője, ott a
+   PHP oldalon kapcsoljuk ki; ez a szabály azoknak szól, ahol nincs.
+   Csak a TERMÉKOLDALON rejtünk — a kosárban és a pénztárban a gomb
+   maradjon, ott már együtt van az utalvány minden adata.
+   ------------------------------------------------------------------ */
+body.pgv-voucher-product .wc-stripe-payment-request-wrapper,
+body.pgv-voucher-product #wc-stripe-payment-request-wrapper,
+body.pgv-voucher-product .wc-stripe-payment-request-button-separator,
+body.pgv-voucher-product #wc-stripe-payment-request-button-separator,
+body.pgv-voucher-product #wcpay-payment-request-wrapper,
+body.pgv-voucher-product .wcpay-payment-request-wrapper,
+body.pgv-voucher-product #wcpay-payment-request-button-separator,
+body.pgv-voucher-product .wcpay-express-checkout-wrapper,
+body.pgv-voucher-product .wc-block-components-express-payment--checkout,
+body.pgv-voucher-product .ppcp-messages + .ppcp-button-container,
+body.pgv-voucher-product #ppc-button-ppcp-gateway {
+	display: none !important;
+}

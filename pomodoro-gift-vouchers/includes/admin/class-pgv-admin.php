@@ -229,6 +229,7 @@ class PGV_Admin {
 				'email_show_image'        => empty( $in['email_show_image'] ) ? 0 : 1,
 				'suppress_wc_emails'      => empty( $in['suppress_wc_emails'] ) ? 0 : 1,
 				'autocomplete_orders'     => empty( $in['autocomplete_orders'] ) ? 0 : 1,
+				'hide_express_on_product' => empty( $in['hide_express_on_product'] ) ? 0 : 1,
 				'preview_position'        => in_array( $in['preview_position'] ?? 'gallery', array( 'gallery', 'fields', 'off' ), true ) ? $in['preview_position'] : 'gallery',
 			)
 		);

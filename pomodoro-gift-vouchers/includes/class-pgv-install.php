@@ -196,6 +196,10 @@ function PGV_Settings_Defaults() {
 		// 'gallery' = a termékkép helyén (nagy), 'fields' = a mezők fölött, 'off' = nincs.
 		'preview_position'        => 'gallery',
 
+		// Az Apple Pay / Google Pay gyorsfizetés-gombok elrejtése az utalvány
+		// termékoldalán: megkerülnék a személyre szabó űrlapot.
+		'hide_express_on_product' => 1,
+
 		// Központi vezérlőpult (push szinkron): minden mentett utalvány kimenő
 		// HTTP-hívással felkerül a vezérlőpult /api/ingest végpontjára.
 		'cockpit_url'             => '',
