@@ -1,17 +1,38 @@
 const { getShops, readBody } = require('../lib/shops.js');
 const { resolveUser, canSeeUnit } = require('../lib/auth.js');
 const { ensureSchema, getVoucher, getVoucherPdf, logVoucherAction } = require('../lib/db.js');
-const { getEmailConfig, senderFor, sendBrevo, voucherEmailHtml } = require('../lib/email.js');
+const { getEmailConfig, senderFor, sendBrevo, voucherEmailHtml, huDate } = require('../lib/email.js');
 
-const DEFAULT_BODY =
+// Két eset, két szöveg. Semmit nem feltételezünk arról, hogy a vendég kérte-e:
+// lehet, hogy a levél elveszett, vagy nálunk történt hiba.
+const TEXTS = {
+  resend: {
+    subject: '{egyseg} · Az ajándékutalványod',
+    body:
 `Kedves {nev}!
 
-Ahogy kérted, újraküldjük a(z) {egyseg} egységbe szóló ajándékutalványodat. A részletek alább, az utalványt PDF-ben is mellékeltük.
+Küldjük a(z) {egyseg} egységbe szóló ajándékutalványodat — a részleteket alább találod, az utalványt PDF-ben is mellékeltük.
 
 Foglalj asztalt, hozd magaddal ezt a levelet, a többiről pedig mi gondoskodunk.
 
 Viszontlátásra:
-a(z) {egyseg} csapata`;
+a(z) {egyseg} csapata`,
+  },
+  newcode: {
+    subject: '{egyseg} · Az ajándékutalványod új azonosítót kapott',
+    body:
+`Kedves {nev}!
+
+A(z) {egyseg} egységbe szóló ajándékutalványod új azonosítót kapott. A korábban kapott kód már nem érvényes — beváltáskor ez a levél, illetve a mellékelt PDF az érvényes.
+
+Az utalvány értéke és érvényessége nem változott. Foglalj asztalt, hozd magaddal ezt a levelet, a többiről pedig mi gondoskodunk.
+
+Elnézést a kellemetlenségért!
+
+Viszontlátásra:
+a(z) {egyseg} csapata`,
+  },
+};
 
 function fill(tpl, d) {
   return String(tpl || '')
@@ -32,6 +53,7 @@ module.exports = async (req, res) => {
   const unit = String((body && body.unit) || '').trim().toLowerCase();
   const serial = String((body && body.serial) || '').trim();
   const toRaw = String((body && body.to) || '').trim();
+  const reason = TEXTS[String((body && body.reason) || '')] ? String(body.reason) : 'resend';
   if (!unit || !serial) { res.status(400).json({ error: 'Hiányzó egység vagy sorszám.' }); return; }
 
   const shop = getShops().find(s => String(s.slug).toLowerCase() === unit);
@@ -60,10 +82,11 @@ module.exports = async (req, res) => {
       unitName: shop.name || shop.slug,
       serial: v.serial,
       amount: nf(v.amount) + ' Ft',
-      valid: v.valid_until ? String(v.valid_until).slice(0, 10) : '',
+      valid: huDate(v.valid_until),
     };
-    const bodyText = fill((cfg.resend && cfg.resend.body) || DEFAULT_BODY, d);
-    const subject = fill((cfg.resend && cfg.resend.subject) || '{egyseg} · Az ajándékutalványod', d);
+    const tpl = TEXTS[reason];
+    const bodyText = fill(tpl.body, d);
+    const subject = fill(tpl.subject, d);
 
     const pdf = await getVoucherPdf(shop.slug, serial);
     const attachments = pdf
@@ -79,10 +102,10 @@ module.exports = async (req, res) => {
     if (!r.ok) { res.status(502).json({ error: 'A küldés nem sikerült: ' + r.error }); return; }
 
     try {
-      await logVoucherAction({ unit: shop.slug, serial, action: 'resend', amount: v.amount, user });
+      await logVoucherAction({ unit: shop.slug, serial, action: 'newcode' === reason ? 'resend_newcode' : 'resend', amount: v.amount, user });
     } catch (e) { /* a napló hibája ne buktassa el a küldést */ }
 
-    res.status(200).json({ ok: true, to, pdfAttached: attachments.length > 0 });
+    res.status(200).json({ ok: true, to, reason, pdfAttached: attachments.length > 0 });
   } catch (e) {
     res.status(500).json({ error: String(e && e.message || e) });
   }

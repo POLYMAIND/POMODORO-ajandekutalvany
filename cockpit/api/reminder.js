@@ -1,13 +1,13 @@
 const { readBody, getShops } = require('../lib/shops.js');
 const { resolveUser, canSeeUnit } = require('../lib/auth.js');
 const { ensureSchema, getVoucher, getVoucherPdf, markReminderSent } = require('../lib/db.js');
-const { getEmailConfig, senderFor, sendBrevo, voucherEmailHtml } = require('../lib/email.js');
+const { getEmailConfig, senderFor, sendBrevo, voucherEmailHtml, huDate } = require('../lib/email.js');
 
 const DEFAULT_SUBJECT = '{egyseg} · Ajándékutalványod {napok}';
 const DEFAULT_BODY =
 `Kedves {nev}!
 
-Öröm, hogy nálunk választottál ajándékutalványt. Csak finoman emlékeztetnénk: a(z) {osszeg} értékű utalványod {napok}, és {ervenyesseg}-ig váltható be nálunk, a(z) {egyseg} egységben.
+Öröm, hogy nálunk választottál ajándékutalványt. Csak finoman emlékeztetnénk: a(z) {osszeg} értékű utalványod {napok}, és eddig váltható be nálunk, a(z) {egyseg} egységben: {ervenyesseg}.
 
 Foglalj asztalt, hozd magaddal ezt a levelet, a többiről pedig mi gondoskodunk. Szeretettel várunk egy kellemes vendéglátós élményre!
 
@@ -45,14 +45,15 @@ module.exports = async (req, res) => {
     }
 
     const amount = Number(v.amount || 0).toLocaleString('hu-HU') + ' Ft';
-    const valid = v.valid_until instanceof Date ? v.valid_until.toISOString().slice(0, 10) : String(v.valid_until || '').slice(0, 10);
+    const validIso = v.valid_until instanceof Date ? v.valid_until.toISOString().slice(0, 10) : String(v.valid_until || '').slice(0, 10);
+    const valid = huDate(validIso);
     const who = v.buyer_name || v.giver_name || 'Kedves Vásárlónk';
     const unitName = String(shop.name || shop.slug);
 
     // Hátralévő napok a lejáratig.
     let daysLeft = null;
-    if (valid) {
-      const t = new Date(valid + 'T00:00:00');
+    if (validIso) {
+      const t = new Date(validIso + 'T00:00:00');
       if (!isNaN(t)) daysLeft = Math.ceil((t - new Date().setHours(0, 0, 0, 0)) / 86400000);
     }
     const daysPhrase = daysLeft == null ? '' : (daysLeft < 0 ? 'lejárt' : (daysLeft === 0 ? 'ma jár le' : 'még ' + daysLeft + ' napig érvényes'));
@@ -86,7 +87,7 @@ module.exports = async (req, res) => {
     let text = bodyText + '\n\n———\n' +
       'Sorszám: ' + v.serial + '\n' +
       'Érték: ' + amount + '\n' +
-      'Érvényes: ' + valid + '-ig' + (daysPhrase ? ' (' + daysPhrase + ')' : '') + '\n' +
+      'Érvényes eddig: ' + valid + (daysPhrase ? ' (' + daysPhrase + ')' : '') + '\n' +
       'Beváltás helye: ' + unitName;
     if (pdfAttached) text += '\n\nAz ajándékutalványt PDF-ben is mellékeltük ehhez a levélhez.';
 

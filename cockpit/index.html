@@ -201,10 +201,11 @@ tbody tr.clickable{cursor:pointer}
 .pbtn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface-2);
   color:var(--ink);border-radius:9px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none}
 .pbtn:hover{background:var(--surface-3)}
-.presend{display:flex;gap:8px;margin-top:10px}
+.presend{display:flex;flex-direction:column;gap:8px;margin-top:10px}
 /* A [hidden]-t a saját display szabályunk felülírná — ezt tegyük helyre. */
 .presend[hidden]{display:none}
-.presend .fi{flex:1}
+.presend-row{display:flex;gap:8px}
+.presend-row .fi{flex:1}
 /* Kassza élő találatok + emlékeztető */
 .cash-hit{display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid var(--line-soft);cursor:pointer}
 .cash-hit:hover{background:var(--surface-2)}.cash-hit:last-child{border-bottom:none}
@@ -1228,8 +1229,14 @@ function openProfile(unit,serial){
         '<button class="pbtn" id="pResend">E-mail újraküldése</button>'+
       '</div>'+
       '<div class="presend" id="pResendBox" hidden>'+
-        '<input class="fi" id="pResendTo" type="email" placeholder="e-mail cím" value="'+esc(email)+'">'+
-        '<button class="btn" id="pResendGo">Küldés</button>'+
+        '<select class="fi" id="pResendReason">'+
+          '<option value="resend">Újraküldés — a kód változatlan</option>'+
+          '<option value="newcode">Új kód készült — a régi már nem érvényes</option>'+
+        '</select>'+
+        '<div class="presend-row">'+
+          '<input class="fi" id="pResendTo" type="email" placeholder="e-mail cím" value="'+esc(email)+'">'+
+          '<button class="btn" id="pResendGo">Küldés</button>'+
+        '</div>'+
       '</div>'+
       '<p class="res-msg" id="pResendMsg"></p>'+
       '<div class="psec">Korábbi vásárlások — '+rel.length+' db · összesen '+money(spent)+'</div>'+
@@ -1251,7 +1258,7 @@ function openProfile(unit,serial){
     go.disabled=true; const o=go.textContent; go.textContent='Küldés…'; msg.className='res-msg'; msg.textContent='';
     try{
       const r=await fetch('/api/resend',{method:'POST',headers:{'content-type':'application/json'},
-        body:JSON.stringify({unit:v.unit,serial:v.serial,to})});
+        body:JSON.stringify({unit:v.unit,serial:v.serial,to,reason:$('#pResendReason').value})});
       const j=await r.json().catch(()=>({}));
       if(r.ok&&j.ok){
         msg.className='res-msg ok';

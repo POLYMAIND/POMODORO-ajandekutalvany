@@ -43,6 +43,17 @@ async function sendBrevo(apiKey, sender, toEmail, subject, text, html, attachmen
 
 function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
+// Dátum a levélbe, magyarul: 2027. 08. 27. A DB dátum-oszlopa Date-ként érkezik,
+// abból a String() angol nyelvű szöveget adna („Fri Aug 27 …”).
+function huDate(v) {
+  if (!v) return '';
+  const iso = v instanceof Date
+    ? (isNaN(v) ? '' : v.toISOString().slice(0, 10))
+    : String(v).slice(0, 10);
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  return m ? `${m[1]}. ${m[2]}. ${m[3]}.` : iso;
+}
+
 // Elegáns, brandelt HTML: a szerkeszthető törzs + egy kiemelt utalvány-doboz.
 function voucherEmailHtml(d) {
   const body = esc(d.bodyText).replace(/\n/g, '<br>');
@@ -64,7 +75,7 @@ function voucherEmailHtml(d) {
       <tr><td style="padding:18px 20px" align="center">
         <div style="font:700 30px Georgia,serif;color:#221d18">${esc(d.amount)}</div>
         <div style="font:700 15px 'Courier New',monospace;color:#6d6357;letter-spacing:1px;margin-top:6px">${esc(d.serial)}</div>
-        <div style="font:14px Arial,sans-serif;color:#6d6357;margin-top:8px">Érvényes: <strong style="color:#221d18">${esc(d.valid)}</strong>-ig</div>
+        <div style="font:14px Arial,sans-serif;color:#6d6357;margin-top:8px">Érvényes eddig: <strong style="color:#221d18">${esc(d.valid)}</strong></div>
         ${badge}
       </td></tr>
     </table>
@@ -77,4 +88,4 @@ function voucherEmailHtml(d) {
 }
 
 
-module.exports = { getEmailConfig, senderFor, sendBrevo, voucherEmailHtml };
+module.exports = { getEmailConfig, senderFor, sendBrevo, voucherEmailHtml, huDate };
