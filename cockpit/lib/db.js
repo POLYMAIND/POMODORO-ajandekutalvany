@@ -186,10 +186,17 @@ const GUARDED_SET = [
   // különben az „Import visszavonása” (ami a legacy sorokat törli) elvinné őket.
   // Visszafelé szabad: ha a bolt push-olja, az addig legacy sor élővé válik.
   `is_legacy = CASE WHEN pgv_vouchers.is_legacy = false THEN false ELSE EXCLUDED.is_legacy END`,
-  `status = CASE WHEN pgv_vouchers.redeemed_via = 'cockpit' AND pgv_vouchers.status = 'redeemed'
+  // Beváltott utalvány import/push hatására SOHA nem lehet újra beváltható.
+  // A boltok „vásárolt” exportja a beváltás előtti állapotot őrzi, így egy
+  // ilyen fájl visszatöltése különben újra felhasználhatóvá tenné a már
+  // levásárolt utalványt. Visszavenni csak kézzel, a „Visszaállítás” gombbal
+  // lehet — az közvetlenül ír, nem ezen az útvonalon.
+  `status = CASE WHEN pgv_vouchers.status = 'redeemed'
       AND EXCLUDED.status IS DISTINCT FROM 'redeemed' THEN pgv_vouchers.status ELSE EXCLUDED.status END`,
-  `redeemed_at = CASE WHEN pgv_vouchers.redeemed_via = 'cockpit' AND pgv_vouchers.status = 'redeemed'
-      AND EXCLUDED.redeemed_at IS NULL THEN pgv_vouchers.redeemed_at ELSE EXCLUDED.redeemed_at END`,
+  // Ugyanígy a beváltás időpontja sem veszhet el egy olyan forrás miatt,
+  // ami erről az oszlopról nem tud (a „vásárolt” exportban nincs ilyen).
+  `redeemed_at = CASE WHEN pgv_vouchers.status = 'redeemed' AND EXCLUDED.redeemed_at IS NULL
+      THEN pgv_vouchers.redeemed_at ELSE COALESCE(EXCLUDED.redeemed_at, pgv_vouchers.redeemed_at) END`,
 ];
 
 async function upsertVouchers(rows) {
