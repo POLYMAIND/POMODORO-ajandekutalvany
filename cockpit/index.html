@@ -347,11 +347,11 @@ tbody tr.clickable{cursor:pointer}
         <div class="urow">
           <div class="card" style="padding:18px 20px">
             <h3 style="font-size:14.5px;margin-bottom:6px">Import</h3>
-            <p class="t-sub" style="margin:0 0 8px">A tiszta formátumú CSV-t töltsd fel (az „utalvány kódja” oszlop kötelező). Ugyanaz a sorszám nem duplikálódik: a meglévő tétel <b>felülíródik</b> a fájl adataival.</p>
+            <p class="t-sub" style="margin:0 0 8px">Tölts fel <b>CSV</b> vagy <b>Excel (.xlsx)</b> fájlt — az „utalvány kódja” oszlop kötelező, a fájl első munkalapját olvassuk. Ugyanaz a sorszám nem duplikálódik: a meglévő tétel <b>felülíródik</b> a fájl adataival.</p>
             <label class="fl">Melyik egységbe?</label>
             <select class="fi" id="ioImpUnit"></select>
             <label class="fl">CSV fájl</label>
-            <input class="fi" id="ioFile" type="file" accept=".csv,text/csv">
+            <input class="fi" id="ioFile" type="file" accept=".csv,.xlsx,.xlsm,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
             <div class="uerr" id="ioMsg"></div>
             <div style="display:flex;gap:8px;margin-top:12px">
               <button type="button" class="btn" id="ioImport">Importálás</button>
@@ -897,6 +897,14 @@ document.querySelectorAll('.nav').forEach(n=>n.onclick=()=>{
 });
 
 // ---- import / export ----
+function fileToBase64(file){
+  return file.arrayBuffer().then(ab=>{
+    const bytes=new Uint8Array(ab);
+    let bin='';
+    for(let i=0;i<bytes.length;i+=0x8000) bin+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000));
+    return btoa(bin);
+  });
+}
 function initIO(){
   const imp=$('#ioImpUnit'), exp=$('#ioExpUnit');
   if(!imp||!exp) return;
@@ -932,11 +940,16 @@ $('#ioImport').onclick=async()=>{
   const unit=$('#ioImpUnit').value;
   const file=$('#ioFile').files&&$('#ioFile').files[0];
   if(!unit){ msg.textContent='Válassz egységet.'; return; }
-  if(!file){ msg.textContent='Válassz CSV fájlt.'; return; }
+  if(!file){ msg.textContent='Válassz CSV vagy Excel (.xlsx) fájlt.'; return; }
+  if(file.size>3.5*1024*1024){ msg.textContent='A fájl túl nagy (max. 3,5 MB). Bontsd több részre, vagy mentsd CSV-be.'; return; }
   const btn=$('#ioImport'); btn.disabled=true; btn.textContent='Importálás…';
   try{
-    const csv=await file.text();
-    const r=await fetch('/api/import',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({unit,csv})});
+    // A CSV szövegként megy (ahogy eddig), az Excel-fájl bájtjai base64-ben.
+    const isText=/\.(csv|txt)$/i.test(file.name);
+    const payload={unit};
+    if(isText) payload.csv=await file.text();
+    else { payload.file=await fileToBase64(file); payload.filename=file.name; }
+    const r=await fetch('/api/import',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
     const j=await r.json().catch(()=>({}));
     if(r.ok&&j.ok){
       msg.style.color='var(--good)';

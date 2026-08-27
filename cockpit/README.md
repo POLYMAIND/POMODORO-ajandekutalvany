@@ -43,6 +43,14 @@ eltüntetné a napi beváltásokat.
 
 ## Import / export
 
+Az import **CSV** és **Excel (.xlsx / .xlsm)** fájlt is fogad. Az Excelnél a fájl
+első munkalapját olvassuk (a munkafüzet szerinti elsőt, nem a ZIP sorrendjét); a
+valódi dátum-cellák dátummá alakulnak, a hiányzó cellák nem csúsztatják el az
+oszlopokat. A feldolgozás függőség nélküli (`lib/xlsx.js`, a Node beépített
+zlib-jével). A régi, bináris **Excel 97-2003 (.xls)** nem olvasható — arra a
+felület azt kéri, hogy mentsd `.xlsx`-ként vagy CSV-ként. Fájlméret-korlát 3,5 MB
+(a serverless kérés-törzs miatt).
+
 Az import **sorszám szerint azonosít** (`unit` + `utalvány kódja` az elsődleges kulcs),
 ezért ugyanaz a tétel nem duplikálódik: a meglévő sor **felülíródik** a fájl adataival,
 csak a valóban új sorszámok kerülnek be újként. A visszajelzés külön írja ki, mennyi
