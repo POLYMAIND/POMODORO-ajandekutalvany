@@ -245,9 +245,20 @@
 	color: #7a2e1d;
 }
 
-/* --- A termékkép helyén (nagy) --- */
+/* --- A termékkép helyén --- */
+/* A kártya pontosan a galéria-oszlopba fekszik, tehát akkora lesz, mint az
+   alap termékkép. A 46vw csak biztonsági fék: ha a sablon nem ad szélességet
+   a galéria-oszlopnak, a kártya akkor sem nyúlhat végig az oldalon. Mobilon
+   (egyoszlopos elrendezés) nincs fék, ott a teljes szélesség a helyes. */
 .pgv-preview-gallery {
 	margin-bottom: 1.5em;
+	max-width: 100%;
+}
+
+@media (min-width: 782px) {
+	.pgv-preview-gallery {
+		max-width: min( 100%, 46vw );
+	}
 }
 
 .pgv-preview--gallery {

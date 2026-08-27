@@ -104,6 +104,9 @@ class PGV_Cart {
 			return;
 		}
 		self::$gallery_swapped = true;
+		// Nincs galéria-kép, tehát a nagyító és a lightbox is felesleges.
+		add_filter( 'woocommerce_single_product_zoom_enabled', '__return_false' );
+		add_filter( 'woocommerce_single_product_photoswipe_enabled', '__return_false' );
 		add_action( 'woocommerce_before_single_product_summary', array( $this, 'render_preview_gallery' ), 20 );
 	}
 
@@ -114,7 +117,10 @@ class PGV_Cart {
 	 * A nagy előnézet a galéria helyén.
 	 */
 	public function render_preview_gallery() {
-		echo '<div class="pgv-preview-gallery">';
+		// A sablonok a galéria-oszlop szélességét a WooCommerce saját osztályaira
+		// kötik; ezeket megtartjuk, különben az előnézet kitörne az oszlopból és
+		// szétesne a kétoszlopos termékoldal.
+		echo '<div class="woocommerce-product-gallery images pgv-preview-gallery">';
 		$this->render_preview( 'gallery' );
 		echo '</div>';
 	}
