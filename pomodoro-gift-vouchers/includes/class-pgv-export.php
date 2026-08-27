@@ -122,26 +122,69 @@ class PGV_Export {
 	/**
 	 * Státusz-szöveg leképezése belső státuszra.
 	 */
+	/**
+	 * Importált állapot -> a rendszer saját állapota.
+	 *
+	 * A forrásrendszerek sokféleképpen írják ugyanazt („felhasználva” /
+	 * „felhasznált” / „beváltva”…). Ami kimarad a listából, az korábban
+	 * csendben AKTÍV lett — vagyis egy már felhasznált utalvány újra
+	 * beválthatóvá vált volna. Ezért ismeretlen, de nem üres értéknél inkább
+	 * függőben hagyjuk: az nem váltható be, és látszik, hogy kézi döntés kell.
+	 */
 	private static function map_status( $raw ) {
-		$s = strtolower( trim( $raw ) );
+		$s = preg_replace( '/\s+/u', ' ', trim( (string) $raw ) );
+		$s = function_exists( 'mb_strtolower' ) ? mb_strtolower( $s, 'UTF-8' ) : strtolower( $s );
 		$map = array(
-			'fizetve'     => PGV_Vouchers::STATUS_ACTIVE,
-			'aktív'       => PGV_Vouchers::STATUS_ACTIVE,
-			'aktiv'       => PGV_Vouchers::STATUS_ACTIVE,
-			'active'      => PGV_Vouchers::STATUS_ACTIVE,
-			'felhasználva' => PGV_Vouchers::STATUS_REDEEMED,
-			'felhasznalva' => PGV_Vouchers::STATUS_REDEEMED,
-			'beváltva'    => PGV_Vouchers::STATUS_REDEEMED,
-			'bevaltva'    => PGV_Vouchers::STATUS_REDEEMED,
-			'redeemed'    => PGV_Vouchers::STATUS_REDEEMED,
-			'sztornó'     => PGV_Vouchers::STATUS_CANCELLED,
-			'sztorno'     => PGV_Vouchers::STATUS_CANCELLED,
-			'cancelled'   => PGV_Vouchers::STATUS_CANCELLED,
-			'lejárt'      => PGV_Vouchers::STATUS_EXPIRED,
-			'lejart'      => PGV_Vouchers::STATUS_EXPIRED,
-			'expired'     => PGV_Vouchers::STATUS_EXPIRED,
+			'fizetve'            => PGV_Vouchers::STATUS_ACTIVE,
+			'aktív'              => PGV_Vouchers::STATUS_ACTIVE,
+			'aktiv'              => PGV_Vouchers::STATUS_ACTIVE,
+			'active'             => PGV_Vouchers::STATUS_ACTIVE,
+			'paid'               => PGV_Vouchers::STATUS_ACTIVE,
+			'kifizetve'          => PGV_Vouchers::STATUS_ACTIVE,
+			'érvényes'           => PGV_Vouchers::STATUS_ACTIVE,
+			'ervenyes'           => PGV_Vouchers::STATUS_ACTIVE,
+			'felhasználatlan'    => PGV_Vouchers::STATUS_ACTIVE,
+			'felhasznalatlan'    => PGV_Vouchers::STATUS_ACTIVE,
+
+			'felhasználva'       => PGV_Vouchers::STATUS_REDEEMED,
+			'felhasznalva'       => PGV_Vouchers::STATUS_REDEEMED,
+			'felhasznált'        => PGV_Vouchers::STATUS_REDEEMED,
+			'felhasznalt'        => PGV_Vouchers::STATUS_REDEEMED,
+			'beváltva'           => PGV_Vouchers::STATUS_REDEEMED,
+			'bevaltva'           => PGV_Vouchers::STATUS_REDEEMED,
+			'beváltott'          => PGV_Vouchers::STATUS_REDEEMED,
+			'bevaltott'          => PGV_Vouchers::STATUS_REDEEMED,
+			'levásárolva'        => PGV_Vouchers::STATUS_REDEEMED,
+			'levasarolva'        => PGV_Vouchers::STATUS_REDEEMED,
+			'redeemed'           => PGV_Vouchers::STATUS_REDEEMED,
+			'used'               => PGV_Vouchers::STATUS_REDEEMED,
+
+			'sztornó'            => PGV_Vouchers::STATUS_CANCELLED,
+			'sztorno'            => PGV_Vouchers::STATUS_CANCELLED,
+			'sztornózva'         => PGV_Vouchers::STATUS_CANCELLED,
+			'sztornozva'         => PGV_Vouchers::STATUS_CANCELLED,
+			'törölve'            => PGV_Vouchers::STATUS_CANCELLED,
+			'torolve'            => PGV_Vouchers::STATUS_CANCELLED,
+			'visszavonva'        => PGV_Vouchers::STATUS_CANCELLED,
+			'cancelled'          => PGV_Vouchers::STATUS_CANCELLED,
+			'canceled'           => PGV_Vouchers::STATUS_CANCELLED,
+
+			'lejárt'             => PGV_Vouchers::STATUS_EXPIRED,
+			'lejart'             => PGV_Vouchers::STATUS_EXPIRED,
+			'expired'            => PGV_Vouchers::STATUS_EXPIRED,
+
+			'függőben'           => PGV_Vouchers::STATUS_PENDING,
+			'fuggoben'           => PGV_Vouchers::STATUS_PENDING,
+			'fizetésre vár'      => PGV_Vouchers::STATUS_PENDING,
+			'fizetesre var'      => PGV_Vouchers::STATUS_PENDING,
+			'feldolgozás alatt'  => PGV_Vouchers::STATUS_PENDING,
+			'feldolgozas alatt'  => PGV_Vouchers::STATUS_PENDING,
+			'pending'            => PGV_Vouchers::STATUS_PENDING,
 		);
-		return isset( $map[ $s ] ) ? $map[ $s ] : PGV_Vouchers::STATUS_ACTIVE;
+		if ( isset( $map[ $s ] ) ) {
+			return $map[ $s ];
+		}
+		return '' === $s ? PGV_Vouchers::STATUS_ACTIVE : PGV_Vouchers::STATUS_PENDING;
 	}
 
 	/**

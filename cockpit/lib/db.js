@@ -1,6 +1,7 @@
 // Neon Postgres réteg (porsager/postgres driver). A kapcsolati stringet
 // automatikusan megtaláljuk a Vercel/Neon által létrehozott env-változók közül.
 const postgres = require('postgres');
+const { normalizeStatus, CANONICAL_STATUS } = require('./voucher_csv.js');
 
 function connString() {
   const candidates = [
@@ -91,7 +92,34 @@ async function ensureSchema() {
     updated_at timestamptz DEFAULT now(),
     PRIMARY KEY (unit, serial)
   )`;
+  await repairStatuses();
   _schemaReady = true;
+}
+
+// Adatjavítás: a korábbi importok a fel nem ismert állapotot nyers szövegként
+// tárolták (pl. 'felhasznált'), így se a szűrő, se az export nem találta meg
+// őket. Nem egyszeri jelzőhöz kötjük, hanem ahhoz, hogy VAN-E mit javítani —
+// így egy később bekerülő hibás adat is rendeződik magától.
+async function repairStatuses() {
+  const sql = db();
+  try {
+    const bad = await sql`SELECT DISTINCT status FROM pgv_vouchers
+      WHERE status IS NOT NULL AND status <> '' AND status <> ALL(${CANONICAL_STATUS})`;
+    if (!bad.length) return;
+
+    const byTarget = {};
+    for (const r of bad) {
+      const norm = normalizeStatus(r.status);
+      // Amit nem ismerünk fel, azt NEM találgatjuk — maradjon látható a hibája.
+      if (!norm || !CANONICAL_STATUS.includes(norm)) continue;
+      (byTarget[norm] = byTarget[norm] || []).push(r.status);
+    }
+    for (const [target, raws] of Object.entries(byTarget)) {
+      await sql`UPDATE pgv_vouchers SET status = ${target} WHERE status IN ${sql(raws)}`;
+    }
+  } catch (e) {
+    // A javítás hibája ne akadályozza a működést — a következő indulásnál újrapróbáljuk.
+  }
 }
 
 function d(v) { // dátum/idő normalizálás: üres / 0000 -> null
@@ -110,7 +138,7 @@ function norm(v) {
     unit: String(v.unit || '').trim(),
     serial: String(v.serial || '').trim(),
     amount: v.amount != null ? (parseInt(v.amount, 10) || 0) : 0,
-    status: v.status || null,
+    status: normalizeStatus(v.status) || null,
     giver_name: s(v.giver_name),
     recipient_name: s(v.recipient_name),
     delivery_email: s(v.delivery_email),

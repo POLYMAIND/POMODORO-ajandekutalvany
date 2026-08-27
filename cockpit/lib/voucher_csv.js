@@ -61,13 +61,41 @@ const ALIASES = {
   marketing_opt_in: ['hírlevél', 'marketing feliratkozás', 'marketing'],
 };
 
+// A forrásrendszerek sokféleképpen írják ugyanazt az állapotot (felhasználva /
+// felhasznált / beváltva…). Minden ismert alakot ide gyűjtünk, ékezet nélküli
+// változattal együtt — ami kimarad, az nyers szövegként kerülne az adatbázisba,
+// és se a szűrő, se a kimutatás nem találná meg.
 const IMPORT_STATUS = {
-  'fizetve': 'active', 'aktív': 'active', 'aktiv': 'active',
-  'felhasználva': 'redeemed', 'felhasznalva': 'redeemed', 'beváltva': 'redeemed', 'bevaltva': 'redeemed',
+  'fizetve': 'active', 'aktív': 'active', 'aktiv': 'active', 'active': 'active',
+  'paid': 'active', 'kifizetve': 'active', 'érvényes': 'active', 'ervenyes': 'active',
+  'nem használt fel': 'active', 'nem hasznalt fel': 'active', 'felhasználatlan': 'active', 'felhasznalatlan': 'active',
+
+  'felhasználva': 'redeemed', 'felhasznalva': 'redeemed',
+  'felhasznált': 'redeemed', 'felhasznalt': 'redeemed',
+  'beváltva': 'redeemed', 'bevaltva': 'redeemed', 'beváltott': 'redeemed', 'bevaltott': 'redeemed',
+  'levásárolva': 'redeemed', 'levasarolva': 'redeemed', 'redeemed': 'redeemed', 'used': 'redeemed',
+
   'törölve': 'cancelled', 'torolve': 'cancelled', 'sztornó': 'cancelled', 'sztorno': 'cancelled',
-  'lejárt': 'expired', 'lejart': 'expired',
+  'sztornózva': 'cancelled', 'sztornozva': 'cancelled', 'visszavonva': 'cancelled',
+  'cancelled': 'cancelled', 'canceled': 'cancelled',
+
+  'lejárt': 'expired', 'lejart': 'expired', 'expired': 'expired',
+
   'függőben': 'pending', 'fuggoben': 'pending', 'fizetésre vár': 'pending', 'fizetesre var': 'pending',
+  'feldolgozás alatt': 'pending', 'feldolgozas alatt': 'pending', 'pending': 'pending',
 };
+
+const CANONICAL_STATUS = ['active', 'redeemed', 'cancelled', 'expired', 'pending'];
+
+// Bármilyen forrásból jövő állapot -> a rendszer saját állapotai.
+// Ismeretlen érték esetén az eredetit adjuk vissza (kisbetűsen), hogy látszódjon
+// a felületen, hogy valami nem stimmel — nem nyeljük el csendben.
+function normalizeStatus(raw) {
+  const s = String(raw == null ? '' : raw).trim().toLowerCase().replace(/\s+/g, ' ');
+  if (!s) return '';
+  if (CANONICAL_STATUS.includes(s)) return s;
+  return IMPORT_STATUS[s] || s;
+}
 const EXPORT_STATUS = {
   active: 'fizetve', redeemed: 'felhasználva', cancelled: 'törölve',
   expired: 'lejárt', pending: 'függőben',
@@ -107,7 +135,7 @@ function rowToRecord(headerIdx, row, unitSlug) {
     order_ref: get('order_ref'),
     label: get('label'),
     amount: amountFrom(get('amount')),
-    status: IMPORT_STATUS[String(get('status')).toLowerCase()] || (get('status') ? String(get('status')).toLowerCase() : 'active'),
+    status: normalizeStatus(get('status')) || 'active',
     created_at: get('created_at'),
     valid_from: get('valid_from'),
     valid_until: get('valid_until'),
@@ -159,4 +187,4 @@ function recordToRow(v, unitName) {
   return [unitName].concat(FIELDS.map(f => val(f[1])));
 }
 
-module.exports = { FIELDS, ALIASES, IMPORT_STATUS, EXPORT_STATUS, normHeader, headersFor, serialColumnPresent, rowToRecord, exportHeader, recordToRow };
+module.exports = { FIELDS, ALIASES, IMPORT_STATUS, EXPORT_STATUS, CANONICAL_STATUS, normalizeStatus, normHeader, headersFor, serialColumnPresent, rowToRecord, exportHeader, recordToRow };
