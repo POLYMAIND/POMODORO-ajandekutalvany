@@ -41,6 +41,19 @@ A kasszán történt beváltást a bolt plugin push-a nem írhatja vissza „akt
 (`redeemed_via = 'cockpit'` őrfeltétel az upsertben), különben egy `sync_all` csendben
 eltüntetné a napi beváltásokat.
 
+## Utalvány-adatlap műveletei
+
+A vásárlás/lejárat/kassza listákból megnyíló mini adatlapon:
+
+- **Utalvány PDF** (`GET /api/pdf?unit=&serial=`) — a bolt pluginja által feltöltött
+  PDF megnyitása. Ha nincs feltöltve, a válasz megmondja, hogy a boltban az
+  „Összes felküldése” pótolja.
+- **E-mail újraküldése** (`POST /api/resend`) — az utalvány kiküldése újra, a
+  tárolt PDF-fel csatolva, Brevón át. Alapból a kézbesítési/vevő címre megy, de
+  a mezőben átírható. Bekerül a naplóba (`resend`).
+
+Mindkettő csak bejelentkezve, és csak arra az egységre, amit a felhasználó láthat.
+
 ## Belső sorszám és kód-csere
 
 Az utalványra nyomtatott kód véletlen (`CASA-7K3M9QP2`), mellette a bolt felküldi
