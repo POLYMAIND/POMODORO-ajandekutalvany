@@ -44,14 +44,17 @@ const ALIASES = {
   valid_from: ['érvényesség kezdete'],
   valid_until: ['érvényesség vége', 'lejárat'],
   redeemed_at: ['felhasználás dátuma'],
-  buyer_name: ['vevő neve'],
+  // A régi rendszer „számlázási név” oszlopa a VEVŐ neve. Ajándékutalványnál
+  // a vevő egyben az ajándékozó, ezért ha külön ajándékozó-oszlop nincs a
+  // fájlban, abba is ez kerül (lásd lentebb).
+  buyer_name: ['vevő neve', 'számlázási név', 'számlázási név / vevő neve'],
   buyer_email: ['vevő e-mail címe', 'email', 'e-mail', 'e-mail cím'],
   buyer_phone: ['vevő telefonszáma'],
   country: ['ország'],
   postcode: ['irányítószám', 'postai irányítószám'],
   city: ['település'],
   street: ['utca, házszám', 'utca házszám'],
-  giver_name: ['ajándékozó neve', 'számlázási név'],
+  giver_name: ['ajándékozó neve'],
   recipient_name: ['megajándékozott neve'],
   message: ['üzenet a megajándékozottnak', 'üzenet'],
   delivery_email: ['kézbesítési e-mail cím'],
@@ -130,7 +133,7 @@ function rowToRecord(headerIdx, row, unitSlug) {
     }
     return '';
   };
-  return {
+  const rec = {
     unit: unitSlug,
     serial: get('serial'),
     order_ref: get('order_ref'),
@@ -159,6 +162,11 @@ function rowToRecord(headerIdx, row, unitSlug) {
     marketing_opt_in: truthy(get('marketing_opt_in')),
     is_legacy: true,
   };
+  // Ha a forrás csak az egyik névoszlopot hozza, a másikat is töltsük: az
+  // ajándékutalványt a vevő adja ajándékba, tehát a kettő ugyanaz a személy.
+  if (!rec.giver_name && rec.buyer_name) rec.giver_name = rec.buyer_name;
+  if (!rec.buyer_name && rec.giver_name) rec.buyer_name = rec.giver_name;
+  return rec;
 }
 
 // Export fejléc (egység + kanonikus oszlopok).
