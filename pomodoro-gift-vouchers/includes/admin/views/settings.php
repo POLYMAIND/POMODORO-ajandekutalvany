@@ -166,6 +166,13 @@ $units = array(
 				</td>
 			</tr>
 			<tr>
+				<th><?php esc_html_e( 'Rendelés lezárása', 'pomodoro-gift-vouchers' ); ?></th>
+				<td>
+					<label><input type="checkbox" name="autocomplete_orders" value="1" <?php checked( $s['autocomplete_orders'], 1 ); ?>> <?php esc_html_e( 'Fizetés után a rendelés automatikusan „Teljesítve” állapotba kerüljön, ha csak ajándékutalványt tartalmaz', 'pomodoro-gift-vouchers' ); ?></label>
+					<p class="description"><?php esc_html_e( 'Az utalványok kibocsátása és az e-mailek kiküldése után fut le. Vegyes rendelésnél (utalvány + más termék) nem nyúl a státuszhoz, mert azt még csomagolni kell.', 'pomodoro-gift-vouchers' ); ?></p>
+				</td>
+			</tr>
+			<tr>
 				<th><?php esc_html_e( 'Hézagmentes sorszám', 'pomodoro-gift-vouchers' ); ?></th>
 				<td><label><input type="checkbox" name="gapless_serial" value="1" <?php checked( $s['gapless_serial'], 1 ); ?>> <?php esc_html_e( 'Hézagmentes, per-egység + év sorszám', 'pomodoro-gift-vouchers' ); ?></label></td>
 			</tr>

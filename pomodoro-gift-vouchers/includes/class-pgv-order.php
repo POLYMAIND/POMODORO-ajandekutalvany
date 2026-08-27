@@ -19,6 +19,10 @@ class PGV_Order {
 		add_action( 'woocommerce_order_status_processing', array( $this, 'issue_for_order' ), 10, 1 );
 
 		// Sztornó / visszatérítés → utalványok érvénytelenítése (nem törlés!).
+		// A rendelés lezárása az utalványok kibocsátása ÉS az e-mailek kiküldése után
+		// (a 99-es prioritás miatt fut a PGV_Emails 10-es kezelője mögött).
+		add_action( 'pgv_vouchers_issued_for_order', array( $this, 'maybe_complete_order' ), 99, 2 );
+
 		add_action( 'woocommerce_order_status_cancelled', array( $this, 'cancel_for_order' ), 10, 1 );
 		add_action( 'woocommerce_order_status_refunded', array( $this, 'cancel_for_order' ), 10, 1 );
 
@@ -158,6 +162,32 @@ class PGV_Order {
 			 */
 			do_action( 'pgv_vouchers_issued_for_order', $order, $created_ids );
 		}
+	}
+
+	/**
+	 * Beállítástól függően a fizetett, tiszta utalvány-rendelést „Teljesítve” állapotba tesszük.
+	 * Vegyes rendeléshez (utalvány + más termék) nem nyúlunk: azt még csomagolni kell.
+	 */
+	public function maybe_complete_order( $order, $created_ids ) {
+		if ( empty( PGV_Settings::get( 'autocomplete_orders' ) ) ) {
+			return;
+		}
+		if ( ! $order instanceof WC_Order ) {
+			return;
+		}
+		if ( ! PGV_Product::order_is_all_vouchers( $order ) ) {
+			return;
+		}
+		// Csak fizetett rendelést zárunk le, és sztornó/visszatérítés után nem nyúlunk hozzá.
+		if ( ! $order->is_paid() || $order->has_status( array( 'completed', 'cancelled', 'refunded', 'failed' ) ) ) {
+			return;
+		}
+		// A státuszváltás újra meghívja az issue_for_order-t, de az idempotens
+		// (a rendelésen ekkor már áll a „kibocsátva” jelölés), így nincs körbefutás.
+		$order->update_status(
+			'completed',
+			__( 'Ajándékutalvány kibocsátva — a rendelés automatikusan lezárva.', 'pomodoro-gift-vouchers' )
+		);
 	}
 
 	/**

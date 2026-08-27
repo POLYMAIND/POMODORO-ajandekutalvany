@@ -78,18 +78,7 @@ class PGV_Emails {
 	}
 
 	private static function order_is_all_vouchers( $order ) {
-		$has = false;
-		foreach ( $order->get_items() as $item ) {
-			if ( ! $item instanceof WC_Order_Item_Product ) {
-				continue;
-			}
-			if ( PGV_Product::is_voucher_product( $item->get_product() ) ) {
-				$has = true;
-			} else {
-				return false; // Van nem-utalvány tétel → ne némítsuk el.
-			}
-		}
-		return $has;
+		return PGV_Product::order_is_all_vouchers( $order );
 	}
 
 	/**

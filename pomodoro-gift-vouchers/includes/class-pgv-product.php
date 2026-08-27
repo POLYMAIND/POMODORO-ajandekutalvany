@@ -31,6 +31,28 @@ class PGV_Product {
 		return 'yes' === $product->get_meta( self::META_IS_VOUCHER );
 	}
 
+	/**
+	 * Igaz, ha a rendelés KIZÁRÓLAG ajándékutalvány-tételeket tartalmaz
+	 * (nincs benne csomagolni/szállítani való termék).
+	 */
+	public static function order_is_all_vouchers( $order ) {
+		if ( ! $order instanceof WC_Order ) {
+			return false;
+		}
+		$has = false;
+		foreach ( $order->get_items() as $item ) {
+			if ( ! $item instanceof WC_Order_Item_Product ) {
+				continue;
+			}
+			if ( self::is_voucher_product( $item->get_product() ) ) {
+				$has = true;
+			} else {
+				return false;
+			}
+		}
+		return $has;
+	}
+
 	public function render_field() {
 		echo '<div class="options_group">';
 		woocommerce_wp_checkbox(
