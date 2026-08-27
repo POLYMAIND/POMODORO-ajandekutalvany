@@ -196,9 +196,15 @@ async function upsertVouchers(rows) {
   const clean = (rows || []).map(norm).filter(r => r.unit && r.serial);
   if (!clean.length) return 0;
   const sql = db();
-  // A core mezőket felülírjuk; az extra CRM mezőket COALESCE-szal védjük.
+  // Kitöltött értéket üres nem írhat felül. Egy szűkebb oszlopkészletű forrásból
+  // (pl. a régi rendszer rövidített exportja) érkező sor különben kiütné a már
+  // meglévő rendelésszámot, nevet, címet — csendben lyukat ütve az adatokban.
   const coreSet = CORE_COLS.filter(c => c !== 'unit' && c !== 'serial' && !GUARDED_COLS.includes(c))
-    .map(c => `${c} = EXCLUDED.${c}`);
+    .map(c => (
+      c === 'amount' ? `amount = CASE WHEN EXCLUDED.amount > 0 THEN EXCLUDED.amount ELSE pgv_vouchers.amount END`
+      : c === 'marketing_opt_in' || c === 'updated_at' ? `${c} = EXCLUDED.${c}`
+      : `${c} = COALESCE(EXCLUDED.${c}, pgv_vouchers.${c})`
+    ));
   const extraSet = EXTRA_COLS.map(c => `${c} = COALESCE(EXCLUDED.${c}, pgv_vouchers.${c})`);
   const setSql = coreSet.concat(GUARDED_SET, extraSet).join(', ') + ', ingested_at = now()';
 

@@ -46,13 +46,15 @@ module.exports = async (req, res) => {
       return;
     }
 
-    // Az érvényesség kezdete/vége levezetve, ha az importból hiányzott.
-    // A „vásárlás időpontja” oszlopba viszont nem írunk kitalált értéket:
-    // az maradjon üres, ha a forrás nem tartalmazta.
+    // A hiányzó dátumokat levezetjük, hogy ne maradjanak üres oszlopok.
+    // Ahol az importból hiányzott a pontos időpont, ott csak a NAP kerül a
+    // „vásárlás időpontja” oszlopba (óra-perc nélkül) — így a sorból látszik,
+    // hogy ez visszaszámolt érték, nem a rendszerben rögzített időbélyeg.
     const out = [exportHeader()];
     for (const v of rows) {
       out.push(recordToRow(
         Object.assign({}, v, {
+          created_at: v.created_at || effectivePurchaseDay(v),
           valid_from: effectiveValidFrom(v),
           valid_until: effectiveValidUntil(v),
         }),

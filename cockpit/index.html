@@ -100,6 +100,7 @@ th{text-align:left;font-size:10.5px;letter-spacing:.09em;text-transform:uppercas
 td{padding:11px 18px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
 tr:last-child td{border-bottom:none}tbody tr:hover{background:var(--surface-2)}
 .t-strong{font-weight:600}.t-sub{color:var(--ink-faint);font-size:12px}
+.t-est{color:var(--ink-soft,var(--ink-faint));cursor:help}
 .pill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap}
 .pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
 .p-active,.p-paid,.p-completed,.p-processing{background:var(--good-soft);color:var(--good)}
@@ -568,7 +569,7 @@ function buildUnitSwitch(){
 }
 let PERIOD={from:'',to:''};
 function inPeriod(x){
-  const d=String(x.created_at||'').slice(0,10);
+  const d=pday(x);
   if(PERIOD.from && (!d || d<PERIOD.from)) return false;
   if(PERIOD.to && (!d || d>PERIOD.to)) return false;
   return true;
@@ -591,6 +592,17 @@ function statusPill(s){
 }
 function uchip(u){return '<span class="uchip"><span class="unit-dot" style="background:'+unitColor(u)+'"></span>'+shortName(u)+'</span>';}
 function fdate(d){ if(!d)return''; const t=new Date(d.replace(' ','T')); return isNaN(t)?d:t.toLocaleDateString('hu-HU'); }
+// A vásárlás napja: a pontos időpont, ha megvan; különben a szerver által az
+// érvényességből visszaszámolt nap (a régi importoknál gyakran csak ez van).
+function pday(x){ return String(x.purchase_day||x.created_at||'').slice(0,10); }
+function psort(x){ return pday(x)||''; }
+// Dátumcella: a levezetett nap ~ jellel és halványan, hogy látszódjon a különbség.
+function dateCell(x){
+  if(x.created_at) return fdate(x.created_at)+'<div class="t-sub">'+ftime(x.created_at)+'</div>';
+  const d=pday(x);
+  if(!d) return '<span class="t-sub">—</span>';
+  return '<span class="t-est" title="Levezetett dátum: az érvényesség végéből visszaszámolva (a régi importban nem volt időpont).">~ '+fdate(d)+'</span><div class="t-sub">becsült</div>';
+}
 function ftime(d){ if(!d)return''; const t=new Date(d.replace(' ','T')); return isNaN(t)?'':t.toLocaleTimeString('hu-HU',{hour:'2-digit',minute:'2-digit'}); }
 function daysLeft(vu){ if(!vu)return null; const t=new Date(vu+'T00:00:00'); return Math.ceil((t-new Date().setHours(0,0,0,0))/86400000); }
 
@@ -615,7 +627,7 @@ function renderKpis(){
 }
 function purchaseRow(x){
   const buyer = x.buyer_name || x.giver_name || '—';
-  return '<tr class="clickable" data-serial="'+esc(x.serial)+'" data-unit="'+esc(x.unit)+'"><td class="tnum">'+fdate(x.created_at)+'<div class="t-sub">'+ftime(x.created_at)+'</div></td>'+
+  return '<tr class="clickable" data-serial="'+esc(x.serial)+'" data-unit="'+esc(x.unit)+'"><td class="tnum">'+dateCell(x)+'</td>'+
     '<td>'+uchip(x.unit)+'</td><td class="mono t-sub">'+(x.serial||'')+'</td>'+
     '<td class="t-strong">'+buyer+'</td>'+
     '<td class="t-sub">'+(x.buyer_email||'')+'</td>'+
@@ -626,7 +638,7 @@ function purchaseRow(x){
 let PURSTATUS='';
 function renderPurchases(){
   const head='<thead><tr><th>Dátum</th><th>Egység</th><th>Sorszám</th><th>Vásárló</th><th>E-mail</th><th>Érték</th><th>Lejárat</th><th>Státusz</th></tr></thead>';
-  const all=filt(DATA.vouchers).slice().sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
+  const all=filt(DATA.vouchers).slice().sort((a,b)=>psort(b).localeCompare(psort(a)));
   // Az áttekintő „Legutóbbi vásárlások” doboza mindig a teljes listát mutatja.
   $('#dashTable').innerHTML=head+'<tbody>'+(all.length?all.slice(0,6).map(purchaseRow).join(''):'<tr><td colspan="8" class="t-sub" style="padding:18px">Még nincs adat.</td></tr>')+'</tbody>';
 
@@ -704,7 +716,7 @@ function searchCashier(q){
     nz(v.serial).includes(q)||nz(v.buyer_name).includes(q)||nz(v.giver_name).includes(q)||
     nz(v.recipient_name).includes(q)||nz(v.buyer_email).includes(q)||nz(v.buyer_phone).includes(q));
   if(currentUnit!=='all') matches=matches.filter(v=>v.unit===currentUnit);
-  matches.sort((a,b)=>((a.status==='active'?0:1)-(b.status==='active'?0:1))||(new Date(b.created_at||0)-new Date(a.created_at||0)));
+  matches.sort((a,b)=>((a.status==='active'?0:1)-(b.status==='active'?0:1))||psort(b).localeCompare(psort(a)));
   const total=matches.length; matches=matches.slice(0,30);
   listCard.style.display='';
   list.innerHTML=(matches.length?matches.map(cashRow).join(''):'<div class="empty" style="padding:18px">Nincs találat.</div>')+
@@ -1198,7 +1210,7 @@ function openProfile(unit,serial){
   const v=findVoucher(unit,serial); if(!v)return;
   const email=v.buyer_email||v.delivery_email||'';
   const rel=email?DATA.vouchers.filter(x=>String(x.buyer_email||x.delivery_email||'').toLowerCase()===email.toLowerCase()):[v];
-  rel.sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
+  rel.sort((a,b)=>psort(b).localeCompare(psort(a)));
   const spent=rel.reduce((s,x)=>s+(+x.amount||0),0);
   const addr=[v.postcode,v.city,v.street,(v.country&&v.country!=='Magyarország'&&v.country!=='HU'?v.country:'')].filter(Boolean).join(' ');
   const d=daysLeft(v.valid_until);
@@ -1206,7 +1218,7 @@ function openProfile(unit,serial){
   const hist=rel.map(x=>{
     const cur=(String(x.serial)===String(v.serial)&&String(x.unit)===String(v.unit));
     return '<div class="ph'+(cur?' cur':'')+'" data-serial="'+esc(x.serial)+'" data-unit="'+esc(x.unit)+'" style="cursor:pointer">'+
-      '<div><div class="mono" style="font-weight:600">'+esc(x.serial)+'</div><div class="t-sub">'+shortName(x.unit)+' · '+fdate(x.created_at)+'</div></div>'+
+      '<div><div class="mono" style="font-weight:600">'+esc(x.serial)+'</div><div class="t-sub">'+shortName(x.unit)+' · '+(x.created_at?fdate(x.created_at):(pday(x)?'~ '+fdate(pday(x)):'—'))+'</div></div>'+
       '<div class="tnum" style="margin-left:auto;font-weight:600">'+money(x.amount)+'</div>'+statusPill(x.status)+'</div>';
   }).join('');
   $('#pcard').innerHTML=
