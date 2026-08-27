@@ -32,6 +32,10 @@ module.exports = async (req, res) => {
     if (from) rows = rows.filter(v => { const d = cd(v); return d && d >= from; });
     if (to) rows = rows.filter(v => { const d = cd(v); return d && d <= to; });
 
+    // Opcionális státusz-szűrő (?status=redeemed).
+    const st = String((req.query && req.query.status) || '').trim().toLowerCase();
+    if (st) rows = rows.filter(v => String(v.status || '').toLowerCase() === st);
+
     const names = {};
     getShops().forEach(s => { names[n(s.slug)] = String(s.name || s.slug).replace(" Pomo d'Oro", ''); });
     const unitName = slug => names[n(slug)] || slug;
@@ -46,7 +50,7 @@ module.exports = async (req, res) => {
     for (const v of rows) out.push(recordToRow(v, unitName(v.unit)));
 
     const stamp = new Date().toISOString().slice(0, 10);
-    const base = only ? only : 'pomodoro'; // egység slug, vagy összesnél „pomodoro”
+    const base = (only ? only : 'pomodoro') + (st ? '-' + st : ''); // egység slug (+ státusz)
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${base}-utalvanyok-${stamp}.csv"`);
     res.setHeader('Cache-Control', 'no-store');

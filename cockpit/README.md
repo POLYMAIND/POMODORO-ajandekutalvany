@@ -67,6 +67,11 @@ az új kóddal; foglalt kódra vagy már átnevezett sorra a művelet nem csiná
 
 ## Import / export
 
+Az **export** egységre, **státuszra** és időszakra (vásárlás dátuma) szűrhető; a
+státusz bekerül a fájlnévbe is (`casa-redeemed-utalvanyok-2026-08-27.csv`), hogy a
+letöltött fájlokat meg lehessen különböztetni. A **Vásárlások** lista tetején
+ugyanez a státusz-szűrő elérhető, a szűrt darabszámmal és összeggel.
+
 Az import **CSV** és **Excel (.xlsx / .xlsm)** fájlt is fogad. Az Excelnél a fájl
 első munkalapját olvassuk (a munkafüzet szerinti elsőt, nem a ZIP sorrendjét); a
 valódi dátum-cellák dátummá alakulnak, a hiányzó cellák nem csúsztatják el az

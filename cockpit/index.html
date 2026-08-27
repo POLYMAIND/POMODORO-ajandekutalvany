@@ -192,6 +192,10 @@ tbody tr.clickable{cursor:pointer}
 .log-item{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 18px;border-bottom:1px solid var(--line-soft);font-size:13px}
 .log-item:last-child{border-bottom:none}
 @media(max-width:960px){.rrange{margin-left:0}}
+/* Lista-fejléc jobb oldali szűrőkkel */
+.listbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.listbar-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.listbar-right .fi{width:auto;padding:7px 10px}
 /* Adatlap műveletek */
 .pacts{display:flex;gap:8px;flex-wrap:wrap}
 .pbtn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface-2);
@@ -289,7 +293,20 @@ tbody tr.clickable{cursor:pointer}
       </section>
 
       <section class="section" id="sec-purchases">
-        <p class="section-intro">Minden egység vásárlása egy helyen. A lista magától frissül, ahogy új fizetés érkezik.</p>
+        <div class="listbar">
+          <p class="section-intro" style="margin:0">Minden egység vásárlása egy helyen. A lista magától frissül, ahogy új fizetés érkezik.</p>
+          <div class="listbar-right">
+            <span class="t-sub" id="purCount"></span>
+            <select class="fi" id="purStatus" aria-label="Státusz szűrő">
+              <option value="">Összes állapot</option>
+              <option value="active">Aktív</option>
+              <option value="redeemed">Beváltva</option>
+              <option value="expired">Lejárt</option>
+              <option value="cancelled">Sztornó</option>
+              <option value="pending">Függőben</option>
+            </select>
+          </div>
+        </div>
         <div class="card"><div style="overflow-x:auto"><table id="purchasesTable"></table></div></div>
       </section>
 
@@ -373,6 +390,15 @@ tbody tr.clickable{cursor:pointer}
             <p class="t-sub" style="margin:0 0 8px">Letöltés a kanonikus CSV-formátumban (a jogosultságodnak megfelelő egységekre).</p>
             <label class="fl">Egység</label>
             <select class="fi" id="ioExpUnit"></select>
+            <label class="fl">Státusz</label>
+            <select class="fi" id="ioExpStatus">
+              <option value="">Összes állapot</option>
+              <option value="active">Fizetve (aktív)</option>
+              <option value="redeemed">Felhasználva</option>
+              <option value="expired">Lejárt</option>
+              <option value="cancelled">Sztornó</option>
+              <option value="pending">Fizetésre vár</option>
+            </select>
             <label class="fl">Időszak (opcionális, vásárlás dátuma)</label>
             <div style="display:flex;align-items:center;gap:8px">
               <input class="fi" type="date" id="ioExpFrom" aria-label="Tól" style="flex:1">
@@ -596,13 +622,20 @@ function purchaseRow(x){
     '<td class="tnum">'+(x.valid_until?fdate(x.valid_until):'—')+'</td>'+
     '<td>'+statusPill(x.status)+'</td></tr>';
 }
+let PURSTATUS='';
 function renderPurchases(){
   const head='<thead><tr><th>Dátum</th><th>Egység</th><th>Sorszám</th><th>Vásárló</th><th>E-mail</th><th>Érték</th><th>Lejárat</th><th>Státusz</th></tr></thead>';
-  const v=filt(DATA.vouchers).slice().sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
-  const rows=v.length?v.map(purchaseRow).join(''):'<tr><td colspan="8" class="t-sub" style="padding:22px">Még nincs adat.</td></tr>';
-  $('#dashTable').innerHTML=head+'<tbody>'+(v.length?v.slice(0,6).map(purchaseRow).join(''):'<tr><td colspan="8" class="t-sub" style="padding:18px">Még nincs adat.</td></tr>')+'</tbody>';
+  const all=filt(DATA.vouchers).slice().sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
+  // Az áttekintő „Legutóbbi vásárlások” doboza mindig a teljes listát mutatja.
+  $('#dashTable').innerHTML=head+'<tbody>'+(all.length?all.slice(0,6).map(purchaseRow).join(''):'<tr><td colspan="8" class="t-sub" style="padding:18px">Még nincs adat.</td></tr>')+'</tbody>';
+
+  const v=PURSTATUS?all.filter(x=>x.status===PURSTATUS):all;
+  const empty=PURSTATUS?'Ebben az állapotban nincs utalvány a kiválasztott egységre/időszakra.':'Még nincs adat.';
+  const rows=v.length?v.map(purchaseRow).join(''):'<tr><td colspan="8" class="t-sub" style="padding:22px">'+empty+'</td></tr>';
   $('#purchasesTable').innerHTML=head+'<tbody>'+rows+'</tbody>';
+  $('#purCount').textContent=v.length?(nf(v.length)+' tétel'+(PURSTATUS?(' · '+money(v.reduce((s,x)=>s+(+x.amount||0),0))):'')):'';
 }
+$('#purStatus').addEventListener('change',e=>{PURSTATUS=e.target.value;renderPurchases();});
 function daysPill(d){
   if(d<0)return '<span class="pill p-expired">lejárt</span>';
   if(d<=14)return '<span class="pill p-expsoon">'+d+' nap</span>';
@@ -925,9 +958,10 @@ function initIO(){
 }
 $('#ioExport').onclick=async()=>{
   const msg=$('#ioExpMsg'); msg.className='uerr'; msg.textContent='';
-  const u=$('#ioExpUnit').value, from=$('#ioExpFrom').value, to=$('#ioExpTo').value;
+  const u=$('#ioExpUnit').value, from=$('#ioExpFrom').value, to=$('#ioExpTo').value, st=$('#ioExpStatus').value;
   const q=[];
   if(u)q.push('unit='+encodeURIComponent(u));
+  if(st)q.push('status='+encodeURIComponent(st));
   if(from)q.push('from='+encodeURIComponent(from));
   if(to)q.push('to='+encodeURIComponent(to));
   const url='/api/export'+(q.length?('?'+q.join('&')):'');
