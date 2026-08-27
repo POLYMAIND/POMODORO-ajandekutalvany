@@ -18,6 +18,14 @@ class PGV_PDF {
 	/** mm → PDF pont. */
 	const MM = 2.834645669;
 
+	/** Kártya-méret (mm) — a termékoldali élő előnézet is ebből dolgozik. */
+	const CARD_W_MM = 210;
+	const CARD_H_MM = 148;
+
+	/** Az üzenet tördelése: ennyi karakternél törünk, és ennyi sor fér ki. */
+	const MSG_WRAP_CHARS = 34;
+	const MSG_MAX_LINES  = 5;
+
 	/** @var array Objektumok nyers tartalma (index+1 = objektumszám). */
 	private $objects = array();
 
@@ -31,7 +39,7 @@ class PGV_PDF {
 	private $images = array();
 	private $image_seq = 0;
 
-	public function __construct( $width_mm = 210, $height_mm = 148 ) {
+	public function __construct( $width_mm = self::CARD_W_MM, $height_mm = self::CARD_H_MM ) {
 		$this->width  = $width_mm * self::MM;
 		$this->height = $height_mm * self::MM;
 	}
@@ -107,8 +115,8 @@ class PGV_PDF {
 
 		// Üzenet (tördelve a keskenyebb oszlopra).
 		if ( ! empty( $voucher['message'] ) ) {
-			$lines = self::wrap( $voucher['message'], 34 );
-			foreach ( array_slice( $lines, 0, 5 ) as $line ) {
+			$lines = self::wrap( $voucher['message'], self::MSG_WRAP_CHARS );
+			foreach ( array_slice( $lines, 0, self::MSG_MAX_LINES ) as $line ) {
 				$pdf->text( $x, $cursor, $line, 10.5, false, 0.35, 0.35, 0.35 );
 				$cursor -= 5.5 * self::MM;
 			}

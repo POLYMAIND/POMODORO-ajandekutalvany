@@ -45,9 +45,75 @@ class PGV_Cart {
 				array(
 					'corporateWarn'    => (bool) PGV_Settings::get( 'corporate_warn', 1 ),
 					'corporateMessage' => __( 'Úgy tűnik, céges nevet vagy adószámot adtál meg. Áfás számla ezen a felületen nem igényelhető — az ajándékutalvány magánvásárlásként állítható ki.', 'pomodoro-gift-vouchers' ),
+					'preview'          => self::preview_data(),
 				)
 			);
 		}
+	}
+
+	/**
+	 * Az élő előnézet adatai a JS-nek. A méretek/tördelés a PDF-generátor
+	 * konstansaiból jönnek, hogy a kettő ne csússzon el egymástól.
+	 */
+	private static function preview_data() {
+		$images = array();
+		foreach ( PGV_Images::get_active() as $img ) {
+			$images[ (string) $img['id'] ] = $img['url'];
+		}
+		$logo_id  = (int) PGV_Settings::get( 'logo_attachment_id', 0 );
+		$logo_url = $logo_id ? ( wp_get_attachment_image_url( $logo_id, 'medium' ) ?: '' ) : '';
+		$months   = max( 1, (int) PGV_Settings::get( 'validity_months', 12 ) );
+
+		return array(
+			'images'      => $images,
+			'logoUrl'     => $logo_url,
+			'unitName'    => (string) PGV_Settings::get( 'unit_name', '' ),
+			'heading'     => __( 'AJÁNDÉKUTALVÁNY', 'pomodoro-gift-vouchers' ),
+			'ratio'       => PGV_PDF::CARD_W_MM . '/' . PGV_PDF::CARD_H_MM,
+			'wrapChars'   => PGV_PDF::MSG_WRAP_CHARS,
+			'maxLines'    => PGV_PDF::MSG_MAX_LINES,
+			'greeting'    => __( 'Kedves %s!', 'pomodoro-gift-vouchers' ),
+			'serialNote'  => __( 'Sorszám: a fizetés után kerül rá', 'pomodoro-gift-vouchers' ),
+			/* translators: %d: hónapok száma */
+			'validityNote' => sprintf( _n( 'Érvényes: a vásárlástól számított %d hónapig', 'Érvényes: a vásárlástól számított %d hónapig', $months, 'pomodoro-gift-vouchers' ), $months ),
+			'watermark'   => __( 'MINTA', 'pomodoro-gift-vouchers' ),
+			'tooLong'     => __( 'Ennél hosszabb üzenet nem fér rá az utalványra — a maradékot levágjuk.', 'pomodoro-gift-vouchers' ),
+		);
+	}
+
+	/**
+	 * Az előnézet-kártya váza. A tartalmat a JS tölti ki élőben; szerveroldalon
+	 * csak a keret és a nem változó feliratok készülnek el, hogy JS nélkül se
+	 * legyen félkész doboz (ilyenkor a kártya rejtve marad).
+	 */
+	private function render_preview() {
+		$p = self::preview_data();
+		?>
+		<div class="pgv-preview" data-pgv-preview hidden>
+			<span class="pgv-preview-title"><?php esc_html_e( 'Így fog kinézni', 'pomodoro-gift-vouchers' ); ?></span>
+			<div class="pgv-card" data-pgv-card>
+				<div class="pgv-card-img"><img alt="" data-pgv-img></div>
+				<div class="pgv-card-body">
+					<?php if ( $p['logoUrl'] ) : ?>
+						<img class="pgv-card-logo" src="<?php echo esc_url( $p['logoUrl'] ); ?>" alt="">
+					<?php elseif ( $p['unitName'] ) : ?>
+						<span class="pgv-card-unit"><?php echo esc_html( $p['unitName'] ); ?></span>
+					<?php endif; ?>
+					<span class="pgv-card-heading"><?php echo esc_html( $p['heading'] ); ?></span>
+					<span class="pgv-card-amount" data-pgv-amount></span>
+					<span class="pgv-card-greeting" data-pgv-greeting hidden></span>
+					<span class="pgv-card-message" data-pgv-message hidden></span>
+					<span class="pgv-card-foot">
+						<span class="pgv-card-serial"><?php echo esc_html( $p['serialNote'] ); ?></span>
+						<span class="pgv-card-valid"><?php echo esc_html( $p['validityNote'] ); ?></span>
+					</span>
+				</div>
+				<span class="pgv-card-mark" aria-hidden="true"><?php echo esc_html( $p['watermark'] ); ?></span>
+			</div>
+			<p class="pgv-preview-note"><?php esc_html_e( 'Tájékoztató előnézet — a végleges utalványra egyedi sorszám és a pontos érvényességi dátum kerül.', 'pomodoro-gift-vouchers' ); ?></p>
+			<p class="pgv-preview-warn" data-pgv-toolong hidden><?php echo esc_html( $p['tooLong'] ); ?></p>
+		</div>
+		<?php
 	}
 
 	/**
@@ -63,6 +129,9 @@ class PGV_Cart {
 		$delivery_default = PGV_Settings::get( 'delivery_default', 'recipient' );
 
 		echo '<div class="pgv-fields" data-pgv>';
+
+		// --- Élő előnézet (a kiküldendő PDF kártya mása, sorszám nélkül) ---
+		$this->render_preview();
 
 		// --- Utalványkép választása ---
 		if ( ! empty( $images ) ) {
