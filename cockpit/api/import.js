@@ -86,7 +86,7 @@ module.exports = async (req, res) => {
     const r = await upsertVouchers(records);
     res.status(200).json({
       ok: true, imported: r.total, added: r.inserted, updated: r.updated,
-      skipped, unit: shop.slug,
+      skipped, blocked: r.skipped || 0, unit: shop.slug,
     });
   } catch (e) {
     res.status(500).json({ error: String(e && e.message || e) });

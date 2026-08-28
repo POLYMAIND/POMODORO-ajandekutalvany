@@ -41,11 +41,12 @@ module.exports = async (req, res) => {
     }
     rows = rows.map(normalizeVoucher);
 
-    // Visszaállítás-napló — hogy a beváltásból visszavett tételek követhetők legyenek.
-    // Csak az 'unredeem' sorok jönnek le (ritkák), így a 8 másodperces poll marad könnyű.
+    // Visszaállítás- és törlés-napló — hogy a beváltásból visszavett és a
+    // véglegesen törölt tételek is követhetők maradjanak. Mindkettő ritka, így
+    // a 8 másodperces poll könnyű marad.
     let log = [];
     try {
-      log = await recentVoucherLog(365, 'unredeem');
+      log = await recentVoucherLog(365, ['unredeem', 'delete', 'undelete']);
       if (s.role !== 'superadmin') {
         const set = new Set((s.units || []).map(norm));
         log = log.filter(r => set.has(norm(r.unit)));

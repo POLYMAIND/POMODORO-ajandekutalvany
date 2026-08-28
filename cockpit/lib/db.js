@@ -85,6 +85,14 @@ async function ensureSchema() {
   // Az utalvány-PDF-ek külön táblában (a plugin push-olja fel base64-ben, mert a
   // bolt bejövő REST-hívását a tárhely bot-védelme blokkolja). Külön tábla, hogy a
   // fő lekérdezéseket (allVouchers, data) ne terhelje a nagy szöveges mező.
+  // Törölt utalványok „sírköve”. Enélkül a bolt következő szinkronja vagy egy
+  // CSV visszatöltése némán visszahozná a szándékosan törölt tételt.
+  await sql`CREATE TABLE IF NOT EXISTS pgv_deleted (
+    unit text NOT NULL,
+    serial text NOT NULL,
+    created_at timestamptz DEFAULT now(),
+    PRIMARY KEY (unit, serial)
+  )`;
   await sql`CREATE TABLE IF NOT EXISTS pgv_pdfs (
     unit text NOT NULL,
     serial text NOT NULL,
@@ -200,9 +208,21 @@ const GUARDED_SET = [
 ];
 
 async function upsertVouchers(rows) {
-  const clean = (rows || []).map(norm).filter(r => r.unit && r.serial);
-  if (!clean.length) return 0;
+  let clean = (rows || []).map(norm).filter(r => r.unit && r.serial);
+  if (!clean.length) return { total: 0, inserted: 0, updated: 0, skipped: 0 };
   const sql = db();
+  // A szándékosan törölt utalványokat egy push vagy egy CSV sem hozhatja vissza.
+  let skipped = 0;
+  try {
+    const tomb = await sql`SELECT unit, serial FROM pgv_deleted`;
+    if (tomb.length) {
+      const dead = new Set(tomb.map(t => String(t.unit).toLowerCase() + '\u0000' + t.serial));
+      const before = clean.length;
+      clean = clean.filter(r => !dead.has(r.unit.toLowerCase() + '\u0000' + r.serial));
+      skipped = before - clean.length;
+      if (!clean.length) return { total: 0, inserted: 0, updated: 0, skipped };
+    }
+  } catch (e) { /* ha a sírkő-tábla még nincs meg, a mentés ne álljon meg */ }
   // Kitöltött értéket üres nem írhat felül. Egy szűkebb oszlopkészletű forrásból
   // (pl. a régi rendszer rövidített exportja) érkező sor különben kiütné a már
   // meglévő rendelésszámot, nevet, címet — csendben lyukat ütve az adatokban.
@@ -227,7 +247,7 @@ async function upsertVouchers(rows) {
     `;
     out.forEach(r => { if (r.inserted) inserted++; else updated++; });
   }
-  return { total: inserted + updated, inserted, updated };
+  return { total: inserted + updated, inserted, updated, skipped };
 }
 
 // Utalvány-PDF-ek eltárolása a push payloadból (base64). Külön táblába, kis kötegekben
@@ -326,6 +346,29 @@ async function unredeemVoucher(unit, serial) {
   return rows[0] || null;
 }
 
+// Utalvány végleges törlése. A tárolt PDF is megy vele — enélkül a /api/pdf
+// egy már nem létező utalványt szolgálna ki. A törlés tényét a hívó naplózza,
+// mert a sor eltűnésével más nyoma nem maradna.
+async function deleteVoucher(unit, serial) {
+  const sql = db();
+  const u = String(unit), s = String(serial);
+  const rows = await sql`DELETE FROM pgv_vouchers
+    WHERE lower(unit) = lower(${u}) AND serial = ${s} RETURNING *`;
+  if (!rows.length) return null;
+  try { await sql`DELETE FROM pgv_pdfs WHERE lower(unit) = lower(${u}) AND serial = ${s}`; } catch (e) { /* a PDF nélkül is töröljük */ }
+  await sql`INSERT INTO pgv_deleted (unit, serial) VALUES (${rows[0].unit}, ${s})
+    ON CONFLICT (unit, serial) DO NOTHING`;
+  return rows[0];
+}
+
+// A sírkő feloldása: a következő szinkron/import újra behozhatja az utalványt.
+async function undeleteVoucher(unit, serial) {
+  const sql = db();
+  const r = await sql`DELETE FROM pgv_deleted
+    WHERE lower(unit) = lower(${String(unit)}) AND serial = ${String(serial)} RETURNING serial`;
+  return r.length > 0;
+}
+
 // ---- Beváltási napló (ki, mikor, mit váltott be / állított vissza) ----
 // A visszaállítás nyoma nélkül a napi összesítő utólag észrevétlenül módosulhatna,
 // ezért minden beváltás és visszaállítás bekerül ide.
@@ -348,7 +391,8 @@ async function ensureLogSchema() {
     ADD COLUMN IF NOT EXISTS prev_redeemed_at timestamptz,
     ADD COLUMN IF NOT EXISTS prev_redeemed_by text,
     ADD COLUMN IF NOT EXISTS user_email text,
-    ADD COLUMN IF NOT EXISTS prev_redeemed_by_email text`;
+    ADD COLUMN IF NOT EXISTS prev_redeemed_by_email text,
+    ADD COLUMN IF NOT EXISTS note text`;
   await sql`CREATE INDEX IF NOT EXISTS pgv_voucher_log_created_idx ON pgv_voucher_log (created_at DESC)`;
   _logReady = true;
 }
@@ -359,11 +403,11 @@ async function logVoucherAction(e) {
   const u = e.user || {};
   await sql`INSERT INTO pgv_voucher_log
       (unit, serial, action, amount, user_id, user_name, user_email,
-       prev_redeemed_at, prev_redeemed_by, prev_redeemed_by_email, created_at)
+       prev_redeemed_at, prev_redeemed_by, prev_redeemed_by_email, note, created_at)
     VALUES (${String(e.unit)}, ${String(e.serial)}, ${String(e.action)}, ${e.amount != null ? Number(e.amount) : null},
       ${u.id != null ? Number(u.id) : null}, ${u.name || u.email || null}, ${u.email || null},
       ${e.prev_redeemed_at || null}, ${e.prev_redeemed_by || null}, ${e.prev_redeemed_by_email || null},
-      ${nowLocal(sql)})`;
+      ${e.note || null}, ${nowLocal(sql)})`;
 }
 
 // Az utóbbi N nap naplója (a napi/időszaki önellenőrzéshez).
@@ -375,10 +419,11 @@ async function recentVoucherLog(days, action) {
   const n = Math.max(1, Math.min(3650, parseInt(days, 10) || 90));
   const since = sql`${nowLocal(sql)} - ${sql.unsafe("interval '" + n + " days'")}`;
   const cols = sql`unit, serial, action, amount, user_name, user_email,
-    prev_redeemed_at, prev_redeemed_by, prev_redeemed_by_email, created_at`;
-  if (action) {
+    prev_redeemed_at, prev_redeemed_by, prev_redeemed_by_email, note, created_at`;
+  const acts = Array.isArray(action) ? action.map(String) : (action ? [String(action)] : null);
+  if (acts && acts.length) {
     return await sql`SELECT ${cols} FROM pgv_voucher_log
-      WHERE created_at >= ${since} AND action = ${String(action)}
+      WHERE created_at >= ${since} AND action IN ${sql(acts)}
       ORDER BY created_at DESC`;
   }
   return await sql`SELECT ${cols} FROM pgv_voucher_log
@@ -484,6 +529,7 @@ async function deleteUser(id) {
 }
 
 module.exports = {
+  deleteVoucher, undeleteVoucher,
   db, ensureSchema, upsertVouchers, upsertVoucherPdfs, getVoucherPdf, allVouchers, getVoucher,
   redeemVoucher, unredeemVoucher, renameVoucher, markReminderSent, deleteLegacyByUnit,
   ensureLogSchema, logVoucherAction, recentVoucherLog,

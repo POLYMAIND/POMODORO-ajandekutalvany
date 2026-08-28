@@ -186,7 +186,12 @@ tbody tr.clickable{cursor:pointer}
 .red-sum .rs.sub .rs-v{font-size:15px;font-weight:600}
 .red-sum .rs.warn .rs-k{color:var(--crit)}
 .red-sum .rs.warn .rs-v{color:var(--crit);font-size:15px;font-weight:600}
-#redLogTable th,#redLogTable td{white-space:nowrap}
+#redLogTable th,#redLogTable td,#delLogTable th,#delLogTable td{white-space:nowrap}
+.pbtn.danger,.btn.danger{border-color:var(--crit);color:var(--crit);background:transparent}
+.pbtn.danger:hover,.btn.danger:hover{background:var(--crit);color:#fff;border-color:var(--crit)}
+.pdel{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.pdel[hidden]{display:none}
+.pdel .pdel-row{display:flex;gap:8px}
 .rsearch{margin-top:12px}
 .rsearch .fi{max-width:420px}
 #redTable th,#redTable td{white-space:nowrap}
@@ -366,6 +371,10 @@ tbody tr.clickable{cursor:pointer}
           <div class="card" id="redLogCard" style="margin-top:12px">
             <div class="card-head"><h3>Visszaállított (téves) beváltások</h3><span class="t-sub" id="redLogPeriod"></span></div>
             <div style="overflow-x:auto"><table id="redLogTable"></table></div>
+          </div>
+          <div class="card" id="delLogCard" style="margin-top:12px;display:none">
+            <div class="card-head"><h3>Törölt utalványok</h3><span class="t-sub" id="delLogPeriod"></span></div>
+            <div style="overflow-x:auto"><table id="delLogTable"></table></div>
           </div>
         </div>
       </section>
@@ -890,7 +899,47 @@ function renderRedeemLog(r){
    :'<tr><td colspan="8" class="t-sub" style="padding:22px">'+
      (REDQ?'Nincs találat erre a keresésre.':'Ebben az időszakban nem volt visszaállítás.')+'</td></tr>';
   $('#redLogTable').innerHTML=head+'<tbody>'+rows+'</tbody>';
+  renderDeleteLog(r);
 }
+// Véglegesen törölt utalványok. A sor eltűnt az adatbázisból, ezért itt csak az
+// marad, amit a törlés pillanatában elmentettünk — enélkül nyomtalan lenne.
+function renderDeleteLog(r){
+  const card=$('#delLogCard'); if(!card) return;
+  if(CFG.role!=='superadmin'){ card.style.display='none'; return; }
+  // A feloldott törléseket nem soroljuk fel újra — a sor visszakerülhet a listába.
+  const undone=new Set((DATA.log||[]).filter(x=>x.action==='undelete').map(x=>x.unit+'|'+x.serial));
+  let log=(DATA.log||[]).filter(x=>x.action==='delete'&&!undone.has(x.unit+'|'+x.serial)&&inRedRange(x.created_at,r));
+  if(currentUnit!=='all') log=log.filter(x=>x.unit===currentUnit);
+  if(REDQ) log=log.filter(x=>logMatch(x,REDQ)||String(x.note||'').toLowerCase().includes(REDQ));
+  card.style.display=log.length?'':'none';
+  if(!log.length) return;
+  log.sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||'')));
+  $('#delLogPeriod').textContent=log.length+' db · '+money(log.reduce((a,x)=>a+(+x.amount||0),0));
+  const head='<thead><tr><th>Törölve</th><th>Egység</th><th>Sorszám</th><th>Adatai a törlés előtt</th><th>Érték</th><th>Törölte</th><th></th></tr></thead>';
+  $('#delLogTable').innerHTML=head+'<tbody>'+log.map(x=>
+    '<tr>'+
+    '<td class="tnum">'+fdate(x.created_at)+'<div class="t-sub">'+ftime(x.created_at)+'</div></td>'+
+    '<td>'+uchip(x.unit)+'</td>'+
+    '<td class="mono t-sub">'+esc(x.serial)+'</td>'+
+    '<td class="t-sub">'+esc(x.note||'—')+'</td>'+
+    '<td class="t-strong tnum">'+money(x.amount)+'</td>'+
+    '<td>'+actorCell(x.user_name,x.user_email)+'</td>'+
+    '<td style="text-align:right;white-space:nowrap"><button class="tact" data-undel="'+esc(x.serial)+'" data-unit="'+esc(x.unit)+'" title="A tiltás feloldása — a bolt következő szinkronja visszahozhatja">Visszaengedés</button></td>'+
+    '</tr>').join('')+'</tbody>';
+}
+// A törlés feloldása. Magát az utalványt nem itt hozzuk vissza: a tiltás
+// megszűnik, és a bolt következő szinkronja (vagy egy import) tölti be újra.
+$('#delLogTable').addEventListener('click',async e=>{
+  const b=e.target.closest('[data-undel]'); if(!b) return;
+  if(!confirm('Feloldod a törlést? Az utalvány nem jelenik meg azonnal — a bolt következő szinkronja vagy egy újbóli import hozza vissza.')) return;
+  b.disabled=true; const o=b.textContent; b.textContent='…';
+  try{
+    const r=await fetch('/api/delete',{method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({action:'undelete',unit:b.dataset.unit,serial:b.dataset.undel})});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok&&j.ok){ refresh(); } else { alert(j.error||'Nem sikerült feloldani.'); b.disabled=false; b.textContent=o; }
+  }catch(err){ alert('Hálózati hiba.'); b.disabled=false; b.textContent=o; }
+});
 $('#redLogTable').addEventListener('click',e=>{
   const tr=e.target.closest('tr[data-serial]');
   if(tr&&tr.dataset.serial) openProfile(tr.dataset.unit,tr.dataset.serial);
@@ -1013,6 +1062,7 @@ $('#ioImport').onclick=async()=>{
       // mennyi volt tényleg új és mennyi frissült.
       const parts=[];
       if(j.added!=null){ parts.push(j.added+' új'); if(j.updated) parts.push(j.updated+' frissítve (már megvolt)'); }
+      if(j.blocked) parts.push(j.blocked+' korábban törölt, kihagyva');
       else parts.push(j.imported+' utalvány importálva');
       if(j.skipped) parts.push(j.skipped+' kihagyva (üres kód)');
       msg.textContent='Kész: '+parts.join(' · ')+'.';
@@ -1239,7 +1289,16 @@ function openProfile(unit,serial){
       '<div class="pacts">'+
         '<a class="pbtn" href="/api/pdf?unit='+encodeURIComponent(v.unit)+'&serial='+encodeURIComponent(v.serial)+'" target="_blank" rel="noopener">Utalvány PDF</a>'+
         '<button class="pbtn" id="pResend">E-mail újraküldése</button>'+
+        (CFG.role==='superadmin'?'<button class="pbtn danger" id="pDel">Utalvány törlése</button>':'')+
       '</div>'+
+      '<div class="pdel" id="pDelBox" hidden>'+
+        '<p class="t-sub">A törlés végleges: az utalvány és a hozzá tartozó PDF eltűnik, a beváltó felületen sem lesz megtalálható. A művelet a naplóba kerül. Megerősítéshez írd be a sorszámot:</p>'+
+        '<div class="pdel-row">'+
+          '<input class="fi" id="pDelConfirm" placeholder="'+esc(v.serial)+'" autocomplete="off">'+
+          '<button class="btn danger" id="pDelGo">Végleges törlés</button>'+
+        '</div>'+
+      '</div>'+
+      '<p class="res-msg" id="pDelMsg"></p>'+
       '<div class="presend" id="pResendBox" hidden>'+
         '<select class="fi" id="pResendReason">'+
           '<option value="resend">Újraküldés — a kód változatlan</option>'+
@@ -1279,6 +1338,28 @@ function openProfile(unit,serial){
       } else { msg.className='res-msg err'; msg.textContent=j.error||'A küldés nem sikerült.'; }
     }catch(e){ msg.className='res-msg err'; msg.textContent='Hálózati hiba.'; }
     go.disabled=false; go.textContent=o;
+  };
+
+  // Végleges törlés — csak központi adminnak, a sorszám pontos beírásával.
+  const db_=$('#pDel'), dbox=$('#pDelBox'), dmsg=$('#pDelMsg');
+  if(db_) db_.onclick=()=>{
+    dbox.hidden=!dbox.hidden; dmsg.textContent='';
+    if(!dbox.hidden) $('#pDelConfirm').focus();
+  };
+  const dgo=$('#pDelGo');
+  if(dgo) dgo.onclick=async()=>{
+    const confirmTxt=$('#pDelConfirm').value.trim();
+    if(confirmTxt.toUpperCase()!==String(v.serial).toUpperCase()){
+      dmsg.className='res-msg err'; dmsg.textContent='A sorszám nem egyezik — írd be pontosan: '+v.serial; return;
+    }
+    dgo.disabled=true; const o=dgo.textContent; dgo.textContent='Törlés…'; dmsg.className='res-msg'; dmsg.textContent='';
+    try{
+      const r=await fetch('/api/delete',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({unit:v.unit,serial:v.serial,confirm:confirmTxt})});
+      const j=await r.json().catch(()=>({}));
+      if(r.ok&&j.ok){ closeProfile(); refresh(); }
+      else { dmsg.className='res-msg err'; dmsg.textContent=j.error||'A törlés nem sikerült.'; dgo.disabled=false; dgo.textContent=o; }
+    }catch(e){ dmsg.className='res-msg err'; dmsg.textContent='Hálózati hiba.'; dgo.disabled=false; dgo.textContent=o; }
   };
 }
 function closeProfile(){$('#profile').classList.remove('show');}
