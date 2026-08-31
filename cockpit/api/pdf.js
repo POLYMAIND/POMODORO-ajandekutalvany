@@ -1,12 +1,12 @@
 const { getShops } = require('../lib/shops.js');
-const { resolveUser, canSeeUnit } = require('../lib/auth.js');
+const { resolveUser, canSeeUnit, authFail } = require('../lib/auth.js');
 const { ensureSchema, getVoucher, getVoucherPdf } = require('../lib/db.js');
 
 // Az utalvány PDF-je (amit a bolt pluginja feltöltött). Megnyitáshoz/letöltéshez
 // a vezérlőpultról — csak bejelentkezve és csak a saját egység utalványára.
 module.exports = async (req, res) => {
   const user = await resolveUser(req);
-  if (!user) { res.status(401).json({ error: 'auth' }); return; }
+  if (!user) { authFail(req, res); return; }
 
   const q = req.query || {};
   const unit = String(q.unit || '').trim().toLowerCase();

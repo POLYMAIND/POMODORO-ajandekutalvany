@@ -13,6 +13,7 @@ module.exports = async (req, res) => {
   if (!pass) { res.status(400).json({ error: 'Adj meg jelszót.' }); return; }
 
   let session = null;
+  let dbDown = false;
 
   // 1) Valódi felhasználó az adatbázisból.
   if (email && email.toLowerCase() !== 'admin' && email.toLowerCase() !== 'master') {
@@ -26,7 +27,10 @@ module.exports = async (req, res) => {
         return;
       }
     } catch (e) {
-      // DB elérhetetlen — essünk vissza a mesterjelszóra alább.
+      // Az adatbázis nem elérhető. A mesterjelszó alább még működhet, de ha az
+      // sem, akkor ÜZEMZAVART kell mondanunk — nem „hibás jelszót”, ami a helyes
+      // jelszót beíró felhasználót vég nélküli újrapróbálkozásba küldi.
+      dbDown = true;
     }
   }
 
@@ -36,6 +40,10 @@ module.exports = async (req, res) => {
     session = { id: 0, master: true, name: 'Központi admin', role: 'superadmin' };
   }
 
+  if (!session && dbDown) {
+    res.status(503).json({ error: 'Az adatbázis pillanatnyilag nem elérhető, ezért a belépést nem tudjuk ellenőrizni. Próbáld újra pár perc múlva.', retry: true });
+    return;
+  }
   if (!session) { res.status(401).json({ error: 'Hibás e-mail vagy jelszó.' }); return; }
 
   const tok = makeSession(session);

@@ -1,4 +1,4 @@
-const { resolveUser } = require('../lib/auth.js');
+const { resolveUser, authFail } = require('../lib/auth.js');
 const { ensureSchema, listVouchers, recentVoucherLog, dataVersion } = require('../lib/db.js');
 const { effectiveLabel } = require('../lib/voucher_csv.js');
 
@@ -33,7 +33,7 @@ const CACHE_MS = 5000;
 
 module.exports = async (req, res) => {
   const s = await resolveUser(req);
-  if (!s) { res.status(401).json({ error: 'auth' }); return; }
+  if (!s) { authFail(req, res); return; }
   try {
     await ensureSchema();
 

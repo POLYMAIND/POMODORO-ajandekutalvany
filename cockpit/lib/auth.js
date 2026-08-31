@@ -57,8 +57,17 @@ async function resolveUser(req) {
   if (t.master) return { id: 0, email: 'admin', name: 'Központi admin', role: 'superadmin', units: [] };
   if (!t.uid) return null;
   const { ensureUsersSchema, getUserById } = require('./db.js');
-  let u;
-  try { await ensureUsersSchema(); u = await getUserById(t.uid); } catch (e) { return null; }
+  // Az adatbázis pillanatnyi hibája NEM jelenti azt, hogy a felhasználó nincs
+  // bejelentkezve. Korábban minden ilyen hiba 401-et adott, amitől a felület
+  // kidobta a belépőre — egy adatbázis-akadozás így folyamatos újra-bejelentkezést
+  // okozott. Egyszer újrapróbáljuk, és ha úgy sem megy, jelezzük a hívónak, hogy
+  // ez üzemzavar (503), nem hiányzó jogosultság.
+  let u, lastErr = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try { await ensureUsersSchema(); u = await getUserById(t.uid); lastErr = null; break; }
+    catch (e) { lastErr = e; if (attempt === 0) await new Promise(r => setTimeout(r, 300)); }
+  }
+  if (lastErr) { if (req) req.authUnavailable = true; return null; }
   if (!u || u.disabled) return null;
   return { id: u.id, email: u.email, name: u.name || u.email, role: u.role, units: u.units || [] };
 }
@@ -86,4 +95,14 @@ function canSeeUnit(session, unit) {
   return Array.isArray(session.units) && session.units.map(n).includes(n(unit));
 }
 
-module.exports = { ROLES, ROLE_LABELS, makeSession, readSession, resolveUser, hashPassword, verifyPassword, canSeeUnit, secret };
+// A 401 (nincs jogosultság) és az 503 (átmenetileg nem elérhető) megkülönböztetése:
+// az elsőre a felület belépőt mutat, a másodikra csak vár és újrapróbál.
+function authFail(req, res) {
+  if (req && req.authUnavailable) {
+    res.status(503).json({ error: 'Az adatbázis pillanatnyilag nem elérhető. Újrapróbálkozás…', retry: true });
+  } else {
+    res.status(401).json({ error: 'auth' });
+  }
+}
+
+module.exports = { ROLES, ROLE_LABELS, makeSession, readSession, resolveUser, authFail, hashPassword, verifyPassword, canSeeUnit, secret };

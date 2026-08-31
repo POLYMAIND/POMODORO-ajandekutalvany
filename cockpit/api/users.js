@@ -1,11 +1,11 @@
 const { readBody, getShops } = require('../lib/shops.js');
-const { resolveUser, hashPassword, ROLES, ROLE_LABELS } = require('../lib/auth.js');
+const { resolveUser, hashPassword, ROLES, ROLE_LABELS, authFail } = require('../lib/auth.js');
 const { ensureUsersSchema, listUsers, getUserByEmail, createUser, updateUser, deleteUser } = require('../lib/db.js');
 
 // Felhasználó- és jogosultságkezelés — kizárólag központi admin (superadmin).
 module.exports = async (req, res) => {
   const s = await resolveUser(req);
-  if (!s) { res.status(401).json({ error: 'auth' }); return; }
+  if (!s) { authFail(req, res); return; }
   if (s.role !== 'superadmin') { res.status(403).json({ error: 'Csak központi admin.' }); return; }
 
   try {

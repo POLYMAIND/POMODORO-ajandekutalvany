@@ -2,7 +2,7 @@ const { getShops, isAuthed } = require('../lib/shops.js');
 
 // Diagnosztika: megmutatja, mit válaszol a bolt a szerver-kérésre (403 forrása).
 module.exports = async (req, res) => {
-  if (!isAuthed(req)) { res.status(401).json({ error: 'auth' }); return; }
+  if (!isAuthed(req)) { authFail(req, res); return; }
   const slug = (req.query && req.query.shop) || (getShops()[0] && getShops()[0].slug);
   const shop = getShops().find(s => s.slug === slug) || getShops()[0];
   if (!shop) { res.status(404).json({ error: 'Nincs bolt a SHOPS-ban.' }); return; }

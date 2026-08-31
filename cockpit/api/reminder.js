@@ -1,5 +1,5 @@
 const { readBody, getShops } = require('../lib/shops.js');
-const { resolveUser, canSeeUnit } = require('../lib/auth.js');
+const { resolveUser, canSeeUnit, authFail } = require('../lib/auth.js');
 const { ensureSchema, getVoucher, getVoucherPdf, markReminderSent } = require('../lib/db.js');
 const { getEmailConfig, senderFor, sendBrevo, voucherEmailHtml, huDate } = require('../lib/email.js');
 
@@ -22,7 +22,7 @@ a(z) {egyseg} csapata`;
 module.exports = async (req, res) => {
   if (req.method !== 'POST') { res.status(405).json({ error: 'POST' }); return; }
   const user = await resolveUser(req);
-  if (!user) { res.status(401).json({ error: 'auth' }); return; }
+  if (!user) { authFail(req, res); return; }
 
   const body = await readBody(req);
   const serial = String((body && body.serial) || '').trim();

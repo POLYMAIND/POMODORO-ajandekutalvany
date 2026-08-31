@@ -1,5 +1,5 @@
 const { getShops } = require('../lib/shops.js');
-const { resolveUser } = require('../lib/auth.js');
+const { resolveUser, authFail } = require('../lib/auth.js');
 const { ensureSchema, allVouchers } = require('../lib/db.js');
 const { toCSV } = require('../lib/csv.js');
 const { exportHeader, recordToRow, effectiveLabel } = require('../lib/voucher_csv.js');
@@ -8,7 +8,7 @@ const { effectivePurchaseDay, effectiveValidFrom, effectiveValidUntil } = requir
 // Utalványok exportja a kanonikus CSV-formátumban (a felhasználó egységeire szűrve).
 module.exports = async (req, res) => {
   const user = await resolveUser(req);
-  if (!user) { res.status(401).json({ error: 'auth' }); return; }
+  if (!user) { authFail(req, res); return; }
 
   try {
     await ensureSchema();

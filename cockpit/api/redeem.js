@@ -1,5 +1,5 @@
 const { getShops, readBody } = require('../lib/shops.js');
-const { resolveUser, canSeeUnit } = require('../lib/auth.js');
+const { resolveUser, canSeeUnit, authFail } = require('../lib/auth.js');
 const { ensureSchema, getVoucher, redeemVoucher, logVoucherAction } = require('../lib/db.js');
 
 // Egységes kassza: beváltás a központi adatbázisban (legacy és élő utalványra is).
@@ -7,7 +7,7 @@ const { ensureSchema, getVoucher, redeemVoucher, logVoucherAction } = require('.
 module.exports = async (req, res) => {
   if (req.method !== 'POST') { res.status(405).json({ error: 'POST' }); return; }
   const user = await resolveUser(req);
-  if (!user) { res.status(401).json({ error: 'auth' }); return; }
+  if (!user) { authFail(req, res); return; }
 
   const body = await readBody(req);
   const serial = String((body && body.serial) || '').trim();

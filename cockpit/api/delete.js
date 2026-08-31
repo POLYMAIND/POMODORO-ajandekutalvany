@@ -1,5 +1,5 @@
 const { getShops, readBody } = require('../lib/shops.js');
-const { resolveUser } = require('../lib/auth.js');
+const { resolveUser, authFail } = require('../lib/auth.js');
 const { ensureSchema, getVoucher, deleteVoucher, undeleteVoucher, logVoucherAction } = require('../lib/db.js');
 
 // Utalvány végleges törlése. Csak központi admin, és csak a sorszám pontos
@@ -8,7 +8,7 @@ const { ensureSchema, getVoucher, deleteVoucher, undeleteVoucher, logVoucherActi
 module.exports = async (req, res) => {
   if (req.method !== 'POST') { res.status(405).json({ error: 'POST' }); return; }
   const user = await resolveUser(req);
-  if (!user) { res.status(401).json({ error: 'auth' }); return; }
+  if (!user) { authFail(req, res); return; }
   if (user.role !== 'superadmin') {
     res.status(403).json({ error: 'Utalványt csak központi admin törölhet.' });
     return;

@@ -1,5 +1,5 @@
 const { readBody, getShops } = require('../lib/shops.js');
-const { resolveUser } = require('../lib/auth.js');
+const { resolveUser, authFail } = require('../lib/auth.js');
 const { getConfig, setConfig } = require('../lib/db.js');
 const { getEmailConfig, senderFor, sendBrevo } = require('../lib/email.js');
 
@@ -19,7 +19,7 @@ a(z) {egyseg} csapata`;
 // E-mail (Brevo) beállítások — kizárólag központi admin (superadmin).
 module.exports = async (req, res) => {
   const u = await resolveUser(req);
-  if (!u) { res.status(401).json({ error: 'auth' }); return; }
+  if (!u) { authFail(req, res); return; }
   if (u.role !== 'superadmin') { res.status(403).json({ error: 'Csak központi admin.' }); return; }
 
   const units = getShops().map(x => ({ slug: x.slug, name: x.name }));

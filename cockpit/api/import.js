@@ -1,5 +1,5 @@
 const { readBody, getShops } = require('../lib/shops.js');
-const { resolveUser, canSeeUnit } = require('../lib/auth.js');
+const { resolveUser, canSeeUnit, authFail } = require('../lib/auth.js');
 const { ensureSchema, upsertVouchers, deleteLegacyByUnit } = require('../lib/db.js');
 const { parseCSV } = require('../lib/csv.js');
 const { parseXLSX, isLegacyXls, isZip } = require('../lib/xlsx.js');
@@ -10,7 +10,7 @@ const { normHeader, rowToRecord, serialColumnPresent } = require('../lib/voucher
 module.exports = async (req, res) => {
   if (req.method !== 'POST') { res.status(405).json({ error: 'POST' }); return; }
   const user = await resolveUser(req);
-  if (!user) { res.status(401).json({ error: 'auth' }); return; }
+  if (!user) { authFail(req, res); return; }
   if (user.role === 'cashier') { res.status(403).json({ error: 'Importhoz kezelői/admin jog kell.' }); return; }
 
   const body = await readBody(req);

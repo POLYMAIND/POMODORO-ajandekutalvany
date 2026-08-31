@@ -537,8 +537,10 @@ $('#loginForm').addEventListener('submit',async e=>{
   $('#loginErr').textContent='';
   const r=await fetch('/api/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('#loginEmail').value.trim(),password:$('#loginPass').value})});
   const j=await r.json().catch(()=>({}));
-  if(r.ok){ $('#loginPass').value=''; boot(); }
-  else $('#loginErr').textContent=j.error||'Hibás e-mail vagy jelszó.';
+  if(r.ok){ $('#loginPass').value=''; boot(); return; }
+  // Üzemzavarnál a jelszó a helyén marad — nem a felhasználó tévedett.
+  $('#loginErr').textContent = j.error || 'Hibás e-mail vagy jelszó.';
+  if(r.status!==503) $('#loginPass').value='';
 });
 $('#logoutBtn').onclick=async()=>{ await fetch('/api/logout',{method:'POST'}); location.reload(); };
 
@@ -553,10 +555,16 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) refresh(
 // szerver nem küldi újra a teljes listát (~1 MB), csak pár bájtot. Enélkül egy
 // egész napra nyitva hagyott fül elviszi a hónapra szánt adatforgalmat.
 let DATAV='';
+let auth401=0;
 async function refresh(force){
   try{
     const r=await fetch('/api/data'+(!force&&DATAV?('?v='+encodeURIComponent(DATAV)):''));
-    if(r.status===401){ location.reload(); return; }
+    // 503: az adatbázis akadozik — nem vagyunk kijelentkezve, csak várni kell.
+    if(r.status===503){ setSync('wait'); return; }
+    // 401: csak több egymást követő elutasítás után tekintjük valódi kijelentkezésnek,
+    // különben egyetlen megbicsakló kérés is a belépőre dobná a kasszást.
+    if(r.status===401){ if(++auth401>=3){ location.reload(); } else { setSync('err'); } return; }
+    auth401=0;
     const j=await r.json();
     if(j.v) DATAV=j.v;
     if(j.unchanged){ lastTs=j.ts||Date.now(); setSync('ok'); return; }
@@ -566,8 +574,10 @@ async function refresh(force){
   }catch(e){ setSync('err'); }
 }
 function setSync(state){
-  const el=$('#sync'); el.className='sync'+(state==='err'?' err':'');
-  $('#syncTxt').textContent = state==='err' ? 'Kapcsolat hiba' : 'Élő – frissítve most';
+  const el=$('#sync'); el.className='sync'+(state==='ok'?'':' err');
+  $('#syncTxt').textContent = state==='err' ? 'Kapcsolat hiba'
+    : state==='wait' ? 'Az adatbázis nem elérhető – újrapróbálom'
+    : 'Élő – frissítve most';
 }
 
 // ---- unit switch ----
