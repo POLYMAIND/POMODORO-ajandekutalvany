@@ -278,6 +278,23 @@ async function getVoucherPdf(unit, serial) {
   return (r[0] && r[0].pdf_base64) || null;
 }
 
+// A teljes lista ~1 MB, és a vezérlőpult 8 másodpercenként kérdez — ez egyetlen
+// nyitott füllel is napi tíz gigabájt adatforgalom. Ezért először csak ezt a pár
+// bájtos ujjlenyomatot kérjük le: ha nem változott, a listát nem küldjük újra.
+async function dataVersion() {
+  const sql = db();
+  const [v] = await sql`SELECT count(*)::text AS n,
+    coalesce(max(updated_at)::text, '') AS u,
+    coalesce(max(ingested_at)::text, '') AS i FROM pgv_vouchers`;
+  let l = { n: '0', c: '' };
+  try {
+    await ensureLogSchema();
+    const [x] = await sql`SELECT count(*)::text AS n, coalesce(max(created_at)::text, '') AS c FROM pgv_voucher_log`;
+    l = x || l;
+  } catch (e) { /* napló nélkül is van verzió */ }
+  return [v.n, v.u, v.i, l.n, l.c].join('|');
+}
+
 async function allVouchers() {
   const sql = db();
   return await sql`SELECT * FROM pgv_vouchers ORDER BY created_at DESC NULLS LAST`;
@@ -290,7 +307,7 @@ async function renameVoucher(unit, oldSerial, newSerial) {
   const sql = db();
   const u = String(unit), o = String(oldSerial), n = String(newSerial);
   if (!u || !o || !n || o === n) return false;
-  const rows = await sql`UPDATE pgv_vouchers SET serial = ${n}
+  const rows = await sql`UPDATE pgv_vouchers SET serial = ${n}, updated_at = ${nowLocal(sql)}
     WHERE lower(unit) = lower(${u}) AND serial = ${o}
       AND NOT EXISTS (SELECT 1 FROM pgv_vouchers x WHERE lower(x.unit) = lower(${u}) AND x.serial = ${n})
     RETURNING serial`;
@@ -325,7 +342,7 @@ async function redeemVoucher(unit, serial, actor) {
   const by = actor && (actor.name || actor.email) ? String(actor.name || actor.email) : null;
   const byEmail = actor && actor.email ? String(actor.email) : null;
   const rows = await sql`UPDATE pgv_vouchers
-    SET status = 'redeemed', redeemed_at = ${nowLocal(sql)},
+    SET status = 'redeemed', updated_at = ${nowLocal(sql)}, redeemed_at = ${nowLocal(sql)},
       redeemed_by = ${by}, redeemed_by_email = ${byEmail}, redeemed_via = 'cockpit'
     WHERE lower(unit) = lower(${String(unit)}) AND serial = ${String(serial)}
       AND status = 'active'
@@ -339,7 +356,8 @@ async function redeemVoucher(unit, serial, actor) {
 async function unredeemVoucher(unit, serial) {
   const sql = db();
   const rows = await sql`UPDATE pgv_vouchers
-    SET status = 'active', redeemed_at = NULL, redeemed_by = NULL, redeemed_by_email = NULL, redeemed_via = NULL
+    SET status = 'active', updated_at = ${nowLocal(sql)}, redeemed_at = NULL,
+        redeemed_by = NULL, redeemed_by_email = NULL, redeemed_via = NULL
     WHERE lower(unit) = lower(${String(unit)}) AND serial = ${String(serial)}
       AND status = 'redeemed'
     RETURNING *`;
@@ -434,7 +452,7 @@ async function recentVoucherLog(days, action) {
 // Emlékeztető-küldés megjelölése (hogy ne menjen ki kétszer ugyanarra).
 async function markReminderSent(unit, serial) {
   const sql = db();
-  const rows = await sql`UPDATE pgv_vouchers SET reminder_sent_at = now()
+  const rows = await sql`UPDATE pgv_vouchers SET reminder_sent_at = now(), updated_at = now()
     WHERE lower(unit) = lower(${String(unit)}) AND serial = ${String(serial)} RETURNING *`;
   return rows[0] || null;
 }
@@ -529,7 +547,7 @@ async function deleteUser(id) {
 }
 
 module.exports = {
-  deleteVoucher, undeleteVoucher,
+  deleteVoucher, undeleteVoucher, dataVersion,
   db, ensureSchema, upsertVouchers, upsertVoucherPdfs, getVoucherPdf, allVouchers, getVoucher,
   redeemVoucher, unredeemVoucher, renameVoucher, markReminderSent, deleteLegacyByUnit,
   ensureLogSchema, logVoucherAction, recentVoucherLog,

@@ -544,12 +544,22 @@ $('#logoutBtn').onclick=async()=>{ await fetch('/api/logout',{method:'POST'}); l
 
 // ---- polling ----
 let pollTimer=null,lastTs=0;
-function startPolling(){ if(pollTimer)clearInterval(pollTimer); pollTimer=setInterval(refresh,8000); }
-async function refresh(){
+function startPolling(){
+  if(pollTimer)clearInterval(pollTimer);
+  pollTimer=setInterval(()=>{ if(!document.hidden) refresh(); },8000);
+}
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) refresh(); });
+// Az ismert állapot azonosítóját visszaküldjük: ha semmi nem változott, a
+// szerver nem küldi újra a teljes listát (~1 MB), csak pár bájtot. Enélkül egy
+// egész napra nyitva hagyott fül elviszi a hónapra szánt adatforgalmat.
+let DATAV='';
+async function refresh(force){
   try{
-    const r=await fetch('/api/data');
+    const r=await fetch('/api/data'+(!force&&DATAV?('?v='+encodeURIComponent(DATAV)):''));
     if(r.status===401){ location.reload(); return; }
     const j=await r.json();
+    if(j.v) DATAV=j.v;
+    if(j.unchanged){ lastTs=j.ts||Date.now(); setSync('ok'); return; }
     DATA=j; lastTs=j.ts||Date.now();
     setSync('ok');
     renderAll();
@@ -937,7 +947,7 @@ $('#delLogTable').addEventListener('click',async e=>{
     const r=await fetch('/api/delete',{method:'POST',headers:{'content-type':'application/json'},
       body:JSON.stringify({action:'undelete',unit:b.dataset.unit,serial:b.dataset.undel})});
     const j=await r.json().catch(()=>({}));
-    if(r.ok&&j.ok){ refresh(); } else { alert(j.error||'Nem sikerült feloldani.'); b.disabled=false; b.textContent=o; }
+    if(r.ok&&j.ok){ refresh(true); } else { alert(j.error||'Nem sikerült feloldani.'); b.disabled=false; b.textContent=o; }
   }catch(err){ alert('Hálózati hiba.'); b.disabled=false; b.textContent=o; }
 });
 $('#redLogTable').addEventListener('click',e=>{
@@ -1357,7 +1367,7 @@ function openProfile(unit,serial){
       const r=await fetch('/api/delete',{method:'POST',headers:{'content-type':'application/json'},
         body:JSON.stringify({unit:v.unit,serial:v.serial,confirm:confirmTxt})});
       const j=await r.json().catch(()=>({}));
-      if(r.ok&&j.ok){ closeProfile(); refresh(); }
+      if(r.ok&&j.ok){ closeProfile(); refresh(true); }
       else { dmsg.className='res-msg err'; dmsg.textContent=j.error||'A törlés nem sikerült.'; dgo.disabled=false; dgo.textContent=o; }
     }catch(e){ dmsg.className='res-msg err'; dmsg.textContent='Hálózati hiba.'; dgo.disabled=false; dgo.textContent=o; }
   };
