@@ -1,5 +1,5 @@
 const { resolveUser } = require('../lib/auth.js');
-const { ensureSchema, allVouchers, recentVoucherLog, dataVersion } = require('../lib/db.js');
+const { ensureSchema, listVouchers, recentVoucherLog, dataVersion } = require('../lib/db.js');
 const { effectiveLabel } = require('../lib/voucher_csv.js');
 
 // Dátum-segédek és a hiányzó dátumok levezetése — közösen az exporttal.
@@ -7,10 +7,7 @@ const { ymd, ymdhms, effectiveValidFrom, effectiveValidUntil, effectivePurchaseD
 function normalizeVoucher(v) {
   const o = Object.assign({}, v);
   o.created_at = ymdhms(v.created_at);
-  o.updated_at = ymdhms(v.updated_at);
-  o.paid_at = ymdhms(v.paid_at);
   o.redeemed_at = ymdhms(v.redeemed_at);
-  o.ingested_at = ymdhms(v.ingested_at);
   o.reminder_sent_at = ymdhms(v.reminder_sent_at);
   // Az érvényesség kezdete definíció szerint a vásárlás napja; a vége a
   // vásárlástól számított időszak vége. Amit az import nem hozott, azt a
@@ -61,7 +58,7 @@ module.exports = async (req, res) => {
       return;
     }
 
-    let rows = await allVouchers();
+    let rows = await listVouchers();
     rows = rows.map(normalizeVoucher);
 
     // Visszaállítás- és törlés-napló — hogy a beváltásból visszavett és a

@@ -300,6 +300,20 @@ async function allVouchers() {
   return await sql`SELECT * FROM pgv_vouchers ORDER BY created_at DESC NULLS LAST`;
 }
 
+// A vezérlőpult listája — csak az az oszlop, amit a felület vagy a levezetett
+// mezők tényleg használnak. A `SELECT *` a soronkénti adatforgalom nagy részét
+// olyan mezőkre költötte, amiket a képernyő meg sem jelenít. (Az export továbbra
+// is a teljes sort kéri: ott minden oszlop kell.)
+const LIST_COLS = ['unit', 'serial', 'amount', 'status', 'label',
+  'giver_name', 'recipient_name', 'buyer_name', 'buyer_email', 'delivery_email',
+  'buyer_phone', 'country', 'postcode', 'city', 'street', 'message',
+  'created_at', 'valid_from', 'valid_until', 'redeemed_at',
+  'redeemed_by', 'redeemed_by_email', 'reminder_sent_at', 'seq_no', 'seq_year'];
+async function listVouchers() {
+  const sql = db();
+  return await sql`SELECT ${sql(LIST_COLS)} FROM pgv_vouchers ORDER BY created_at DESC NULLS LAST`;
+}
+
 // Az utalvány kódjának cseréje a boltban: a meglévő sort NEVEZZÜK ÁT, hogy ne
 // keletkezzen két bejegyzés ugyanarról az utalványról. A beváltás állapota,
 // a naplóbejegyzések és a PDF is átkerülnek az új kódra.
@@ -547,7 +561,7 @@ async function deleteUser(id) {
 }
 
 module.exports = {
-  deleteVoucher, undeleteVoucher, dataVersion,
+  deleteVoucher, undeleteVoucher, dataVersion, listVouchers,
   db, ensureSchema, upsertVouchers, upsertVoucherPdfs, getVoucherPdf, allVouchers, getVoucher,
   redeemVoucher, unredeemVoucher, renameVoucher, markReminderSent, deleteLegacyByUnit,
   ensureLogSchema, logVoucherAction, recentVoucherLog,
