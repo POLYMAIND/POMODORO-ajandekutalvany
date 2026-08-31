@@ -66,7 +66,7 @@ module.exports = async (req, res) => {
     // a 8 másodperces poll könnyű marad.
     let log = [];
     try {
-      log = await recentVoucherLog(365, ['unredeem', 'delete', 'undelete']);
+      log = await recentVoucherLog(365, ['unredeem', 'delete', 'undelete', 'retime']);
       log = log.map(r => Object.assign({}, r, {
         created_at: ymdhms(r.created_at),
         prev_redeemed_at: ymdhms(r.prev_redeemed_at),

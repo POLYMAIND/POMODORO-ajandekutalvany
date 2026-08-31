@@ -192,6 +192,10 @@ tbody tr.clickable{cursor:pointer}
 .pdel{display:flex;flex-direction:column;gap:8px;margin-top:10px}
 .pdel[hidden]{display:none}
 .pdel .pdel-row{display:flex;gap:8px}
+.retime{display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap}
+.retime .fi{width:auto;padding:5px 8px;font-size:12.5px}
+.retime .btn{padding:6px 12px;font-size:12.5px}
+.retime .rt-msg{color:var(--crit);font-size:12px}
 .rsearch{margin-top:12px}
 .rsearch .fi{max-width:420px}
 #redTable th,#redTable td{white-space:nowrap}
@@ -369,7 +373,7 @@ tbody tr.clickable{cursor:pointer}
             <div style="overflow-x:auto"><table id="redTable"></table></div>
           </div>
           <div class="card" id="redLogCard" style="margin-top:12px">
-            <div class="card-head"><h3>Visszaállított (téves) beváltások</h3><span class="t-sub" id="redLogPeriod"></span></div>
+            <div class="card-head"><h3>Utólagos javítások a beváltásokon</h3><span class="t-sub" id="redLogPeriod"></span></div>
             <div style="overflow-x:auto"><table id="redLogTable"></table></div>
           </div>
           <div class="card" id="delLogCard" style="margin-top:12px;display:none">
@@ -729,10 +733,13 @@ $('#expSearch').addEventListener('input',e=>{EXPQ=e.target.value.trim().toLowerC
 
 // ---- cashier (élő kereső) ----
 function cashRow(v){
-  const who=v.buyer_name||v.giver_name||'—';
+  // Az utalványon az ajándékozó és a megajándékozott neve szerepel, a vásárlóé
+  // nem — a kasszás ezekkel tud egyeztetni, ezért ezeket mutatjuk elöl.
+  const who=v.giver_name||v.buyer_name||'—';
+  const to=v.recipient_name?' → '+esc(v.recipient_name):'';
   return '<div class="cash-hit" data-serial="'+esc(v.serial)+'" data-unit="'+esc(v.unit)+'">'+
     '<div style="min-width:0"><div class="mono" style="font-weight:600">'+esc(v.serial)+'</div>'+
-    '<div class="t-sub">'+esc(shortName(v.unit))+' · '+esc(who)+(v.buyer_email?' · '+esc(v.buyer_email):'')+'</div></div>'+
+    '<div class="t-sub">'+esc(shortName(v.unit))+' · '+esc(who)+to+'</div></div>'+
     '<div style="margin-left:auto;display:flex;align-items:center;gap:10px"><span class="tnum t-strong">'+money(v.amount)+'</span>'+statusPill(v.status)+'</div></div>';
 }
 function searchCashier(q){
@@ -761,7 +768,9 @@ function showVoucherDetail(unit,serial){
   box.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center"><div class="mono" style="font-size:16px;font-weight:700">'+esc(v.serial)+'</div>'+statusPill(v.status)+'</div>'+
     '<div class="res-grid"><div><span class="res-k">Egység</span><span class="res-v">'+esc(shortName(v.unit))+'</span></div>'+
     '<div><span class="res-k">Érték</span><span class="res-v">'+money(v.amount)+'</span></div>'+
-    '<div><span class="res-k">Vásárló</span><span class="res-v">'+esc(v.buyer_name||v.giver_name||'—')+'</span></div>'+
+    '<div><span class="res-k">Ajándékozó</span><span class="res-v">'+esc(v.giver_name||v.buyer_name||'—')+'</span></div>'+
+    '<div><span class="res-k">Megajándékozott</span><span class="res-v">'+esc(v.recipient_name||'—')+'</span></div>'+
+    (v.buyer_name&&v.buyer_name!==v.giver_name?'<div><span class="res-k">Vásárló</span><span class="res-v">'+esc(v.buyer_name)+'</span></div>':'')+
     '<div><span class="res-k">Érvényes</span><span class="res-v">'+fdate(v.valid_until)+(d!=null&&v.status==='active'?(d<0?' (lejárt)':' ('+d+' nap)'):'')+'</span></div>'+
     (v.status==='redeemed'?'<div><span class="res-k">Beváltva</span><span class="res-v">'+(v.redeemed_at?fdate(v.redeemed_at)+' '+ftime(v.redeemed_at):'—')+(v.redeemed_by?' · '+esc(v.redeemed_by):'')+'</span></div>':'')+
     '</div>'+
@@ -831,13 +840,20 @@ function redPeriodLabel(r){
   if(r.from&&r.from===r.to) return fdate(r.from);
   return (r.from?fdate(r.from):'…')+' – '+(r.to?fdate(r.to):'…');
 }
+// A beváltás idejét admin és egység-kezelő javíthatja (pl. ha csak másnap rögzítették).
+function canRetime(){ return CFG.role==='superadmin'||CFG.role==='unit_manager'; }
 function redRow(v){
-  const who=v.buyer_name||v.giver_name||v.recipient_name||'—';
+  const giver=v.giver_name||v.buyer_name||'—';
+  const when=v.redeemed_at
+    ? fdate(v.redeemed_at)+'<div class="t-sub">'+ftime(v.redeemed_at)+
+      (canRetime()?' <button class="tact" data-retime="'+esc(v.serial)+'" data-unit="'+esc(v.unit)+'" title="A beváltás idejének javítása">módosít</button>':'')+'</div>'
+    : '<span class="t-sub">nincs adat</span>';
   return '<tr class="clickable" data-serial="'+esc(v.serial)+'" data-unit="'+esc(v.unit)+'">'+
-    '<td class="tnum">'+(v.redeemed_at?fdate(v.redeemed_at)+'<div class="t-sub">'+ftime(v.redeemed_at)+'</div>':'<span class="t-sub">nincs adat</span>')+'</td>'+
+    '<td class="tnum">'+when+'</td>'+
     '<td>'+uchip(v.unit)+'</td>'+
     '<td class="mono t-sub">'+esc(v.serial)+'</td>'+
-    '<td class="t-strong">'+esc(who)+'</td>'+
+    '<td class="t-strong">'+esc(giver)+(v.buyer_name&&v.buyer_name!==giver?'<div class="t-sub">vásárló: '+esc(v.buyer_name)+'</div>':'')+'</td>'+
+    '<td class="t-strong">'+esc(v.recipient_name||'—')+'</td>'+
     '<td>'+actorCell(v.redeemed_by,v.redeemed_by_email)+'</td>'+
     '<td class="t-strong tnum">'+money(v.amount)+'</td>'+
     '<td style="text-align:right;white-space:nowrap"><button class="tact danger" data-unredeem="'+esc(v.serial)+'" data-unit="'+esc(v.unit)+'">Visszaállítás</button></td></tr>';
@@ -875,12 +891,12 @@ function renderRedeemed(){
   $('#redPeriod').textContent=redPeriodLabel(r)+
     (REDQ?' · '+list.length+' találat · '+money(list.reduce((s,x)=>s+(+x.amount||0),0)):'');
 
-  const head='<thead><tr><th>Beváltva</th><th>Egység</th><th>Sorszám</th><th>Vásárló</th><th>Beváltotta</th><th>Érték</th><th></th></tr></thead>';
+  const head='<thead><tr><th>Beváltva</th><th>Egység</th><th>Sorszám</th><th>Ajándékozó</th><th>Megajándékozott</th><th>Beváltotta</th><th>Érték</th><th></th></tr></thead>';
   const empty=REDQ
     ? 'Nincs találat erre a keresésre ebben az időszakban — próbáld az „Összes” gombbal.'
     : 'Ebben az időszakban nincs beváltott utalvány.';
   const rows=list.length?list.map(redRow).join('')
-    :'<tr><td colspan="7" class="t-sub" style="padding:22px">'+empty+'</td></tr>';
+    :'<tr><td colspan="8" class="t-sub" style="padding:22px">'+empty+'</td></tr>';
   $('#redTable').innerHTML=head+'<tbody>'+rows+'</tbody>';
 
   renderRedeemLog(r);
@@ -888,14 +904,16 @@ function renderRedeemed(){
 // Visszaállított (téves) beváltások — a beváltásból visszavett tétel eltűnik a fenti
 // listából, ezért itt marad nyoma: mi volt az eredeti beváltás, ki vette vissza és mikor.
 function renderRedeemLog(r){
-  let log=(DATA.log||[]).filter(x=>x.action==='unredeem'&&inRedRange(x.created_at,r));
+  // Visszaállítás és időpont-javítás egy helyen: mindkettő utólag változtat a
+  // napi összesítőn, ezért mindkettőnek látszania kell.
+  let log=(DATA.log||[]).filter(x=>(x.action==='unredeem'||x.action==='retime')&&inRedRange(x.created_at,r));
   if(currentUnit!=='all') log=log.filter(x=>x.unit===currentUnit);
   if(REDQ) log=log.filter(x=>logMatch(x,REDQ));
   log.sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||'')));
   const sum=log.reduce((a,x)=>a+(+x.amount||0),0);
   $('#redLogPeriod').textContent=log.length?(log.length+' db · '+money(sum)):'';
-  const head='<thead><tr><th>Visszaállítva</th><th>Egység</th><th>Sorszám</th><th>Vásárló</th><th>Érték</th>'+
-    '<th>Visszaállította</th><th>Eredeti beváltás</th><th>Jelenlegi állapot</th></tr></thead>';
+  const head='<thead><tr><th>Mikor</th><th>Művelet</th><th>Egység</th><th>Sorszám</th><th>Vásárló</th><th>Érték</th>'+
+    '<th>Ki</th><th>Eredeti beváltás</th><th>Jelenlegi állapot</th></tr></thead>';
   const rows=log.length?log.map(x=>{
     const v=findVoucher(x.unit,x.serial);
     const who=v?(v.buyer_name||v.giver_name||v.recipient_name||'—'):'—';
@@ -906,8 +924,12 @@ function renderRedeemLog(r){
       : '<span class="t-sub">nincs adat</span>';
     // Csak akkor kattintható, ha az utalvány tényleg a betöltött adatok közt van.
     const attrs=v?' class="clickable" title="Kattints az adatlapért" data-serial="'+esc(x.serial)+'" data-unit="'+esc(x.unit)+'"':'';
+    const act=x.action==='retime'
+      ? '<span class="pill p-processing">idő javítva</span>'+(x.note?'<div class="t-sub">'+esc(x.note)+'</div>':'')
+      : '<span class="pill p-expsoon">visszaállítva</span>';
     return '<tr'+attrs+'>'+
       '<td class="tnum">'+fdate(x.created_at)+'<div class="t-sub">'+ftime(x.created_at)+'</div></td>'+
+      '<td>'+act+'</td>'+
       '<td>'+uchip(x.unit)+'</td>'+
       '<td class="mono t-sub">'+esc(x.serial)+'</td>'+
       '<td class="t-strong">'+esc(who)+(contact?'<div class="t-sub">'+esc(contact)+'</div>':'')+'</td>'+
@@ -916,8 +938,8 @@ function renderRedeemLog(r){
       '<td class="tnum">'+orig+'</td>'+
       '<td>'+(v?statusPill(v.status):'<span class="t-sub">—</span>')+'</td></tr>';
   }).join('')
-   :'<tr><td colspan="8" class="t-sub" style="padding:22px">'+
-     (REDQ?'Nincs találat erre a keresésre.':'Ebben az időszakban nem volt visszaállítás.')+'</td></tr>';
+   :'<tr><td colspan="9" class="t-sub" style="padding:22px">'+
+     (REDQ?'Nincs találat erre a keresésre.':'Ebben az időszakban nem volt utólagos javítás.')+'</td></tr>';
   $('#redLogTable').innerHTML=head+'<tbody>'+rows+'</tbody>';
   renderDeleteLog(r);
 }
@@ -984,9 +1006,38 @@ async function unredeem(unit,serial,btn){
 $('#redTable').addEventListener('click',e=>{
   const ub=e.target.closest('[data-unredeem]');
   if(ub){ unredeem(ub.dataset.unit,ub.dataset.unredeem,ub); return; }
+  const rt=e.target.closest('[data-retime]');
+  if(rt){ e.stopPropagation(); openRetime(rt); return; }
   const tr=e.target.closest('tr[data-serial]');
   if(tr&&tr.dataset.serial) openProfile(tr.dataset.unit,tr.dataset.serial);
 });
+// A beváltás idejének javítása helyben, a sor dátum-cellájában.
+function openRetime(btn){
+  const cell=btn.closest('td'); if(!cell||cell.querySelector('.retime')) return;
+  const unit=btn.dataset.unit, serial=btn.dataset.retime;
+  const v=DATA.vouchers.find(x=>x.unit===unit&&x.serial===serial);
+  const cur=String((v&&v.redeemed_at)||'').replace(' ','T').slice(0,16);
+  const box=document.createElement('div');
+  box.className='retime';
+  box.innerHTML='<input class="fi" type="datetime-local" value="'+esc(cur)+'">'+
+    '<button class="btn">Mentés</button><button class="tact">Mégse</button><span class="rt-msg"></span>';
+  cell.appendChild(box);
+  const inp=box.querySelector('input'), save=box.querySelector('.btn'), cancel=box.querySelector('.tact'), msg=box.querySelector('.rt-msg');
+  box.addEventListener('click',ev=>ev.stopPropagation());
+  cancel.onclick=()=>box.remove();
+  inp.focus();
+  save.onclick=async()=>{
+    if(!inp.value){ msg.textContent='Adj meg időpontot.'; return; }
+    save.disabled=true; const o=save.textContent; save.textContent='Mentés…'; msg.textContent='';
+    try{
+      const r=await fetch('/api/redeemtime',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({unit,serial,at:inp.value})});
+      const j=await r.json().catch(()=>({}));
+      if(r.ok&&j.ok){ box.remove(); refresh(true); }
+      else { msg.textContent=j.error||'Nem sikerült.'; save.disabled=false; save.textContent=o; }
+    }catch(err){ msg.textContent='Hálózati hiba.'; save.disabled=false; save.textContent=o; }
+  };
+}
 document.querySelectorAll('.ctab').forEach(t=>t.onclick=()=>{
   document.querySelectorAll('.ctab').forEach(x=>x.classList.toggle('active',x===t));
   document.querySelectorAll('.cpane').forEach(p=>p.classList.toggle('show',p.id==='cpane-'+t.dataset.ctab));

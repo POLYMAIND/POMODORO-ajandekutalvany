@@ -393,6 +393,20 @@ async function deleteVoucher(unit, serial) {
   return rows[0];
 }
 
+// A beváltás időpontjának javítása. Csak már beváltott utalványon értelmes, és
+// az időt ugyanúgy budapesti faliórában tároljuk, ahogy a beváltás rögzíti.
+// A régi értéket a hívó naplózza — a napi összesítő különben észrevétlenül
+// változna meg utólag.
+async function setRedeemedAt(unit, serial, when) {
+  const sql = db();
+  const rows = await sql`UPDATE pgv_vouchers
+    SET redeemed_at = ${String(when)}, updated_at = ${nowLocal(sql)}
+    WHERE lower(unit) = lower(${String(unit)}) AND serial = ${String(serial)}
+      AND status = 'redeemed'
+    RETURNING *`;
+  return rows[0] || null;
+}
+
 // A sírkő feloldása: a következő szinkron/import újra behozhatja az utalványt.
 async function undeleteVoucher(unit, serial) {
   const sql = db();
@@ -561,7 +575,7 @@ async function deleteUser(id) {
 }
 
 module.exports = {
-  deleteVoucher, undeleteVoucher, dataVersion, listVouchers,
+  deleteVoucher, undeleteVoucher, dataVersion, listVouchers, setRedeemedAt,
   db, ensureSchema, upsertVouchers, upsertVoucherPdfs, getVoucherPdf, allVouchers, getVoucher,
   redeemVoucher, unredeemVoucher, renameVoucher, markReminderSent, deleteLegacyByUnit,
   ensureLogSchema, logVoucherAction, recentVoucherLog,
