@@ -110,7 +110,57 @@ class PGV_Admin {
 			case 'regen_serial':
 				$this->regen_serial();
 				break;
+			case 'refresh_pdf':
+				$this->refresh_pdf();
+				break;
+			case 'refresh_all_pdfs':
+				$this->refresh_all_pdfs();
+				break;
 		}
+	}
+
+	/**
+	 * Egy utalvány PDF-jének frissítése a vezérlőpulton.
+	 *
+	 * A PDF-et mindig menet közben állítjuk elő, így az mindig a legfrissebb
+	 * sablonnal készül. A vezérlőpulton viszont a kiküldéskori példány van
+	 * eltárolva — a sablon változása (pl. az emojik megjelenítése) csak ezzel
+	 * a felküldéssel jut el oda.
+	 */
+	private function refresh_pdf() {
+		check_admin_referer( 'pgv_refresh_pdf' );
+		$id = absint( wp_unslash( $_POST['voucher_id'] ?? 0 ) );
+		$v  = PGV_Vouchers::get( $id );
+		if ( ! $v ) {
+			set_transient( 'pgv_pdf_msg', __( 'Nincs ilyen utalvány.', 'pomodoro-gift-vouchers' ), 60 );
+			$this->redirect_with( self::SLUG, 'pdf_error' );
+			return;
+		}
+		$res = PGV_Push::push_pdf( $v );
+		if ( is_wp_error( $res ) ) {
+			set_transient( 'pgv_pdf_msg', $res->get_error_message(), 60 );
+			$this->redirect_with( self::SLUG, 'pdf_error' );
+			return;
+		}
+		set_transient( 'pgv_pdf_msg', sprintf(
+			/* translators: %s: utalvány kódja */
+			__( 'A(z) %s utalvány PDF-je frissült a vezérlőpulton.', 'pomodoro-gift-vouchers' ),
+			$v['serial']
+		), 60 );
+		$this->redirect_with( self::SLUG, 'pdf_ok' );
+	}
+
+	/**
+	 * Az összes kiadott utalvány PDF-jének újraküldése a vezérlőpultra.
+	 */
+	private function refresh_all_pdfs() {
+		check_admin_referer( 'pgv_refresh_all_pdfs' );
+		if ( ! class_exists( 'PGV_Push' ) || ! PGV_Push::configured() ) {
+			$this->redirect_with( self::SLUG . '-settings', 'sync_cfg' );
+			return;
+		}
+		set_transient( 'pgv_pdf_result', PGV_Push::push_all_pdfs(), 60 );
+		$this->redirect_with( self::SLUG . '-settings', 'pdfs_ok' );
 	}
 
 	/**
@@ -524,6 +574,33 @@ class PGV_Admin {
 					? esc_html__( 'Új utalvány-kód generálva: ', 'pomodoro-gift-vouchers' )
 					: esc_html__( 'A kód cseréje nem sikerült: ', 'pomodoro-gift-vouchers' ),
 				esc_html( (string) $detail )
+			);
+			return;
+		}
+
+		// PDF-frissítés (egy tétel, illetve az összes).
+		if ( 'pdf_ok' === $key || 'pdf_error' === $key ) {
+			$detail = get_transient( 'pgv_pdf_msg' );
+			delete_transient( 'pgv_pdf_msg' );
+			printf(
+				'<div class="notice notice-%s is-dismissible"><p>%s</p></div>',
+				'pdf_ok' === $key ? 'success' : 'error',
+				esc_html( (string) $detail )
+			);
+			return;
+		}
+		if ( 'pdfs_ok' === $key ) {
+			$r = get_transient( 'pgv_pdf_result' );
+			delete_transient( 'pgv_pdf_result' );
+			$r = is_array( $r ) ? $r : array( 'sent' => 0, 'failed' => 0, 'skipped' => 0 );
+			printf(
+				'<div class="notice notice-%s is-dismissible"><p>%s</p></div>',
+				empty( $r['failed'] ) ? 'success' : 'error',
+				esc_html( sprintf(
+					/* translators: 1: sikeres, 2: sikertelen, 3: kihagyott */
+					__( 'PDF-ek frissítve a vezérlőpulton: %1$d rendben, %2$d sikertelen, %3$d kihagyva (importált vagy kód nélküli).', 'pomodoro-gift-vouchers' ),
+					(int) $r['sent'], (int) $r['failed'], (int) $r['skipped']
+				) )
 			);
 			return;
 		}

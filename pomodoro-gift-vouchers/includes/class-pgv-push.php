@@ -139,6 +139,63 @@ class PGV_Push {
 	}
 
 	/**
+	 * Egyetlen utalvány PDF-jének frissítése a vezérlőpulton.
+	 *
+	 * A PDF-et nem tároljuk: mindig a friss kódból generáljuk. A vezérlőpult
+	 * viszont a kiküldéskori példányt őrzi, ezért a sablon változása (pl. az
+	 * emoji-támogatás) csak ezzel a felküldéssel jut el oda.
+	 *
+	 * @return true|WP_Error
+	 */
+	public static function push_pdf( array $v ) {
+		if ( ! self::configured() ) {
+			return new WP_Error( 'pgv_not_configured', __( 'A vezérlőpult nincs beállítva.', 'pomodoro-gift-vouchers' ) );
+		}
+		if ( ! empty( $v['is_legacy'] ) || empty( $v['serial'] ) ) {
+			return new WP_Error( 'pgv_no_serial', __( 'Ehhez az utalványhoz nem tartozik kiadott kód.', 'pomodoro-gift-vouchers' ) );
+		}
+		$p = self::payload( $v, true );
+		if ( empty( $p['pdf_base64'] ) ) {
+			return new WP_Error( 'pgv_no_pdf', __( 'A PDF-et nem sikerült előállítani.', 'pomodoro-gift-vouchers' ) );
+		}
+		$r = self::send( array( $p ), true );
+		return is_wp_error( $r ) ? $r : true;
+	}
+
+	/**
+	 * Az összes kiadott utalvány PDF-jének újraküldése a vezérlőpultra.
+	 * Tételenként egy kérés, hogy ne lépjük túl a kérés-törzs korlátot.
+	 *
+	 * @return array{sent:int,failed:int,skipped:int}
+	 */
+	public static function push_all_pdfs() {
+		$out = array( 'sent' => 0, 'failed' => 0, 'skipped' => 0 );
+		if ( ! self::configured() || ! class_exists( 'PGV_Voucher_PDF' ) || ! PGV_Voucher_PDF::enabled() ) {
+			return $out;
+		}
+		global $wpdb;
+		$table = PGV_Install::table( 'vouchers' );
+		$unit  = PGV_Settings::unit_slug();
+		$rows  = $wpdb->get_results(
+			$wpdb->prepare( "SELECT * FROM {$table} WHERE unit_slug = %s AND serial <> '' ORDER BY id ASC", $unit ), // phpcs:ignore
+			ARRAY_A
+		);
+		foreach ( (array) $rows as $v ) {
+			if ( ! empty( $v['is_legacy'] ) || empty( $v['serial'] ) ) {
+				$out['skipped']++;
+				continue;
+			}
+			$r = self::push_pdf( $v );
+			if ( is_wp_error( $r ) ) {
+				$out['failed']++;
+			} else {
+				$out['sent']++;
+			}
+		}
+		return $out;
+	}
+
+	/**
 	 * Utalványok küldése az /api/ingest végpontnak.
 	 *
 	 * @param array $vouchers Payload tömbök.

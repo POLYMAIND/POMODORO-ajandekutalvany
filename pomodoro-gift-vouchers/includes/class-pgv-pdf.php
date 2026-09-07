@@ -616,9 +616,10 @@ class PGV_PDF {
 
 	/** Az emoji-képek könyvtára. */
 	private static function emoji_dir() {
-		if ( defined( 'PGV_PATH' ) ) {
-			return rtrim( PGV_PATH, '/\\' ) . '/assets/emoji/';
+		if ( defined( 'PGV_PLUGIN_DIR' ) ) {
+			return rtrim( PGV_PLUGIN_DIR, '/\\' ) . '/assets/emoji/';
 		}
+		// A plugin konstansai nélkül (pl. teszteléskor) a fájl helyéből.
 		return dirname( __DIR__ ) . '/assets/emoji/';
 	}
 

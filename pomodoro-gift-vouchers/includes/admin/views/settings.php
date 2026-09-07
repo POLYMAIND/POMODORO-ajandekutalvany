@@ -261,5 +261,12 @@ $units = array(
 			<button type="submit" class="button"><?php esc_html_e( 'Összes felküldése', 'pomodoro-gift-vouchers' ); ?></button>
 			<span class="description"><?php esc_html_e( 'Egyszeri, teljes szinkron — a meglévő/korábbi utalványokat is felküldi. (Előbb mentsd a fenti URL-t és titkot.)', 'pomodoro-gift-vouchers' ); ?></span>
 		</form>
+
+		<form method="post" style="margin-top:12px" onsubmit="return confirm('<?php echo esc_js( __( 'Minden kiadott utalvány PDF-je újra elkészül és felkerül a vezérlőpultra. Sok utalványnál ez percekig tarthat. Folytatod?', 'pomodoro-gift-vouchers' ) ); ?>');">
+			<?php wp_nonce_field( 'pgv_refresh_all_pdfs' ); ?>
+			<input type="hidden" name="pgv_action" value="refresh_all_pdfs">
+			<button type="submit" class="button"><?php esc_html_e( 'PDF-ek frissítése', 'pomodoro-gift-vouchers' ); ?></button>
+			<span class="description"><?php esc_html_e( 'A vezérlőpult a kiküldéskori PDF-et őrzi. Ha az utalvány kinézete változott (pl. mostantól látszanak az emojik), ezzel készül el mindegyik újra. A kódok nem változnak, e-mail nem megy ki.', 'pomodoro-gift-vouchers' ); ?></span>
+		</form>
 	</div>
 </div>

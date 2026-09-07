@@ -107,6 +107,21 @@ $export_url = wp_nonce_url(
 										<button type="submit" class="button-link"><?php esc_html_e( 'Új kód', 'pomodoro-gift-vouchers' ); ?></button>
 									</form>
 								<?php endif; ?>
+								<?php
+								// A vezérlőpult a kiküldéskori PDF-et őrzi; sablonváltozás után
+								// ezzel a gombbal küldjük fel újra a frisset.
+								if ( empty( $v['is_legacy'] ) && ! empty( $v['serial'] ) ) :
+									?>
+									<form method="post" style="display:inline">
+										<?php wp_nonce_field( 'pgv_refresh_pdf' ); ?>
+										<input type="hidden" name="pgv_action" value="refresh_pdf">
+										<input type="hidden" name="voucher_id" value="<?php echo (int) $v['id']; ?>">
+										<input type="hidden" name="ret_s" value="<?php echo esc_attr( $search ); ?>">
+										<input type="hidden" name="ret_status" value="<?php echo esc_attr( $status ); ?>">
+										<input type="hidden" name="ret_paged" value="<?php echo (int) $paged; ?>">
+										<button type="submit" class="button-link" title="<?php esc_attr_e( 'A friss PDF felküldése a vezérlőpultra (a kód nem változik)', 'pomodoro-gift-vouchers' ); ?>"><?php esc_html_e( 'PDF frissítése', 'pomodoro-gift-vouchers' ); ?></button>
+									</form>
+								<?php endif; ?>
 							</td>
 						</tr>
 						<?php if ( $edit_id === (int) $v['id'] ) : ?>
