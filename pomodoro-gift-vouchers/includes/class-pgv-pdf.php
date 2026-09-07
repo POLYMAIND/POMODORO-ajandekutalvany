@@ -108,14 +108,18 @@ class PGV_PDF {
 		$cursor = $top - 12 * self::MM;
 
 		// Megajándékozott.
-		if ( ! empty( $voucher['recipient_name'] ) ) {
-			$pdf->text( $x, $cursor, 'Kedves ' . $voucher['recipient_name'] . '!', 12, false, 0.2, 0.2, 0.2 );
+		// A beépített betűtípus nem tartalmaz emojit; a szűrés a felesleges
+		// szóközöket is eltakarítja, hogy ne maradjon lyuk a szövegben.
+		$rec_name = self::strip_unsupported( $voucher['recipient_name'] ?? '' );
+		$msg_text = self::strip_unsupported( $voucher['message'] ?? '' );
+		if ( '' !== $rec_name ) {
+			$pdf->text( $x, $cursor, 'Kedves ' . $rec_name . '!', 12, false, 0.2, 0.2, 0.2 );
 			$cursor -= 7 * self::MM;
 		}
 
 		// Üzenet (tördelve a keskenyebb oszlopra).
-		if ( ! empty( $voucher['message'] ) ) {
-			$lines = self::wrap( $voucher['message'], self::MSG_WRAP_CHARS );
+		if ( '' !== $msg_text ) {
+			$lines = self::wrap( $msg_text, self::MSG_WRAP_CHARS );
 			foreach ( array_slice( $lines, 0, self::MSG_MAX_LINES ) as $line ) {
 				$pdf->text( $x, $cursor, $line, 10.5, false, 0.35, 0.35, 0.35 );
 				$cursor -= 5.5 * self::MM;
@@ -427,6 +431,12 @@ class PGV_PDF {
 			} elseif ( $c >= 0xE0 && $c < 0xF0 && $i + 2 < $len ) {
 				$cp = ( ( $c & 0x0F ) << 12 ) | ( ( ord( $str[ $i + 1 ] ) & 0x3F ) << 6 ) | ( ord( $str[ $i + 2 ] ) & 0x3F );
 				$i += 3;
+			} elseif ( $c >= 0xF0 && $c < 0xF8 && $i + 3 < $len ) {
+				// 4 bájtos sorozat (emoji). Eddig ezt nem dekódoltuk, ezért egyetlen
+				// emojiból NÉGY kérdőjel lett a kész utalványon.
+				$cp = ( ( $c & 0x07 ) << 18 ) | ( ( ord( $str[ $i + 1 ] ) & 0x3F ) << 12 )
+					| ( ( ord( $str[ $i + 2 ] ) & 0x3F ) << 6 ) | ( ord( $str[ $i + 3 ] ) & 0x3F );
+				$i += 4;
 			} else {
 				$i += 1;
 				$cp = 0x3F; // '?'
@@ -438,6 +448,8 @@ class PGV_PDF {
 				$byte = $special[ $cp ];
 			} elseif ( $cp >= 0xA0 && $cp <= 0xFF ) {
 				$byte = $cp; // Latin-1 == WinAnsi ebben a tartományban.
+			} elseif ( self::is_pictograph( $cp ) ) {
+				continue; // Emoji/piktogram: a beépített betűtípus nem tartalmazza — kihagyjuk.
 			} else {
 				$byte = 0x3F;
 			}
@@ -449,6 +461,52 @@ class PGV_PDF {
 			$out .= chr( $byte );
 		}
 		return $out;
+	}
+
+	/**
+	 * Emoji / piktogram / variánsjelölő? A beépített Helvetica ezeket nem
+	 * tartalmazza, és nincs betűágyazás, ezért kérdőjel helyett kihagyjuk őket:
+	 * az üzenet így olvasható marad, nem lesz tele „?”-lel.
+	 */
+	public static function is_pictograph( $cp ) {
+		return ( $cp >= 0x1F000 && $cp <= 0x1FAFF )   // emoji-blokkok
+			|| ( $cp >= 0x2600 && $cp <= 0x27BF )     // Misc symbols + Dingbats
+			|| ( $cp >= 0x2B00 && $cp <= 0x2BFF )     // nyilak, csillagok
+			|| ( $cp >= 0x1F1E6 && $cp <= 0x1F1FF )   // zászló-betűk
+			|| ( $cp >= 0xFE00 && $cp <= 0xFE0F )     // variánsjelölők
+			|| ( $cp >= 0x2190 && $cp <= 0x21FF )     // nyilak
+			|| 0x200D === $cp                          // zero-width joiner
+			|| 0x20E3 === $cp;                         // billentyű-keret
+	}
+
+	/**
+	 * Ugyanaz a szűrés szövegre: az élő előnézet és a beviteli mező ezzel tudja
+	 * megmutatni, mi kerül majd ténylegesen az utalványra.
+	 */
+	public static function strip_unsupported( $str ) {
+		$out = '';
+		$len = strlen( (string) $str );
+		$i   = 0;
+		while ( $i < $len ) {
+			$c = ord( $str[ $i ] );
+			if ( $c < 0x80 ) { $n = 1; $cp = $c; }
+			elseif ( $c >= 0xC0 && $c < 0xE0 ) { $n = 2; $cp = ( $c & 0x1F ) << 6; }
+			elseif ( $c >= 0xE0 && $c < 0xF0 ) { $n = 3; $cp = ( $c & 0x0F ) << 12; }
+			elseif ( $c >= 0xF0 && $c < 0xF8 ) { $n = 4; $cp = ( $c & 0x07 ) << 18; }
+			else { $i++; continue; }
+			if ( $i + $n > $len ) { break; }
+			for ( $k = 1; $k < $n; $k++ ) {
+				$cp |= ( ord( $str[ $i + $k ] ) & 0x3F ) << ( 6 * ( $n - 1 - $k ) );
+			}
+			if ( ! self::is_pictograph( $cp ) ) {
+				$out .= substr( $str, $i, $n );
+			}
+			$i += $n;
+		}
+		// A kihagyott emoji után maradt dupla szóközök és a sorvégi szóköz eltakarítása.
+		$out = preg_replace( '/[ \t]{2,}/u', ' ', $out );
+		$out = preg_replace( '/[ \t]+([\r\n])/u', '$1', $out );
+		return trim( $out );
 	}
 
 	/**

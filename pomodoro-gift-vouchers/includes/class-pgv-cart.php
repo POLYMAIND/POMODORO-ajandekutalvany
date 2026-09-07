@@ -192,6 +192,7 @@ class PGV_Cart {
 			</div>
 			<p class="pgv-preview-note"><?php esc_html_e( 'Tájékoztató előnézet — a végleges utalványra egyedi sorszám és a pontos érvényességi dátum kerül.', 'pomodoro-gift-vouchers' ); ?></p>
 			<p class="pgv-preview-warn" data-pgv-toolong hidden><?php echo esc_html( $p['tooLong'] ); ?></p>
+			<p class="pgv-preview-note" data-pgv-noemoji hidden><?php esc_html_e( 'Az emojik a nyomtatott utalványra nem kerülnek rá — a szöveg többi része igen.', 'pomodoro-gift-vouchers' ); ?></p>
 		</div>
 		<?php
 	}

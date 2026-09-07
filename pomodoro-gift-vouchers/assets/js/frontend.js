@@ -18,6 +18,17 @@
 	// A szövegtördelés a PGV_PDF::wrap() pontos mása, hogy a vásárló azt
 	// lássa, ami valóban ráfér az utalványra.
 	// ------------------------------------------------------------------
+	// A nyomtatott utalvány beépített betűtípusa nem tartalmaz emojit/piktogramot,
+	// ezért azokat a PDF kihagyja. Az előnézet ugyanezt teszi, hogy a vevő pontosan
+	// azt lássa, ami az utalványra kerül. (A visszaigazoló e-mailben megmarad.)
+	function stripUnsupported( str ) {
+		return String( str == null ? '' : str )
+			.replace( /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{2190}-\u{21FF}\u{FE00}-\u{FE0F}\u{200D}\u{20E3}]/gu, '' )
+			.replace( /[ \t]{2,}/g, ' ' )
+			.replace( /[ \t]+(\r?\n)/g, '$1' )
+			.trim();
+	}
+
 	function wrapText( text, maxChars ) {
 		var words = String( text || '' ).replace( /\s+/g, ' ' ).trim().split( ' ' );
 		var lines = [];
@@ -53,6 +64,7 @@
 		var $amount = $box.find( '[data-pgv-amount]' );
 		var $greeting = $box.find( '[data-pgv-greeting]' );
 		var $message = $box.find( '[data-pgv-message]' );
+		var $noEmoji = $box.find( '[data-pgv-noemoji]' );
 		var $tooLong = $box.find( '[data-pgv-toolong]' );
 		var price = null; // változó termékeknél a kiválasztott variáció ára
 
@@ -114,7 +126,7 @@
 			$amount.text( formatAmount( currentPrice() ) );
 
 			// Megajándékozott
-			var name = ( $( '#pgv_recipient' ).val() || '' ).trim();
+			var name = stripUnsupported( $( '#pgv_recipient' ).val() || '' ).trim();
 			if ( name ) {
 				$greeting.text( cfg.greeting.replace( '%s', name ) ).prop( 'hidden', false );
 			} else {
@@ -122,7 +134,8 @@
 			}
 
 			// Üzenet — ugyanazzal a tördeléssel és sorkorláttal, mint a PDF
-			var lines = wrapText( $( '#pgv_message' ).val(), cfg.wrapChars );
+			var msg = stripUnsupported( $( '#pgv_message' ).val() || '' );
+			var lines = wrapText( msg, cfg.wrapChars );
 			var shown = lines.slice( 0, cfg.maxLines );
 			if ( shown.length ) {
 				$message.text( shown.join( '\n' ) ).prop( 'hidden', false );
@@ -130,6 +143,11 @@
 				$message.prop( 'hidden', true );
 			}
 			$tooLong.prop( 'hidden', lines.length <= cfg.maxLines );
+			// Jelzés, ha emojit írtak: az előnézet e nélkül mutatja, mert a PDF-re sem kerül rá.
+			if ( $noEmoji.length ) {
+				var typed = ( $( '#pgv_message' ).val() || '' ) + ( $( '#pgv_recipient' ).val() || '' );
+				$noEmoji.prop( 'hidden', typed === stripUnsupported( typed ) );
+			}
 
 			scale();
 		}
