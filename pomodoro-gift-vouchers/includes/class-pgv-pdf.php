@@ -35,6 +35,9 @@ class PGV_PDF {
 	private $width;
 	private $height;
 
+	/** @var array Már beágyazott képek útvonal → név (ugyanaz az emoji egyszer kerül be). */
+	private $image_cache = array();
+
 	/** @var array Beágyazott kép XObject-jei: [name => body]. */
 	private $images = array();
 	private $image_seq = 0;
@@ -108,12 +111,12 @@ class PGV_PDF {
 		$cursor = $top - 12 * self::MM;
 
 		// Megajándékozott.
-		// A beépített betűtípus nem tartalmaz emojit; a szűrés a felesleges
-		// szóközöket is eltakarítja, hogy ne maradjon lyuk a szövegben.
+		// Az emojik képként kerülnek a szövegbe (a base-14 betűkészlet nem
+		// tartalmazza őket); amihez nincs képünk, azt kihagyjuk.
 		$rec_name = self::strip_unsupported( $voucher['recipient_name'] ?? '' );
 		$msg_text = self::strip_unsupported( $voucher['message'] ?? '' );
 		if ( '' !== $rec_name ) {
-			$pdf->text( $x, $cursor, 'Kedves ' . $rec_name . '!', 12, false, 0.2, 0.2, 0.2 );
+			$pdf->text_rich( $x, $cursor, 'Kedves ' . $rec_name . '!', 12, false, 0.2, 0.2, 0.2 );
 			$cursor -= 7 * self::MM;
 		}
 
@@ -121,7 +124,7 @@ class PGV_PDF {
 		if ( '' !== $msg_text ) {
 			$lines = self::wrap( $msg_text, self::MSG_WRAP_CHARS );
 			foreach ( array_slice( $lines, 0, self::MSG_MAX_LINES ) as $line ) {
-				$pdf->text( $x, $cursor, $line, 10.5, false, 0.35, 0.35, 0.35 );
+				$pdf->text_rich( $x, $cursor, $line, 10.5, false, 0.35, 0.35, 0.35 );
 				$cursor -= 5.5 * self::MM;
 			}
 		}
@@ -256,6 +259,61 @@ class PGV_PDF {
 	}
 
 	/**
+	 * Átlátszó PNG (emoji) betöltése: nyers RGB + külön alfa-csatorna (SMask).
+	 * A JPEG nem tud átlátszóságot, ezért itt Flate-tömörített nyers bájtokat
+	 * ágyazunk be — így az emoji a háttértől függetlenül, élsimítva jelenik meg.
+	 */
+	private function add_image_png_alpha( $path ) {
+		if ( isset( $this->image_cache[ $path ] ) ) {
+			return $this->image_cache[ $path ];
+		}
+		if ( ! function_exists( 'imagecreatefromstring' ) ) {
+			return '';
+		}
+		$raw = @file_get_contents( $path ); // phpcs:ignore
+		if ( false === $raw ) {
+			return '';
+		}
+		$im = @imagecreatefromstring( $raw ); // phpcs:ignore
+		if ( ! $im ) {
+			return '';
+		}
+		// Paletta-PNG-nél az imagecolorat a paletta INDEXÉT adná vissza, nem a
+		// színt — ezért előbb truecolorra alakítunk.
+		if ( function_exists( 'imageistruecolor' ) && ! imageistruecolor( $im ) ) {
+			if ( function_exists( 'imagepalettetotruecolor' ) ) {
+				imagepalettetotruecolor( $im );
+			}
+		}
+		$w   = imagesx( $im );
+		$h   = imagesy( $im );
+		$rgb = '';
+		$a   = '';
+		for ( $y = 0; $y < $h; $y++ ) {
+			for ( $x = 0; $x < $w; $x++ ) {
+				$c = imagecolorat( $im, $x, $y );
+				// GD alfa: 0 = átlátszatlan, 127 = teljesen átlátszó.
+				$alpha = ( $c >> 24 ) & 0x7F;
+				$rgb  .= chr( ( $c >> 16 ) & 0xFF ) . chr( ( $c >> 8 ) & 0xFF ) . chr( $c & 0xFF );
+				$a    .= chr( (int) round( ( 127 - $alpha ) * 255 / 127 ) );
+			}
+		}
+		imagedestroy( $im );
+
+		$this->image_seq++;
+		$name                  = 'Im' . $this->image_seq;
+		$this->images[ $name ] = array(
+			'w'     => $w,
+			'h'     => $h,
+			'data'  => gzcompress( $rgb, 6 ),
+			'flate' => true,
+			'smask' => gzcompress( $a, 6 ),
+		);
+		$this->image_cache[ $path ] = $name;
+		return $name;
+	}
+
+	/**
 	 * Kép pontos kitöltése egy dobozba (a kép már a doboz képarányára van vágva).
 	 */
 	private function draw_image_exact( $name, $x, $y, $w, $h ) {
@@ -320,9 +378,13 @@ class PGV_PDF {
 		$enc_id      = 7;
 
 		$image_ids = array();
+		$smask_ids = array();
 		$next      = 8;
 		foreach ( $this->images as $name => $img ) {
 			$image_ids[ $name ] = $next++;
+			if ( ! empty( $img['smask'] ) ) {
+				$smask_ids[ $name ] = $next++;
+			}
 		}
 
 		// XObject erőforrás-hivatkozások.
@@ -360,8 +422,26 @@ class PGV_PDF {
 		// 7 Encoding: WinAnsi + magyar ő/ű Differences
 		$this->add_object( '<< /Type /Encoding /BaseEncoding /WinAnsiEncoding /Differences [129 /odblacute 141 /udblacute 143 /Odblacute 144 /Udblacute] >>' );
 
-		// Kép XObjectek
+		// Kép XObjectek (JPEG, vagy átlátszó emoji esetén Flate + SMask)
 		foreach ( $this->images as $name => $img ) {
+			if ( ! empty( $img['flate'] ) ) {
+				$sm = isset( $smask_ids[ $name ] ) ? sprintf( '/SMask %d 0 R ', $smask_ids[ $name ] ) : '';
+				$this->add_object(
+					sprintf(
+						"<< /Type /XObject /Subtype /Image /Width %d /Height %d /ColorSpace /DeviceRGB /BitsPerComponent 8 %s/Filter /FlateDecode /Length %d >>\nstream\n%s\nendstream",
+						$img['w'], $img['h'], $sm, strlen( $img['data'] ), $img['data']
+					)
+				);
+				if ( isset( $smask_ids[ $name ] ) ) {
+					$this->add_object(
+						sprintf(
+							"<< /Type /XObject /Subtype /Image /Width %d /Height %d /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode /Length %d >>\nstream\n%s\nendstream",
+							$img['w'], $img['h'], strlen( $img['smask'] ), $img['smask']
+						)
+					);
+				}
+				continue;
+			}
 			$this->add_object(
 				sprintf(
 					"<< /Type /XObject /Subtype /Image /Width %d /Height %d /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length %d >>\nstream\n%s\nendstream",
@@ -463,6 +543,190 @@ class PGV_PDF {
 		return $out;
 	}
 
+
+	// ------------------------------------------------------------
+	// Emoji a szövegben (képként, mert a base-14 betűkészlet nem tartalmazza)
+	// ------------------------------------------------------------
+
+	/** Helvetica / Helvetica-Bold karakterszélességek (AFM, 1/1000 em). */
+	private static function widths( $bold ) {
+		static $reg = null, $bld = null;
+		if ( null === $reg ) {
+			$r = '278 278 355 556 556 889 667 191 333 333 389 584 278 333 278 278 556 556 556 556 556 556 556 556 556 556 278 278 584 584 584 556 1015 667 667 722 722 667 611 778 722 278 500 667 556 833 722 778 667 778 722 667 611 722 667 944 667 667 611 278 278 278 469 556 333 556 556 500 556 556 278 556 556 222 222 500 222 833 556 556 556 556 333 500 278 556 500 722 500 500 500 334 260 334 584';
+			$b = '278 333 474 556 556 889 722 238 333 333 389 584 278 333 278 278 556 556 556 556 556 556 556 556 556 556 333 333 584 584 584 611 975 722 722 722 722 667 611 778 722 278 556 722 611 833 722 778 667 778 722 667 611 722 667 944 667 667 611 333 278 333 584 556 333 556 611 556 611 556 333 611 611 278 278 556 278 889 611 611 611 611 389 556 333 611 556 778 556 556 500 389 280 389 584';
+			$reg = array_map( 'intval', explode( ' ', $r ) );
+			$bld = array_map( 'intval', explode( ' ', $b ) );
+		}
+		return $bold ? $bld : $reg;
+	}
+
+	/**
+	 * Egy UTF-8 szövegdarab szélessége pontban (emoji nélkül).
+	 * Az ékezetes betűk a Helveticában az alapbetűvel azonos szélességűek.
+	 */
+	public static function text_width( $str, $size, $bold = false ) {
+		$w     = self::widths( $bold );
+		$fold  = array( 0x0151 => 0x6F, 0x0171 => 0x75, 0x0150 => 0x4F, 0x0170 => 0x55, 0x20AC => 0x45, 0x2013 => 0x2D, 0x2014 => 0x2D, 0x2026 => 0x2E, 0x2018 => 0x27, 0x2019 => 0x27, 0x201C => 0x22, 0x201D => 0x22 );
+		$total = 0;
+		foreach ( self::codepoints( $str ) as $cp ) {
+			if ( isset( $fold[ $cp ] ) ) {
+				$cp = $fold[ $cp ];
+			} elseif ( $cp > 0xFF ) {
+				$cp = 0x3F;
+			} elseif ( $cp > 0x7E ) {
+				// Latin-1 ékezetes: az alapbetű szélessége.
+				$cp = self::deaccent( $cp );
+			}
+			$i      = $cp - 32;
+			$total += ( $i >= 0 && isset( $w[ $i ] ) ) ? $w[ $i ] : 556;
+		}
+		return $total * $size / 1000;
+	}
+
+	/** Latin-1 ékezetes kódpont → alap ASCII betű (csak szélességméréshez). */
+	private static function deaccent( $cp ) {
+		$map = "AAAAAAACEEEEIIIIDNOOOOO*OUUUUYPsaaaaaaaceeeeiiiidnooooo/ouuuuypy";
+		if ( $cp >= 0xC0 && $cp <= 0xFF ) {
+			return ord( $map[ $cp - 0xC0 ] );
+		}
+		return 0x3F;
+	}
+
+	/** UTF-8 → kódpontok tömbje. */
+	public static function codepoints( $str ) {
+		$out = array();
+		$len = strlen( (string) $str );
+		$i   = 0;
+		while ( $i < $len ) {
+			$c = ord( $str[ $i ] );
+			if ( $c < 0x80 ) { $n = 1; $cp = $c; }
+			elseif ( $c >= 0xC0 && $c < 0xE0 ) { $n = 2; $cp = ( $c & 0x1F ) << 6; }
+			elseif ( $c >= 0xE0 && $c < 0xF0 ) { $n = 3; $cp = ( $c & 0x0F ) << 12; }
+			elseif ( $c >= 0xF0 && $c < 0xF8 ) { $n = 4; $cp = ( $c & 0x07 ) << 18; }
+			else { $i++; continue; }
+			if ( $i + $n > $len ) { break; }
+			for ( $k = 1; $k < $n; $k++ ) {
+				$cp |= ( ord( $str[ $i + $k ] ) & 0x3F ) << ( 6 * ( $n - 1 - $k ) );
+			}
+			$out[] = $cp;
+			$i    += $n;
+		}
+		return $out;
+	}
+
+	/** Az emoji-képek könyvtára. */
+	private static function emoji_dir() {
+		if ( defined( 'PGV_PATH' ) ) {
+			return rtrim( PGV_PATH, '/\\' ) . '/assets/emoji/';
+		}
+		return dirname( __DIR__ ) . '/assets/emoji/';
+	}
+
+	/**
+	 * A rendelkezésre álló emoji-képek kódpontjai (hexában), az előnézetnek.
+	 * A könyvtárat egyszer olvassuk be, az eredmény egy órára gyorsítótárazódik.
+	 */
+	public static function emoji_codepoints() {
+		$cached = function_exists( 'get_transient' ) ? get_transient( 'pgv_emoji_cps' ) : false;
+		if ( is_array( $cached ) ) {
+			return $cached;
+		}
+		$list  = array();
+		$files = @glob( self::emoji_dir() . '*.png' ); // phpcs:ignore
+		if ( $files ) {
+			foreach ( $files as $f ) {
+				$list[] = basename( $f, '.png' );
+			}
+		}
+		if ( function_exists( 'set_transient' ) ) {
+			set_transient( 'pgv_emoji_cps', $list, HOUR_IN_SECONDS );
+		}
+		return $list;
+	}
+
+	/** Van-e képünk ehhez a kódponthoz? */
+	public static function emoji_file( $cp ) {
+		$f = self::emoji_dir() . dechex( $cp ) . '.png';
+		return is_readable( $f ) ? $f : '';
+	}
+
+	/**
+	 * Szöveg darabolása [ 'text' => …] és [ 'emoji' => kódpont ] futamokra.
+	 * A variánsjelölőket és a ZWJ-t eldobjuk: az összetett emojik (pl. család)
+	 * helyett az első, önmagában is értelmes alap-emoji jelenik meg.
+	 */
+	public static function split_runs( $str ) {
+		$runs = array();
+		$buf  = '';
+		$join = false; // igaz, ha ZWJ jött: a következő emoji ugyanannak a jelnek a része
+		foreach ( self::codepoints( $str ) as $cp ) {
+			if ( 0xFE0E === $cp || 0xFE0F === $cp ) {
+				continue;
+			}
+			if ( 0x200D === $cp ) {
+				$join = true;
+				continue;
+			}
+			if ( self::is_pictograph( $cp ) || ( 0x1F3FB <= $cp && $cp <= 0x1F3FF ) ) {
+				// Összetett emoji (család, foglalkozás) és bőrszín-módosító: csak az
+				// első, önmagában is értelmes alap-emojit rajzoljuk ki.
+				if ( $join || ( 0x1F3FB <= $cp && $cp <= 0x1F3FF ) ) {
+					$join = false;
+					continue;
+				}
+				$file = self::emoji_file( $cp );
+				if ( '' === $file ) {
+					continue; // nincs képünk hozzá — kihagyjuk
+				}
+				if ( '' !== $buf ) { $runs[] = array( 'text' => $buf ); $buf = ''; }
+				$runs[] = array( 'emoji' => $file, 'cp' => $cp );
+				continue;
+			}
+			$join = false;
+			$buf .= self::utf8_chr( $cp );
+		}
+		if ( '' !== $buf ) { $runs[] = array( 'text' => $buf ); }
+		return $runs;
+	}
+
+	private static function utf8_chr( $cp ) {
+		if ( $cp < 0x80 ) { return chr( $cp ); }
+		if ( $cp < 0x800 ) { return chr( 0xC0 | $cp >> 6 ) . chr( 0x80 | $cp & 0x3F ); }
+		if ( $cp < 0x10000 ) { return chr( 0xE0 | $cp >> 12 ) . chr( 0x80 | ( $cp >> 6 & 0x3F ) ) . chr( 0x80 | $cp & 0x3F ); }
+		return chr( 0xF0 | $cp >> 18 ) . chr( 0x80 | ( $cp >> 12 & 0x3F ) ) . chr( 0x80 | ( $cp >> 6 & 0x3F ) ) . chr( 0x80 | $cp & 0x3F );
+	}
+
+	/**
+	 * Szöveg kirajzolása úgy, hogy a benne lévő emojik képként, a sorba
+	 * illesztve jelenjenek meg. A visszatérési érték a sor teljes szélessége.
+	 */
+	public function text_rich( $x, $y, $str, $size, $bold = false, $r = 0, $g = 0, $b = 0 ) {
+		$cur = $x;
+		foreach ( self::split_runs( $str ) as $run ) {
+			if ( isset( $run['text'] ) ) {
+				$this->text( $cur, $y, $run['text'], $size, $bold, $r, $g, $b );
+				$cur += self::text_width( $run['text'], $size, $bold );
+				continue;
+			}
+			$name = $this->add_image_png_alpha( $run['emoji'] );
+			if ( '' === $name ) { continue; }
+			// Az emoji az írásvonalra ül, kicsit a betűméret fölé nyúlva.
+			$box = $size * 1.05;
+			$this->stream .= sprintf( "q %.2F 0 0 %.2F %.2F %.2F cm /%s Do Q\n", $box, $box, $cur, $y - $size * 0.2, $name );
+			$cur += $box * 1.06;
+		}
+		return $cur - $x;
+	}
+
+	/** Egy sor szélessége emojikkal együtt (a tördeléshez). */
+	public static function rich_width( $str, $size, $bold = false ) {
+		$w = 0;
+		foreach ( self::split_runs( $str ) as $run ) {
+			$w += isset( $run['text'] ) ? self::text_width( $run['text'], $size, $bold ) : $size * 1.05 * 1.06;
+		}
+		return $w;
+	}
+
 	/**
 	 * Emoji / piktogram / variánsjelölő? A beépített Helvetica ezeket nem
 	 * tartalmazza, és nincs betűágyazás, ezért kérdőjel helyett kihagyjuk őket:
@@ -484,26 +748,12 @@ class PGV_PDF {
 	 * megmutatni, mi kerül majd ténylegesen az utalványra.
 	 */
 	public static function strip_unsupported( $str ) {
+		// Egyetlen igazságforrás: ugyanaz a darabolás, mint a rajzoláskor — így az
+		// előnézet, a tördelés és a kész PDF pontosan ugyanazt a szöveget látja.
 		$out = '';
-		$len = strlen( (string) $str );
-		$i   = 0;
-		while ( $i < $len ) {
-			$c = ord( $str[ $i ] );
-			if ( $c < 0x80 ) { $n = 1; $cp = $c; }
-			elseif ( $c >= 0xC0 && $c < 0xE0 ) { $n = 2; $cp = ( $c & 0x1F ) << 6; }
-			elseif ( $c >= 0xE0 && $c < 0xF0 ) { $n = 3; $cp = ( $c & 0x0F ) << 12; }
-			elseif ( $c >= 0xF0 && $c < 0xF8 ) { $n = 4; $cp = ( $c & 0x07 ) << 18; }
-			else { $i++; continue; }
-			if ( $i + $n > $len ) { break; }
-			for ( $k = 1; $k < $n; $k++ ) {
-				$cp |= ( ord( $str[ $i + $k ] ) & 0x3F ) << ( 6 * ( $n - 1 - $k ) );
-			}
-			if ( ! self::is_pictograph( $cp ) ) {
-				$out .= substr( $str, $i, $n );
-			}
-			$i += $n;
+		foreach ( self::split_runs( $str ) as $run ) {
+			$out .= isset( $run['text'] ) ? $run['text'] : self::utf8_chr( $run['cp'] );
 		}
-		// A kihagyott emoji után maradt dupla szóközök és a sorvégi szóköz eltakarítása.
 		$out = preg_replace( '/[ \t]{2,}/u', ' ', $out );
 		$out = preg_replace( '/[ \t]+([\r\n])/u', '$1', $out );
 		return trim( $out );

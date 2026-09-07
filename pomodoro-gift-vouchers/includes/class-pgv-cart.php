@@ -86,6 +86,8 @@ class PGV_Cart {
 			'validityNote' => sprintf( _n( 'Érvényes: a vásárlástól számított %d hónapig', 'Érvényes: a vásárlástól számított %d hónapig', $months, 'pomodoro-gift-vouchers' ), $months ),
 			'watermark'   => __( 'MINTA', 'pomodoro-gift-vouchers' ),
 			'tooLong'     => __( 'Ennél hosszabb üzenet nem fér rá az utalványra — a maradékot levágjuk.', 'pomodoro-gift-vouchers' ),
+			// Az előnézet pontosan azokat az emojikat mutassa, amikhez képünk is van.
+			'emoji'       => PGV_PDF::emoji_codepoints(),
 		);
 	}
 
@@ -192,7 +194,7 @@ class PGV_Cart {
 			</div>
 			<p class="pgv-preview-note"><?php esc_html_e( 'Tájékoztató előnézet — a végleges utalványra egyedi sorszám és a pontos érvényességi dátum kerül.', 'pomodoro-gift-vouchers' ); ?></p>
 			<p class="pgv-preview-warn" data-pgv-toolong hidden><?php echo esc_html( $p['tooLong'] ); ?></p>
-			<p class="pgv-preview-note" data-pgv-noemoji hidden><?php esc_html_e( 'Az emojik a nyomtatott utalványra nem kerülnek rá — a szöveg többi része igen.', 'pomodoro-gift-vouchers' ); ?></p>
+			<p class="pgv-preview-note" data-pgv-noemoji hidden><?php esc_html_e( 'Néhány jelet nem tudunk kinyomtatni az utalványra, azok lemaradnak — a szöveg többi része rendben lesz.', 'pomodoro-gift-vouchers' ); ?></p>
 		</div>
 		<?php
 	}

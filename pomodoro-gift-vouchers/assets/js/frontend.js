@@ -18,15 +18,40 @@
 	// A szövegtördelés a PGV_PDF::wrap() pontos mása, hogy a vásárló azt
 	// lássa, ami valóban ráfér az utalványra.
 	// ------------------------------------------------------------------
-	// A nyomtatott utalvány beépített betűtípusa nem tartalmaz emojit/piktogramot,
-	// ezért azokat a PDF kihagyja. Az előnézet ugyanezt teszi, hogy a vevő pontosan
-	// azt lássa, ami az utalványra kerül. (A visszaigazoló e-mailben megmarad.)
+	// Az utalványra az emojik képként kerülnek rá, de csak azok, amikhez van
+	// képünk. Az előnézet pontosan ugyanezt a szűrést végzi, hogy a vevő azt
+	// lássa, ami nyomtatásban is megjelenik.
+	var EMOJI_OK = null;
+	function emojiSupported( cp ) {
+		if ( EMOJI_OK === null ) {
+			EMOJI_OK = {};
+			( cfg.emoji || [] ).forEach( function ( h ) { EMOJI_OK[ parseInt( h, 16 ) ] = 1; } );
+		}
+		return !! EMOJI_OK[ cp ];
+	}
+	function isPictograph( cp ) {
+		return ( cp >= 0x1F000 && cp <= 0x1FAFF ) || ( cp >= 0x2600 && cp <= 0x27BF )
+			|| ( cp >= 0x2B00 && cp <= 0x2BFF ) || ( cp >= 0x2190 && cp <= 0x21FF )
+			|| ( cp >= 0xFE00 && cp <= 0xFE0F ) || cp === 0x200D || cp === 0x20E3;
+	}
 	function stripUnsupported( str ) {
-		return String( str == null ? '' : str )
-			.replace( /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{2190}-\u{21FF}\u{FE00}-\u{FE0F}\u{200D}\u{20E3}]/gu, '' )
-			.replace( /[ \t]{2,}/g, ' ' )
-			.replace( /[ \t]+(\r?\n)/g, '$1' )
-			.trim();
+		var out = '', join = false;
+		var chars = Array.from( String( str == null ? '' : str ) );
+		for ( var i = 0; i < chars.length; i++ ) {
+			var cp = chars[ i ].codePointAt( 0 );
+			if ( cp === 0xFE0E || cp === 0xFE0F ) { continue; }
+			if ( cp === 0x200D ) { join = true; continue; }
+			if ( isPictograph( cp ) || ( cp >= 0x1F3FB && cp <= 0x1F3FF ) ) {
+				// Összetett emoji és bőrszín-módosító: csak az alap-emoji marad.
+				if ( join || ( cp >= 0x1F3FB && cp <= 0x1F3FF ) ) { join = false; continue; }
+				if ( ! emojiSupported( cp ) ) { continue; }
+				out += chars[ i ];
+				continue;
+			}
+			join = false;
+			out += chars[ i ];
+		}
+		return out.replace( /[ \t]{2,}/g, ' ' ).replace( /[ \t]+(\r?\n)/g, '$1' ).trim();
 	}
 
 	function wrapText( text, maxChars ) {
