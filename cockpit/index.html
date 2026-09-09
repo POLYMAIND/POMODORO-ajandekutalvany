@@ -101,6 +101,14 @@ td{padding:11px 18px;border-bottom:1px solid var(--line-soft);vertical-align:mid
 tr:last-child td{border-bottom:none}tbody tr:hover{background:var(--surface-2)}
 .t-strong{font-weight:600}.t-sub{color:var(--ink-faint);font-size:12px}
 .t-est{color:var(--ink-soft,var(--ink-faint));cursor:help}
+.expired-card{padding:0}
+.expired-card>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:15px 18px;font-weight:600;font-size:14px;user-select:none}
+.expired-card>summary::-webkit-details-marker{display:none}
+.expired-card>summary::before{content:'';width:0;height:0;border-left:5px solid currentColor;border-top:4px solid transparent;border-bottom:4px solid transparent;transition:transform .15s;color:var(--ink-faint)}
+.expired-card[open]>summary::before{transform:rotate(90deg)}
+.expired-card>summary:hover{background:var(--surface-2)}
+.expired-card>summary .t-sub{margin-left:auto;font-weight:500}
+.expired-card>div{border-top:1px solid var(--line-soft)}
 .pill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap}
 .pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
 .p-active,.p-paid,.p-completed,.p-processing{background:var(--good-soft);color:var(--good)}
@@ -323,10 +331,14 @@ tbody tr.clickable{cursor:pointer}
 
       <section class="section" id="sec-expiry">
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
-          <p class="section-intro" style="margin:0">A közelgő és lejárt utalványok, sürgősség szerint.</p>
+          <p class="section-intro" style="margin:0">A közelgő lejáratok, sürgősség szerint. A már lejártak alul, külön fülön.</p>
           <input id="expSearch" class="fi" placeholder="Keresés: név, sorszám, e-mail…" autocomplete="off" style="margin-left:auto;max-width:340px">
         </div>
         <div class="card" id="expiryCard"></div>
+        <details class="card expired-card" id="expiredBox" style="margin-top:12px;display:none">
+          <summary><span id="expiredTitle">Lejárt utalványok</span><span class="t-sub" id="expiredSum"></span></summary>
+          <div id="expiredList"></div>
+        </details>
       </section>
 
       <section class="section" id="sec-cashier">
@@ -725,9 +737,25 @@ function renderExpiry(){
   const c=$('#expCount'); if(soon>0){c.style.display='';c.textContent=soon;}else c.style.display='none';
   const near=all.filter(e=>e.d>=0).slice(0,5);
   $('#dashExpiry').innerHTML=near.length?near.map(e=>expRow(e.x)).join(''):'<div class="exp-item"><span class="t-sub">Nincs közelgő lejárat.</span></div>';
-  // A Lejáratok nézet listája a keresőre is szűr.
+  // A Lejáratok nézet listája a keresőre is szűr. A már lejárt tételek külön,
+  // alapból összecsukott fülre kerülnek: a napi munkában a közelgők számítanak,
+  // a lejártak viszont ne vesszenek el (utólag is előkereshetők).
   const v=EXPQ?all.filter(e=>expMatch(e.x,EXPQ)):all;
-  $('#expiryCard').innerHTML=v.length?v.map(e=>expRow(e.x)).join(''):'<div class="empty"><p>'+(EXPQ?'Nincs találat erre a keresésre.':'Nincs aktív, lejárattal rendelkező utalvány.')+'</p></div>';
+  const soonList=v.filter(e=>e.d>=0);
+  const goneList=v.filter(e=>e.d<0);
+  $('#expiryCard').innerHTML=soonList.length?soonList.map(e=>expRow(e.x)).join('')
+    :'<div class="empty"><p>'+(EXPQ?'Nincs találat erre a keresésre a közelgők között.':'Nincs aktív, lejárat előtt álló utalvány.')+'</p></div>';
+
+  const box=$('#expiredBox');
+  box.style.display=goneList.length?'':'none';
+  if(goneList.length){
+    // A legutóbb lejárt kerüljön elöl.
+    const gone=goneList.slice().sort((a,b)=>b.d-a.d);
+    $('#expiredTitle').textContent='Lejárt utalványok ('+nf(gone.length)+')';
+    $('#expiredSum').textContent=money(gone.reduce((s,e)=>s+(+e.x.amount||0),0));
+    $('#expiredList').innerHTML=gone.map(e=>expRow(e.x)).join('');
+    if(EXPQ) box.open=true;   // keresésnél ne maradjon rejtve a találat
+  }
 }
 $('#expSearch').addEventListener('input',e=>{EXPQ=e.target.value.trim().toLowerCase();renderExpiry();});
 
@@ -1440,7 +1468,7 @@ $('#profile').addEventListener('click',e=>{
   const ph=e.target.closest('.ph[data-serial]'); if(ph){openProfile(ph.dataset.unit,ph.dataset.serial);return;}
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeProfile();});
-['#dashExpiry','#expiryCard','#dashTable','#purchasesTable'].forEach(sel=>{
+['#dashExpiry','#expiryCard','#expiredList','#dashTable','#purchasesTable'].forEach(sel=>{
   const el=$(sel); if(!el)return;
   el.addEventListener('click',e=>{
     const rb=e.target.closest('[data-remind]');
