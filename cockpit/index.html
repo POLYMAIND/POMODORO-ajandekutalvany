@@ -730,7 +730,9 @@ function expMatch(x,q){
     nz(x.recipient_name).includes(q)||nz(x.buyer_email).includes(q)||nz(x.delivery_email).includes(q)||nz(x.buyer_phone).includes(q);
 }
 function renderExpiry(){
-  const all=filt(DATA.vouchers).filter(x=>x.status==='active'&&x.valid_until)
+  // Az „expired” státuszú (importált) tételek is ide tartoznak — nélkülük egy
+  // lejártként feltöltött utalvány sehol nem jelenne meg a lejáratok között.
+  const all=filt(DATA.vouchers).filter(x=>(x.status==='active'||x.status==='expired')&&x.valid_until)
     .map(x=>({x,d:daysLeft(x.valid_until)})).sort((a,b)=>a.d-b.d);
   const soon=all.filter(e=>e.d>=0&&e.d<=14).length;
   const c=$('#expCount'); if(soon>0){c.style.display='';c.textContent=soon;}else c.style.display='none';
