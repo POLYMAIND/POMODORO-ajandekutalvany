@@ -361,6 +361,35 @@ class PGV_PDF {
 	// PDF összeállítás
 	// ------------------------------------------------------------
 
+	/** Betűtípus-objektum (beágyazott TrueType, egybájtos kódolással). */
+	private function add_font_object( $first, $last, array $widths, $name, $enc_id, $fd_id ) {
+		$this->add_object( sprintf(
+			'<< /Type /Font /Subtype /TrueType /BaseFont /%s /FirstChar %d /LastChar %d /Widths [%s] /Encoding %d 0 R /FontDescriptor %d 0 R >>',
+			$name, $first, $last, implode( ' ', $widths ), $enc_id, $fd_id
+		) );
+	}
+
+	/** Betűtípus-leíró. A Flags 32 = nem szimbolikus (a kódolást a /Encoding adja). */
+	private function add_descriptor_object( $name, array $m, $ff_id ) {
+		$this->add_object( sprintf(
+			'<< /Type /FontDescriptor /FontName /%s /Flags 32 /FontBBox %s /ItalicAngle 0 /Ascent %d /Descent %d /CapHeight %d /StemV %d /FontFile2 %d 0 R >>',
+			$name, $m['bbox'], $m['ascent'], $m['descent'], $m['cap'], $m['stemv'], $ff_id
+		) );
+	}
+
+	/** A beágyazott .ttf tömörítve. */
+	private function add_fontfile_object( $path ) {
+		$raw = @file_get_contents( $path ); // phpcs:ignore
+		if ( false === $raw ) {
+			$raw = '';
+		}
+		$z = gzcompress( $raw, 9 );
+		$this->add_object( sprintf(
+			"<< /Length %d /Length1 %d /Filter /FlateDecode >>\nstream\n%s\nendstream",
+			strlen( $z ), strlen( $raw ), $z
+		) );
+	}
+
 	private function add_object( $body ) {
 		$this->objects[] = $body;
 		return count( $this->objects );
@@ -377,9 +406,16 @@ class PGV_PDF {
 		$f2_id       = 6;
 		$enc_id      = 7;
 
+		// A betűtípust beágyazzuk (leíró + fájl súlyonként), különben a
+		// megjelenítő a saját helyettesítőjét használja, amiben nincs ő/ű.
+		$fd1_id = 8;
+		$ff1_id = 9;
+		$fd2_id = 10;
+		$ff2_id = 11;
+
 		$image_ids = array();
 		$smask_ids = array();
-		$next      = 8;
+		$next      = 12;
 		foreach ( $this->images as $name => $img ) {
 			$image_ids[ $name ] = $next++;
 			if ( ! empty( $img['smask'] ) ) {
@@ -416,11 +452,21 @@ class PGV_PDF {
 		// 4 Contents
 		$stream = $this->stream;
 		$this->add_object( "<< /Length " . strlen( $stream ) . " >>\nstream\n" . $stream . "\nendstream" );
-		// 5,6 Fonts (Helvetica / Helvetica-Bold) egyedi Encodinggal
-		$this->add_object( "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding {$enc_id} 0 R >>" );
-		$this->add_object( "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding {$enc_id} 0 R >>" );
+		// 5,6 Betűtípusok — beágyazott TrueType (Liberation Sans), saját Encodinggal.
+		$this->add_font_object( PGV_Font::FIRST_CHAR, PGV_Font::LAST_CHAR, PGV_Font::widths( false ), 'PGVSans', $enc_id, $fd1_id );
+		$this->add_font_object( PGV_Font::FIRST_CHAR, PGV_Font::LAST_CHAR, PGV_Font::widths( true ), 'PGVSans-Bold', $enc_id, $fd2_id );
 		// 7 Encoding: WinAnsi + magyar ő/ű Differences
-		$this->add_object( '<< /Type /Encoding /BaseEncoding /WinAnsiEncoding /Differences [129 /odblacute 141 /udblacute 143 /Odblacute 144 /Udblacute] >>' );
+		// A glyph-neveknek az Adobe Glyph List szerinti névnek kell lenniük:
+		// az „odblacute”/„udblacute” nem szabványos, ezért a legtöbb megjelenítő
+		// (Chrome, Android, Adobe Reader) egyszerűen KIHAGYTA a magyar ő/ű-t —
+		// macOS Preview véletlenül elnézte. A helyes név a *hungarumlaut.
+		$this->add_object( '<< /Type /Encoding /BaseEncoding /WinAnsiEncoding /Differences [129 /ohungarumlaut 141 /uhungarumlaut 143 /Ohungarumlaut 144 /Uhungarumlaut] >>' );
+
+		// 8-11 Betűtípus-leírók és a beágyazott fájlok.
+		$this->add_descriptor_object( 'PGVSans', PGV_Font::meta( false ), $ff1_id );
+		$this->add_fontfile_object( PGV_Font::file( false ) );
+		$this->add_descriptor_object( 'PGVSans-Bold', PGV_Font::meta( true ), $ff2_id );
+		$this->add_fontfile_object( PGV_Font::file( true ) );
 
 		// Kép XObjectek (JPEG, vagy átlátszó emoji esetén Flate + SMask)
 		foreach ( $this->images as $name => $img ) {
@@ -548,16 +594,9 @@ class PGV_PDF {
 	// Emoji a szövegben (képként, mert a base-14 betűkészlet nem tartalmazza)
 	// ------------------------------------------------------------
 
-	/** Helvetica / Helvetica-Bold karakterszélességek (AFM, 1/1000 em). */
+	/** Karakterszélességek a beágyazott betűtípusból (1/1000 em). */
 	private static function widths( $bold ) {
-		static $reg = null, $bld = null;
-		if ( null === $reg ) {
-			$r = '278 278 355 556 556 889 667 191 333 333 389 584 278 333 278 278 556 556 556 556 556 556 556 556 556 556 278 278 584 584 584 556 1015 667 667 722 722 667 611 778 722 278 500 667 556 833 722 778 667 778 722 667 611 722 667 944 667 667 611 278 278 278 469 556 333 556 556 500 556 556 278 556 556 222 222 500 222 833 556 556 556 556 333 500 278 556 500 722 500 500 500 334 260 334 584';
-			$b = '278 333 474 556 556 889 722 238 333 333 389 584 278 333 278 278 556 556 556 556 556 556 556 556 556 556 333 333 584 584 584 611 975 722 722 722 722 667 611 778 722 278 556 722 611 833 722 778 667 778 722 667 611 722 667 944 667 667 611 333 278 333 584 556 333 556 611 556 611 556 333 611 611 278 278 556 278 889 611 611 611 611 389 556 333 611 556 778 556 556 500 389 280 389 584';
-			$reg = array_map( 'intval', explode( ' ', $r ) );
-			$bld = array_map( 'intval', explode( ' ', $b ) );
-		}
-		return $bold ? $bld : $reg;
+		return PGV_Font::widths( $bold );
 	}
 
 	/**
@@ -566,30 +605,22 @@ class PGV_PDF {
 	 */
 	public static function text_width( $str, $size, $bold = false ) {
 		$w     = self::widths( $bold );
-		$fold  = array( 0x0151 => 0x6F, 0x0171 => 0x75, 0x0150 => 0x4F, 0x0170 => 0x55, 0x20AC => 0x45, 0x2013 => 0x2D, 0x2014 => 0x2D, 0x2026 => 0x2E, 0x2018 => 0x27, 0x2019 => 0x27, 0x201C => 0x22, 0x201D => 0x22 );
+		// Ugyanaz a leképezés, amit az encode_text használ — így a mért szélesség
+		// pontosan ahhoz a kódhoz tartozik, amit a PDF-be írunk.
+		$fold  = array( 0x0151 => 0x81, 0x0171 => 0x8D, 0x0150 => 0x8F, 0x0170 => 0x90,
+			0x20AC => 0x80, 0x2013 => 0x96, 0x2014 => 0x97, 0x2026 => 0x85,
+			0x2018 => 0x91, 0x2019 => 0x92, 0x201C => 0x93, 0x201D => 0x94 );
 		$total = 0;
 		foreach ( self::codepoints( $str ) as $cp ) {
 			if ( isset( $fold[ $cp ] ) ) {
 				$cp = $fold[ $cp ];
 			} elseif ( $cp > 0xFF ) {
 				$cp = 0x3F;
-			} elseif ( $cp > 0x7E ) {
-				// Latin-1 ékezetes: az alapbetű szélessége.
-				$cp = self::deaccent( $cp );
 			}
-			$i      = $cp - 32;
-			$total += ( $i >= 0 && isset( $w[ $i ] ) ) ? $w[ $i ] : 556;
+			$i      = $cp - PGV_Font::FIRST_CHAR;
+			$total += ( $i >= 0 && ! empty( $w[ $i ] ) ) ? $w[ $i ] : 556;
 		}
 		return $total * $size / 1000;
-	}
-
-	/** Latin-1 ékezetes kódpont → alap ASCII betű (csak szélességméréshez). */
-	private static function deaccent( $cp ) {
-		$map = "AAAAAAACEEEEIIIIDNOOOOO*OUUUUYPsaaaaaaaceeeeiiiidnooooo/ouuuuypy";
-		if ( $cp >= 0xC0 && $cp <= 0xFF ) {
-			return ord( $map[ $cp - 0xC0 ] );
-		}
-		return 0x3F;
 	}
 
 	/** UTF-8 → kódpontok tömbje. */

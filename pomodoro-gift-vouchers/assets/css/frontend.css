@@ -104,7 +104,9 @@
 	background: #fff;
 	box-shadow: 0 1px 3px rgba(0, 0, 0, .12), 0 6px 18px rgba(0, 0, 0, .08);
 	font-size: 4px; /* tartalék, amíg a JS be nem állítja a valódit */
-	font-family: Helvetica, Arial, sans-serif; /* a PDF beépített betűje */
+	/* A PDF-be Liberation Sans van ágyazva (Arial/Helvetica-kompatibilis
+	   méretekkel), így az előnézet ugyanúgy tördel és néz ki. */
+	font-family: "Liberation Sans", Helvetica, Arial, sans-serif;
 	line-height: 1.2;
 	color: #212121;
 	-webkit-user-select: none;
