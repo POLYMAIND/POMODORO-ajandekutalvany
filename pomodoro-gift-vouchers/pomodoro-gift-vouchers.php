@@ -3,7 +3,7 @@
  * Plugin Name:       Pomo d'Oro — Ajándékutalvány
  * Plugin URI:        https://polymaind.hu/
  * Description:        Ajándékutalványok értékesítése WooCommerce termékként: személyre szabás a termék-/kosároldalon, egyedi sorszám a sikeres fizetés után, szigorú számadású audit napló, kasszás beváltás, NAV-formátumú CSV export/import és CRM olvasó API. Egységenként (Casa / Osteria / Pizzabar / Trattoria) külön store-ra telepítendő.
- * Version:           1.9.2
+ * Version:           1.9.3
  * Requires at least: 6.2
  * Requires PHP:      7.4
  * Author:            Polymaind
@@ -18,7 +18,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'PGV_VERSION', '1.9.2' );
+define( 'PGV_VERSION', '1.9.3' );
 define( 'PGV_PLUGIN_FILE', __FILE__ );
 define( 'PGV_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PGV_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -48,6 +48,18 @@ function pgv_activate() {
 	PGV_Install::install();
 }
 register_activation_hook( __FILE__, 'pgv_activate' );
+
+/**
+ * Kikapcsoláskor az óránkénti újraküldő ütemezést is leállítjuk, hogy ne
+ * maradjon árva bejegyzés a WP-Cronban.
+ */
+function pgv_deactivate() {
+	$ts = wp_next_scheduled( 'pgv_push_retry' );
+	if ( $ts ) {
+		wp_unschedule_event( $ts, 'pgv_push_retry' );
+	}
+}
+register_deactivation_hook( __FILE__, 'pgv_deactivate' );
 
 /**
  * Bootstrap — csak akkor, ha a WooCommerce aktív.

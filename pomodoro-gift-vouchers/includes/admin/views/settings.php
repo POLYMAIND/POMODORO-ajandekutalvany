@@ -262,6 +262,64 @@ $units = array(
 			<span class="description"><?php esc_html_e( 'Egyszeri, teljes szinkron — a meglévő/korábbi utalványokat is felküldi. (Előbb mentsd a fenti URL-t és titkot.)', 'pomodoro-gift-vouchers' ); ?></span>
 		</form>
 
+		<?php
+		// A felküldés állapota: ha egy utalvány nem jutott fel (pl. a vezérlőpult
+		// épp nem volt elérhető), az itt látszik és innen pótolható.
+		$pgv_last  = PGV_Push::last_result();
+		$pgv_queue = PGV_Push::queue();
+		?>
+		<div style="margin-top:14px;padding:12px 14px;border:1px solid #dcdcde;border-radius:4px;background:#fff">
+			<strong><?php esc_html_e( 'Felküldés állapota', 'pomodoro-gift-vouchers' ); ?></strong>
+			<p style="margin:6px 0">
+				<?php if ( empty( $pgv_last ) ) : ?>
+					<span class="description"><?php esc_html_e( 'Még nem történt felküldés.', 'pomodoro-gift-vouchers' ); ?></span>
+				<?php elseif ( ! empty( $pgv_last['ok'] ) ) : ?>
+					<span style="color:#008a20">●</span>
+					<?php
+					printf(
+						/* translators: %s: időpont */
+						esc_html__( 'Rendben — utoljára: %s', 'pomodoro-gift-vouchers' ),
+						esc_html( wp_date( 'Y. m. d. H:i', (int) $pgv_last['time'] ) )
+					);
+					?>
+				<?php else : ?>
+					<span style="color:#d63638">●</span>
+					<?php
+					printf(
+						/* translators: 1: időpont, 2: hibaüzenet */
+						esc_html__( 'Hiba — utoljára: %1$s · %2$s', 'pomodoro-gift-vouchers' ),
+						esc_html( wp_date( 'Y. m. d. H:i', (int) $pgv_last['time'] ) ),
+						esc_html( (string) $pgv_last['error'] )
+					);
+					?>
+				<?php endif; ?>
+			</p>
+			<?php if ( $pgv_queue ) : ?>
+				<p style="margin:6px 0;color:#d63638">
+					<?php
+					printf(
+						/* translators: %d: darabszám */
+						esc_html( _n( '%d utalvány vár felküldésre.', '%d utalvány vár felküldésre.', count( $pgv_queue ), 'pomodoro-gift-vouchers' ) ),
+						count( $pgv_queue )
+					);
+					?>
+					<?php esc_html_e( 'Óránként magától újrapróbálkozik.', 'pomodoro-gift-vouchers' ); ?>
+				</p>
+			<?php endif; ?>
+			<form method="post" style="display:inline">
+				<?php wp_nonce_field( 'pgv_push_test' ); ?>
+				<input type="hidden" name="pgv_action" value="push_test">
+				<button type="submit" class="button"><?php esc_html_e( 'Kapcsolat tesztelése', 'pomodoro-gift-vouchers' ); ?></button>
+			</form>
+			<?php if ( $pgv_queue ) : ?>
+				<form method="post" style="display:inline;margin-left:6px">
+					<?php wp_nonce_field( 'pgv_push_retry' ); ?>
+					<input type="hidden" name="pgv_action" value="push_retry">
+					<button type="submit" class="button button-primary"><?php esc_html_e( 'Felküldés újra most', 'pomodoro-gift-vouchers' ); ?></button>
+				</form>
+			<?php endif; ?>
+		</div>
+
 		<form method="post" style="margin-top:12px" onsubmit="return confirm('<?php echo esc_js( __( 'Minden kiadott utalvány PDF-je újra elkészül és felkerül a vezérlőpultra. Sok utalványnál ez percekig tarthat. Folytatod?', 'pomodoro-gift-vouchers' ) ); ?>');">
 			<?php wp_nonce_field( 'pgv_refresh_all_pdfs' ); ?>
 			<input type="hidden" name="pgv_action" value="refresh_all_pdfs">

@@ -11,9 +11,89 @@ defined( 'ABSPATH' ) || exit;
 
 class PGV_Push {
 
+	/** A sikertelen felküldések várólistája (utalvány-azonosítók). */
+	const QUEUE_OPTION = 'pgv_push_queue';
+	/** A legutóbbi felküldés eredménye (idő, siker, hibaszöveg). */
+	const LAST_OPTION  = 'pgv_push_last';
+	const RETRY_HOOK   = 'pgv_push_retry';
+
 	public function __construct() {
 		// Minden mentett/megváltozott utalvány azonnal felkerül.
 		add_action( 'pgv_voucher_saved', array( $this, 'on_saved' ), 20, 1 );
+		// Ami nem ment fel elsőre (a vezérlőpult nem elérhető, rossz titok, hálózati
+		// hiba), az óránként újrapróbálkozik — enélkül némán kimaradna a kasszáról.
+		add_action( self::RETRY_HOOK, array( __CLASS__, 'run_retry' ) );
+		if ( ! wp_next_scheduled( self::RETRY_HOOK ) ) {
+			wp_schedule_event( time() + 600, 'hourly', self::RETRY_HOOK );
+		}
+	}
+
+	/** A legutóbbi felküldés állapota az admin figyelmeztetéshez. */
+	public static function last_result() {
+		$r = get_option( self::LAST_OPTION, array() );
+		return is_array( $r ) ? $r : array();
+	}
+	private static function remember( $ok, $error = '' ) {
+		update_option( self::LAST_OPTION, array(
+			'time'  => time(),
+			'ok'    => (bool) $ok,
+			'error' => (string) $error,
+		), false );
+	}
+
+	/** Várólista kezelése. */
+	public static function queue() {
+		$q = get_option( self::QUEUE_OPTION, array() );
+		return is_array( $q ) ? array_values( array_unique( array_map( 'intval', $q ) ) ) : array();
+	}
+	private static function enqueue( $id ) {
+		$id = (int) $id;
+		if ( ! $id ) {
+			return;
+		}
+		$q = self::queue();
+		if ( ! in_array( $id, $q, true ) ) {
+			$q[] = $id;
+			update_option( self::QUEUE_OPTION, array_slice( $q, -500 ), false );
+		}
+	}
+	private static function dequeue( $id ) {
+		$q = array_values( array_diff( self::queue(), array( (int) $id ) ) );
+		update_option( self::QUEUE_OPTION, $q, false );
+	}
+
+	/**
+	 * A várólista feldolgozása (óránként, illetve kézzel az adminból).
+	 *
+	 * @return array{sent:int,failed:int}
+	 */
+	public static function run_retry() {
+		$out = array( 'sent' => 0, 'failed' => 0 );
+		foreach ( self::queue() as $id ) {
+			$v = PGV_Vouchers::get( $id );
+			if ( ! $v || empty( $v['serial'] ) ) {
+				self::dequeue( $id );
+				continue;
+			}
+			$r = self::send( array( self::payload( $v, true ) ), true );
+			if ( is_wp_error( $r ) ) {
+				$out['failed']++;
+			} else {
+				self::dequeue( $id );
+				$out['sent']++;
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * A kapcsolat ellenőrzése: valódi, üres kérés a vezérlőpultnak.
+	 *
+	 * @return true|WP_Error
+	 */
+	public static function test_connection() {
+		$r = self::send( array(), true );
+		return is_wp_error( $r ) ? $r : true;
 	}
 
 	private static function url() {
@@ -125,7 +205,16 @@ class PGV_Push {
 			return;
 		}
 		// A mentés/kibocsátás azonnali felküldése, az utalvány PDF-jével együtt.
-		self::send( array( self::payload( $v, true ) ), false );
+		//
+		// Korábban ez „elküldöm és nem várom meg” módon ment, 1 másodperces
+		// időkorláttal: ha a vezérlőpult épp lassabban ébredt (hidegindítás), a
+		// kérés elveszett, és az utalvány NÉMÁN kimaradt a kasszáról. Ezért most
+		// megvárjuk a választ, és ami nem ment fel, azt várólistára tesszük —
+		// onnan óránként (vagy kézzel) újrapróbálkozik.
+		$r = self::send( array( self::payload( $v, true ) ), true );
+		if ( is_wp_error( $r ) ) {
+			self::enqueue( $voucher_id );
+		}
 	}
 
 	/**
@@ -204,7 +293,9 @@ class PGV_Push {
 	 */
 	public static function send( array $vouchers, $blocking = true ) {
 		if ( ! self::configured() ) {
-			return new WP_Error( 'pgv_push_cfg', __( 'A vezérlőpult URL/titok nincs beállítva.', 'pomodoro-gift-vouchers' ) );
+			$e = new WP_Error( 'pgv_push_cfg', __( 'A vezérlőpult URL/titok nincs beállítva.', 'pomodoro-gift-vouchers' ) );
+			self::remember( false, $e->get_error_message() );
+			return $e;
 		}
 		$resp = wp_remote_post(
 			self::url() . '/api/ingest',
@@ -222,13 +313,17 @@ class PGV_Push {
 			return array( 'count' => count( $vouchers ) );
 		}
 		if ( is_wp_error( $resp ) ) {
+			self::remember( false, $resp->get_error_message() );
 			return $resp;
 		}
 		$code = wp_remote_retrieve_response_code( $resp );
 		$body = json_decode( wp_remote_retrieve_body( $resp ), true );
 		if ( $code < 200 || $code >= 300 ) {
-			return new WP_Error( 'pgv_push_http', sprintf( __( 'Push hiba (HTTP %d): %s', 'pomodoro-gift-vouchers' ), $code, is_array( $body ) && isset( $body['error'] ) ? $body['error'] : '' ) );
+			$e = new WP_Error( 'pgv_push_http', sprintf( __( 'Push hiba (HTTP %d): %s', 'pomodoro-gift-vouchers' ), $code, is_array( $body ) && isset( $body['error'] ) ? $body['error'] : '' ) );
+			self::remember( false, $e->get_error_message() );
+			return $e;
 		}
+		self::remember( true );
 		return array( 'count' => is_array( $body ) && isset( $body['count'] ) ? (int) $body['count'] : count( $vouchers ) );
 	}
 

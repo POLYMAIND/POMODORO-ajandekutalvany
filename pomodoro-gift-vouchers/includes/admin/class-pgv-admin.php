@@ -116,7 +116,39 @@ class PGV_Admin {
 			case 'refresh_all_pdfs':
 				$this->refresh_all_pdfs();
 				break;
+			case 'push_retry':
+				$this->push_retry();
+				break;
+			case 'push_test':
+				$this->push_test();
+				break;
 		}
+	}
+
+	/**
+	 * A fel nem került utalványok újbóli felküldése (a várólista feldolgozása).
+	 */
+	private function push_retry() {
+		check_admin_referer( 'pgv_push_retry' );
+		$r = PGV_Push::run_retry();
+		set_transient( 'pgv_pdf_msg', sprintf(
+			/* translators: 1: sikeres, 2: sikertelen */
+			__( 'Újraküldés: %1$d utalvány felkerült, %2$d továbbra sem sikerült.', 'pomodoro-gift-vouchers' ),
+			(int) $r['sent'], (int) $r['failed']
+		), 60 );
+		$this->redirect_with( self::SLUG . '-settings', empty( $r['failed'] ) ? 'pdf_ok' : 'pdf_error' );
+	}
+
+	/**
+	 * A vezérlőpult-kapcsolat ellenőrzése — valódi kérés, valódi hibaüzenettel.
+	 */
+	private function push_test() {
+		check_admin_referer( 'pgv_push_test' );
+		$r = PGV_Push::test_connection();
+		set_transient( 'pgv_pdf_msg', is_wp_error( $r )
+			? sprintf( __( 'A vezérlőpult nem érhető el: %s', 'pomodoro-gift-vouchers' ), $r->get_error_message() )
+			: __( 'A vezérlőpult elérhető, a titok rendben van.', 'pomodoro-gift-vouchers' ), 60 );
+		$this->redirect_with( self::SLUG . '-settings', is_wp_error( $r ) ? 'pdf_error' : 'pdf_ok' );
 	}
 
 	/**
