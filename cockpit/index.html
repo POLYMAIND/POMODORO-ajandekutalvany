@@ -734,8 +734,13 @@ function renderExpiry(){
   // lejártként feltöltött utalvány sehol nem jelenne meg a lejáratok között.
   const all=filt(DATA.vouchers).filter(x=>(x.status==='active'||x.status==='expired')&&x.valid_until)
     .map(x=>({x,d:daysLeft(x.valid_until)})).sort((a,b)=>a.d-b.d);
-  const soon=all.filter(e=>e.d>=0&&e.d<=14).length;
-  const c=$('#expCount'); if(soon>0){c.style.display='';c.textContent=soon;}else c.style.display='none';
+  // A menü jelvénye teendőt jelez, nem tényt: amiről már ment értesítő, azzal
+  // nincs több dolgunk, ezért nem számoljuk bele. (A „14 napon belül lejár”
+  // mutató az áttekintőn továbbra is a teljes darabszámot mutatja.)
+  const soon=all.filter(e=>e.d>=0&&e.d<=14&&!e.x.reminder_sent_at).length;
+  const c=$('#expCount');
+  if(soon>0){ c.style.display=''; c.textContent=soon; c.title=soon+' utalvány jár le 14 napon belül, és még nem ment róla értesítő'; }
+  else c.style.display='none';
   const near=all.filter(e=>e.d>=0).slice(0,5);
   $('#dashExpiry').innerHTML=near.length?near.map(e=>expRow(e.x)).join(''):'<div class="exp-item"><span class="t-sub">Nincs közelgő lejárat.</span></div>';
   // A Lejáratok nézet két fülre bomlik: a napi munkában a közelgő lejáratok
