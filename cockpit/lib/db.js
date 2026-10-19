@@ -349,28 +349,49 @@ function nowLocal(sql) { return sql`(now() AT TIME ZONE 'Europe/Budapest')`; }
 
 // Atomikus beváltás: CSAK aktív + nem lejárt utalvány váltható be, egyszer.
 // A WHERE-feltétel biztosítja, hogy párhuzamos hívásnál se legyen dupla beváltás.
-async function redeemVoucher(unit, serial, actor) {
+// `allowExpired`: a kasszás kifejezett megerősítésével a lejárt utalvány is
+// beváltható (a vendég a pultnál áll, a vendéglátós elfogadja). Ilyenkor a
+// dátum-feltétel kimarad, és az importból `expired` státusszal érkezett sor is
+// beváltható. Sztornó és függőben lévő utalvány így sem — és a kétszeres
+// beváltást továbbra is maga a WHERE zárja ki, tehát mindkét ág atomi marad.
+async function redeemVoucher(unit, serial, actor, allowExpired) {
   const sql = db();
   // Nevet ÉS e-mailt is eltesszük: névvel rendelkező felhasználónál különben
   // sehol nem maradna nyoma a belépési címének (és nem lenne rá kereshető).
   const by = actor && (actor.name || actor.email) ? String(actor.name || actor.email) : null;
   const byEmail = actor && actor.email ? String(actor.email) : null;
-  const rows = await sql`UPDATE pgv_vouchers
-    SET status = 'redeemed', updated_at = ${nowLocal(sql)}, redeemed_at = ${nowLocal(sql)},
-      redeemed_by = ${by}, redeemed_by_email = ${byEmail}, redeemed_via = 'cockpit'
-    WHERE lower(unit) = lower(${String(unit)}) AND serial = ${String(serial)}
-      AND status = 'active'
-      AND (valid_until IS NULL OR valid_until >= CURRENT_DATE)
-    RETURNING *`;
+  const rows = allowExpired
+    ? await sql`UPDATE pgv_vouchers
+        SET status = 'redeemed', updated_at = ${nowLocal(sql)}, redeemed_at = ${nowLocal(sql)},
+          redeemed_by = ${by}, redeemed_by_email = ${byEmail}, redeemed_via = 'cockpit'
+        WHERE lower(unit) = lower(${String(unit)}) AND serial = ${String(serial)}
+          AND status IN ('active', 'expired')
+        RETURNING *`
+    : await sql`UPDATE pgv_vouchers
+        SET status = 'redeemed', updated_at = ${nowLocal(sql)}, redeemed_at = ${nowLocal(sql)},
+          redeemed_by = ${by}, redeemed_by_email = ${byEmail}, redeemed_via = 'cockpit'
+        WHERE lower(unit) = lower(${String(unit)}) AND serial = ${String(serial)}
+          AND status = 'active'
+          AND (valid_until IS NULL OR valid_until >= (now() AT TIME ZONE 'Europe/Budapest')::date)
+        RETURNING *`;
   return rows[0] || null;
 }
 
 // Beváltás visszavonása (téves beváltás javítása): csak beváltott utalványon,
 // és csak egyszer — a WHERE status = 'redeemed' teszi atomikussá.
+//
+// A visszaállítás a valós állapotot adja vissza: ha az érvényesség addigra
+// lejárt, az utalvány `expired` lesz, nem `active`. Enélkül egy megerősítéssel
+// beváltott lejárt utalvány a visszaállítás után némán, megerősítés nélkül
+// újra beváltható lenne — és a lejáratok listájából is kiesne.
 async function unredeemVoucher(unit, serial) {
   const sql = db();
   const rows = await sql`UPDATE pgv_vouchers
-    SET status = 'active', updated_at = ${nowLocal(sql)}, redeemed_at = NULL,
+    SET status = CASE
+          WHEN valid_until IS NOT NULL
+           AND valid_until < (now() AT TIME ZONE 'Europe/Budapest')::date THEN 'expired'
+          ELSE 'active' END,
+        updated_at = ${nowLocal(sql)}, redeemed_at = NULL,
         redeemed_by = NULL, redeemed_by_email = NULL, redeemed_via = NULL
     WHERE lower(unit) = lower(${String(unit)}) AND serial = ${String(serial)}
       AND status = 'redeemed'

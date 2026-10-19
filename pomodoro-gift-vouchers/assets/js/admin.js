@@ -104,10 +104,19 @@
 					$res.find( '[data-field="valid_until"]' ).text( d.valid_until || '—' );
 					$res.find( '[data-field="status"]' ).text( d.status ).attr( 'class', 'pgv-v pgv-status-badge pgv-status-' + d.status_key );
 
+					// A gomb egyetlen, maradandó elem: minden kereséskor vissza kell
+					// állítani, különben az előző (lejárt) találat jelzése ottragad.
 					var $redeem = $( '#pgv-cashier-redeem' );
-					$redeem.data( 'id', d.id );
+					$redeem.data( 'id', d.id ).data( 'expired', '' ).data( 'validUntil', '' )
+						.removeClass( 'pgv-redeem-expired' );
 					if ( d.redeemable ) {
 						$redeem.prop( 'disabled', false ).show();
+					} else if ( d.expired ) {
+						// Lejárt utalvány: a gombot nem rejtjük el, de a kasszás
+						// lássa, mit vállal, és a beváltás külön nyomot hagy.
+						$redeem.data( 'expired', '1' ).data( 'validUntil', d.valid_until || '' );
+						$redeem.addClass( 'pgv-redeem-expired' ).prop( 'disabled', false ).show();
+						$msg.text( PGVAdmin.i18n.expiredHint ).addClass( 'pgv-err' );
 					} else {
 						$redeem.prop( 'disabled', true ).hide();
 						$msg.text( 'Ez az utalvány nem beváltható (' + d.status + ').' ).addClass( 'pgv-err' );
@@ -128,14 +137,27 @@
 
 		// --- Kassza: beváltás ---
 		$( '#pgv-cashier-redeem' ).on( 'click', function () {
-			var id = $( this ).data( 'id' );
-			if ( ! id || ! window.confirm( PGVAdmin.i18n.confirmRedeem ) ) {
+			var id      = $( this ).data( 'id' );
+			var expired = !! $( this ).data( 'expired' );
+			if ( ! id ) {
+				return;
+			}
+			// Lejárt utalványnál saját, egyértelmű kérdést teszünk fel.
+			var ask = expired
+				? PGVAdmin.i18n.confirmRedeemExpired.replace( '%s', $( this ).data( 'validUntil' ) || '—' )
+				: PGVAdmin.i18n.confirmRedeem;
+			if ( ! window.confirm( ask ) ) {
 				return;
 			}
 			var $btn = $( this );
 			var $msg = $( '#pgv-cashier-msg' );
 			$btn.prop( 'disabled', true );
-			$.post( PGVAdmin.ajaxUrl, { action: 'pgv_redeem', nonce: PGVAdmin.nonce, id: id } )
+			$.post( PGVAdmin.ajaxUrl, {
+				action: 'pgv_redeem',
+				nonce: PGVAdmin.nonce,
+				id: id,
+				allow_expired: expired ? 1 : 0
+			} )
 				.done( function ( res ) {
 					if ( res.success ) {
 						$msg.text( res.data.message + ' (' + res.data.status + ')' ).removeClass( 'pgv-err' ).addClass( 'pgv-ok' );

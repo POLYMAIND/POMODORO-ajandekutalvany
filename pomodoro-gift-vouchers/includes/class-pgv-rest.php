@@ -113,6 +113,11 @@ class PGV_REST {
 		}
 		$redeemable = ( PGV_Vouchers::STATUS_ACTIVE === $v['status'] )
 			&& ( empty( $v['valid_until'] ) || $v['valid_until'] >= current_time( 'Y-m-d' ) );
+		// Tájékoztató jelzés: a lejárt utalványt a KASSZA bírálhatja felül, ember
+		// által megerősítve. Ez a végpont nem: API-kulccsal hívják, a beváltó
+		// személye nem azonosítható, ezért itt a lejárat marad akadály.
+		$expired = ( ! empty( $v['valid_until'] ) && $v['valid_until'] < current_time( 'Y-m-d' ) && PGV_Vouchers::STATUS_ACTIVE === $v['status'] )
+			|| PGV_Vouchers::STATUS_EXPIRED === $v['status'];
 		return rest_ensure_response(
 			array(
 				'serial'      => $v['serial'],
@@ -122,6 +127,7 @@ class PGV_REST {
 				'recipient'   => $v['recipient_name'],
 				'valid_until' => $v['valid_until'],
 				'redeemable'  => $redeemable,
+				'expired'     => $expired,
 				'is_legacy'   => (bool) $v['is_legacy'],
 			)
 		);

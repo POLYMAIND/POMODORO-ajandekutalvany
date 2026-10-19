@@ -66,8 +66,11 @@ class PGV_Admin {
 				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
 				'nonce'   => wp_create_nonce( 'pgv_admin' ),
 				'i18n'    => array(
-					'confirmRedeem' => __( 'Biztosan beváltod ezt az utalványt?', 'pomodoro-gift-vouchers' ),
-					'pickImage'     => __( 'Kép kiválasztása', 'pomodoro-gift-vouchers' ),
+					'confirmRedeem'        => __( 'Biztosan beváltod ezt az utalványt?', 'pomodoro-gift-vouchers' ),
+					/* translators: %s: az érvényesség utolsó napja */
+					'confirmRedeemExpired' => __( 'Ez az utalvány lejárt (érvényes volt: %s). Biztosan beváltod?', 'pomodoro-gift-vouchers' ),
+					'expiredHint'          => __( 'Ez az utalvány lejárt. Beváltható, de az előzményben külön jelenik meg.', 'pomodoro-gift-vouchers' ),
+					'pickImage'            => __( 'Kép kiválasztása', 'pomodoro-gift-vouchers' ),
 				),
 			)
 		);
@@ -459,8 +462,12 @@ class PGV_Admin {
 		if ( ! current_user_can( self::CAP ) ) {
 			wp_send_json_error( array( 'message' => __( 'Nincs jogosultság.', 'pomodoro-gift-vouchers' ) ) );
 		}
-		$id     = absint( $_POST['id'] ?? 0 );
-		$result = PGV_Vouchers::redeem( $id, PGV_Vouchers::actor() );
+		$id = absint( $_POST['id'] ?? 0 );
+		// A kassza külön megerősítés után küldi — lejárt utalvány is beváltható.
+		// Szándékosan pontos egyezés: a böngésző a logikai értéket szövegként
+		// küldi, és a "false"/"0" is nem-üres szöveg lenne.
+		$allow_expired = '1' === (string) ( $_POST['allow_expired'] ?? '' );
+		$result        = PGV_Vouchers::redeem( $id, PGV_Vouchers::actor(), $allow_expired );
 		if ( is_wp_error( $result ) ) {
 			wp_send_json_error( array( 'message' => $result->get_error_message() ) );
 		}
@@ -497,6 +504,10 @@ class PGV_Admin {
 		}
 		$redeemable = ( PGV_Vouchers::STATUS_ACTIVE === $v['status'] )
 			&& ( empty( $v['valid_until'] ) || $v['valid_until'] >= current_time( 'Y-m-d' ) );
+		// Lejárt: a kassza külön megerősítéssel ezt is beválthatja. A sztornó és
+		// a függőben lévő nem ilyen — azoknál a `redeemable` marad az egyetlen szó.
+		$expired = ( ! empty( $v['valid_until'] ) && $v['valid_until'] < current_time( 'Y-m-d' ) && PGV_Vouchers::STATUS_ACTIVE === $v['status'] )
+			|| PGV_Vouchers::STATUS_EXPIRED === $v['status'];
 
 		wp_send_json_success(
 			array(
@@ -508,6 +519,7 @@ class PGV_Admin {
 				'recipient'    => $v['recipient_name'],
 				'valid_until'  => $v['valid_until'],
 				'redeemable'   => $redeemable,
+				'expired'      => $expired,
 				'is_legacy'    => (bool) $v['is_legacy'],
 			)
 		);

@@ -5,7 +5,8 @@
  * - Hézagmentes, per-egység + év sorszám (CASA-2026-000042), atomikusan.
  * - A sorszám CSAK a sikeres fizetés után születik (soha nem a kliens-redirectből).
  * - Minden státuszváltozás auditba kerül; törlés sehol (a sztornó is cancelled + audit).
- * - Beváltás: csak aktív + nem lejárt utalvány.
+ * - Beváltás: aktív utalvány. A lejártat a kassza kifejezett megerősítéssel
+ *   felülbírálhatja — az ilyen beváltás külön audit-sort kap.
  *
  * @package Pomodoro_Gift_Vouchers
  */
@@ -403,18 +404,28 @@ class PGV_Vouchers {
 	/**
 	 * Beváltás — kizárólag aktív + nem lejárt utalvány.
 	 */
-	public static function redeem( $id, $actor = null ) {
+	public static function redeem( $id, $actor = null, $allow_expired = false ) {
 		$v = self::get( $id );
 		if ( ! $v ) {
 			return new WP_Error( 'pgv_notfound', __( 'Nincs ilyen utalvány.', 'pomodoro-gift-vouchers' ) );
 		}
-		if ( self::STATUS_ACTIVE !== $v['status'] ) {
+		// A lejárt utalvány a kassza kifejezett megerősítésével beváltható. Két
+		// ágon kell átengedni: a dátum miatt lejárt (még `active`) utalványon és
+		// azon, amit egy korábbi próbálkozás már `expired`-re állított.
+		// A sztornó és a függőben lévő így sem beváltható.
+		$redeemable_status = array( self::STATUS_ACTIVE );
+		if ( $allow_expired ) {
+			$redeemable_status[] = self::STATUS_EXPIRED;
+		}
+		if ( ! in_array( $v['status'], $redeemable_status, true ) ) {
 			return new WP_Error(
 				'pgv_notredeemable',
 				sprintf( __( 'Nem beváltható (állapot: %s).', 'pomodoro-gift-vouchers' ), self::status_label( $v['status'] ) )
 			);
 		}
-		if ( ! empty( $v['valid_until'] ) && $v['valid_until'] < current_time( 'Y-m-d' ) ) {
+		$is_expired = ( ! empty( $v['valid_until'] ) && $v['valid_until'] < current_time( 'Y-m-d' ) )
+			|| self::STATUS_EXPIRED === $v['status'];
+		if ( $is_expired && ! $allow_expired ) {
 			self::set_status( $id, self::STATUS_EXPIRED, array(), $actor );
 			return new WP_Error(
 				'pgv_expired',
@@ -422,7 +433,7 @@ class PGV_Vouchers {
 			);
 		}
 
-		return self::set_status(
+		$result = self::set_status(
 			$id,
 			self::STATUS_REDEEMED,
 			array(
@@ -431,6 +442,23 @@ class PGV_Vouchers {
 			),
 			$actor
 		);
+
+		// Lejárt utalvány elfogadása könyvelési döntés — külön audit-sort kap,
+		// hogy utólag kigyűjthető legyen, ki és mikor bírálta felül a lejáratot.
+		// (A `set_status()` $extra kulcsai adatbázis-oszlopok, ezért a jelölés
+		// nem fér bele oda; önálló sorként írjuk.)
+		if ( $is_expired && ! is_wp_error( $result ) ) {
+			self::audit(
+				$id,
+				'redeemed_expired',
+				$v['status'],
+				self::STATUS_REDEEMED,
+				$actor ?: self::actor(),
+				array( 'valid_until' => $v['valid_until'] )
+			);
+		}
+
+		return $result;
 	}
 
 	/**

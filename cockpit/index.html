@@ -777,10 +777,14 @@ function cashRow(v){
   // nem — a kasszás ezekkel tud egyeztetni, ezért ezeket mutatjuk elöl.
   const who=v.giver_name||v.buyer_name||'—';
   const to=v.recipient_name?' → '+esc(v.recipient_name):'';
+  // A státusz önmagában megtévesztő: egy lejárt utalvány is „Aktív” marad, amíg
+  // valaki be nem váltja. A kasszás már a találati listában lássa, hogy lejárt.
+  const dl=daysLeft(v.valid_until);
+  const late=v.status==='active'&&dl!==null&&dl<0?'<span class="pill p-expired">lejárt</span>':'';
   return '<div class="cash-hit" data-serial="'+esc(v.serial)+'" data-unit="'+esc(v.unit)+'">'+
     '<div style="min-width:0"><div class="mono" style="font-weight:600">'+esc(v.serial)+'</div>'+
     '<div class="t-sub">'+esc(shortName(v.unit))+' · '+esc(who)+to+'</div></div>'+
-    '<div style="margin-left:auto;display:flex;align-items:center;gap:10px"><span class="tnum t-strong">'+money(v.amount)+'</span>'+statusPill(v.status)+'</div></div>';
+    '<div style="margin-left:auto;display:flex;align-items:center;gap:10px"><span class="tnum t-strong">'+money(v.amount)+'</span>'+late+statusPill(v.status)+'</div></div>';
 }
 function searchCashier(q){
   q=(q||'').trim().toLowerCase();
@@ -798,12 +802,22 @@ function searchCashier(q){
   list.innerHTML=(matches.length?matches.map(cashRow).join(''):'<div class="empty" style="padding:18px">Nincs találat.</div>')+
     (total>matches.length?'<div class="t-sub" style="padding:10px 16px">+ '+(total-matches.length)+' további találat — pontosíts a keresésen.</div>':'');
 }
-function showVoucherDetail(unit,serial){
+// `exp`: a szerver válasza, ha lejártra hivatkozva utasította el a beváltást
+// ({valid_until}). Ilyenkor rajzoljuk a felülbíráló gombot.
+function showVoucherDetail(unit,serial,exp){
   const v=DATA.vouchers.find(x=>String(x.unit)===String(unit)&&String(x.serial)===String(serial));
   const box=$('#cashResult');
   if(!v){ box.classList.add('hidden'); return; }
   const d=daysLeft(v.valid_until);
-  const redeemable = v.status==='active' && (d===null||d>=0);
+  // A lejáratról a SZERVER dönt, nem ez a lista: a listában lévő érvényességi
+  // dátum származtatott is lehet (hiányzó adatból visszaszámolt), és a böngésző
+  // naptára sem feltétlenül a szerveré. Aktív utalványnál tehát a szokásos
+  // gombot rajzoljuk; ha a szerver lejártra hivatkozva elutasítja, ez a doboz
+  // újrarajzolódik a felülbíráló gombbal — már a szerver dátumával.
+  // A `expired` státuszú utalványnál viszont nincs mit kipróbálni: az tény.
+  const expired = v.status==='expired' || !!exp;
+  const redeemable = v.status==='active' && !exp;
+  const expValid = (exp&&exp.valid_until)||v.valid_until;
   box.classList.remove('hidden');
   box.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center"><div class="mono" style="font-size:16px;font-weight:700">'+esc(v.serial)+'</div>'+statusPill(v.status)+'</div>'+
     '<div class="res-grid"><div><span class="res-k">Egység</span><span class="res-v">'+esc(shortName(v.unit))+'</span></div>'+
@@ -817,7 +831,10 @@ function showVoucherDetail(unit,serial){
     (redeemable?'<button class="btn" id="redeemBtn">Beváltás</button><p class="res-msg" id="redeemMsg"></p>'
       :(v.status==='redeemed'
         ? '<p class="res-msg">Ezt az utalványt már felhasználták.</p><button class="btn ghost" id="unredeemBtn">Téves beváltás — visszaállítás aktívra</button><p class="res-msg" id="redeemMsg"></p>'
-        : '<p class="res-msg err">Nem beváltható ('+statusPill(v.status)+').</p>'));
+        : expired
+          ? '<p class="res-msg err">Ez az utalvány <b>lejárt</b> (érvényes volt: '+fdate(expValid)+'). Beváltható, de a kasszazárásban és a naplóban külön jelenik meg.</p>'+
+            '<button class="btn" id="redeemBtn" data-force="1">Beváltás lejárt utalvánnyal</button><p class="res-msg" id="redeemMsg"></p>'
+          : '<p class="res-msg err">Nem beváltható ('+statusPill(v.status)+').</p>'));
   box.scrollIntoView({block:'nearest'});
   const ub=$('#unredeemBtn');
   if(ub) ub.onclick=async()=>{
@@ -826,11 +843,18 @@ function showVoucherDetail(unit,serial){
   };
   const rb=$('#redeemBtn');
   if(rb) rb.onclick=async()=>{
+    // A lejárt utalványt csak kifejezett rákérdezés után váltjuk be — ugyanaz a
+    // minta, mint az emlékeztető ismételt kiküldésénél.
+    const force=!!(rb.dataset&&rb.dataset.force);
+    if(force&&!confirm('Ez az utalvány lejárt (érvényes volt: '+fdate(expValid)+'). Biztosan beváltod?')) return;
     rb.disabled=true; const msg=$('#redeemMsg');
     try{
-      const r=await fetch('/api/redeem',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({serial:v.serial,unit:v.unit})});
+      const r=await fetch('/api/redeem',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({serial:v.serial,unit:v.unit,force})});
       const j=await r.json();
-      if(r.ok&&j.ok){ msg.className='res-msg ok'; msg.textContent='Beváltva – naplózva.'; rb.remove(); v.status='redeemed'; setTimeout(refresh,600); }
+      if(r.ok&&j.ok){ msg.className='res-msg ok'; msg.textContent=j.expired?'Beváltva (lejárt utalvány) – naplózva.':'Beváltva – naplózva.'; rb.remove(); v.status='redeemed'; setTimeout(refresh,600); }
+      // A szerver mondta ki, hogy lejárt: újrarajzoljuk a dobozt a felülbíráló
+      // gombbal, immár a szervertől kapott érvényességi dátummal.
+      else if(j.expired&&!force){ showVoucherDetail(v.unit,v.serial,{valid_until:j.valid_until}); }
       else { msg.className='res-msg err'; msg.textContent=j.error||'Beváltás sikertelen.'; rb.disabled=false; }
     }catch(e){ msg.className='res-msg err'; msg.textContent='Hálózati hiba.'; rb.disabled=false; }
   };
@@ -882,6 +906,14 @@ function redPeriodLabel(r){
 }
 // A beváltás idejét admin és egység-kezelő javíthatja (pl. ha csak másnap rögzítették).
 function canRetime(){ return CFG.role==='superadmin'||CFG.role==='unit_manager'; }
+// Soron látható jelölés: a beváltás napja későbbi az érvényesség végénél.
+// Kiegészítés, nem bizonyíték — a hiteles nyom a napló `redeem_expired` sora
+// (az összesítő abból számol). Ez a jelölés viszont a bolti kasszán beváltott,
+// felküldött utalványokat is megmutatja, amikhez nincs vezérlőpulti naplósor.
+function redeemedAfterExpiry(v){
+  if(!v.redeemed_at||!v.valid_until) return false;
+  return String(v.redeemed_at).slice(0,10) > String(v.valid_until).slice(0,10);
+}
 function redRow(v){
   const giver=v.giver_name||v.buyer_name||'—';
   const when=v.redeemed_at
@@ -891,7 +923,7 @@ function redRow(v){
   return '<tr class="clickable" data-serial="'+esc(v.serial)+'" data-unit="'+esc(v.unit)+'">'+
     '<td class="tnum">'+when+'</td>'+
     '<td>'+uchip(v.unit)+'</td>'+
-    '<td class="mono t-sub">'+esc(v.serial)+'</td>'+
+    '<td class="mono t-sub">'+esc(v.serial)+(redeemedAfterExpiry(v)?' <span class="pill p-expired">lejárt</span>':'')+'</td>'+
     '<td class="t-strong">'+esc(giver)+(v.buyer_name&&v.buyer_name!==giver?'<div class="t-sub">vásárló: '+esc(v.buyer_name)+'</div>':'')+'</td>'+
     '<td class="t-strong">'+esc(v.recipient_name||'—')+'</td>'+
     '<td>'+actorCell(v.redeemed_by,v.redeemed_by_email)+'</td>'+
@@ -924,6 +956,16 @@ function renderRedeemed(){
   if(undone.length){
     sum+='<div class="rs warn"><span class="rs-k">Visszaállítva</span><span class="rs-v">'+
       undone.length+' db · '+money(undone.reduce((a,x)=>a+(+x.amount||0),0))+'</span></div>';
+  }
+  // Lejárt utalvánnyal elfogadott beváltások — ez könyvelési döntés, ezért a
+  // kasszazárás összesítőjében külön is látszik, hány volt és mennyiért.
+  // A szám forrása a NAPLÓ (`redeem_expired`), nem a soron látható jelölés:
+  // a napló akkor is pontos marad, ha valaki utólag javítja a beváltás idejét.
+  let late=(DATA.log||[]).filter(x=>x.action==='redeem_expired'&&inRedRange(x.created_at,r));
+  if(currentUnit!=='all') late=late.filter(x=>x.unit===currentUnit);
+  if(late.length){
+    sum+='<div class="rs warn"><span class="rs-k">Lejárt utalvány beváltva</span><span class="rs-v">'+
+      late.length+' db · '+money(late.reduce((a,x)=>a+(+x.amount||0),0))+'</span></div>';
   }
   $('#redSum').innerHTML=sum;
 
