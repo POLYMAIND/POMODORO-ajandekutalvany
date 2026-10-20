@@ -62,6 +62,34 @@ function fail(req, res, status, title, detail, serial) {
   res.status(status).send(html);
 }
 
+// Ékezet- és kisbetű-érzéketlen összevetés a nevekhez.
+function fold(s) {
+  return String(s || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
+}
+
+// A korábbi rendszerben a vásárló gyakran az üzenetbe is beleírta a
+// megszólítást, így a kártyán kétszer jelenne meg. Ha ugyanannak szól, mint
+// akinek az utalvány, leválasztjuk az üzenet elejéről.
+// Ha a megajándékozott mező üres, de az üzenet megszólítással kezdődik, azt
+// léptetjük elő külön sorrá — így a lap akkor is rendezett.
+function splitGreeting(message, recipientName) {
+  const msg = String(message || '').replace(/\s+/g, ' ').trim();
+  const rec = String(recipientName || '').trim();
+  // Legfeljebb 60 karakternyi név, hogy egy egész mondatot ne nyeljen le.
+  const m = msg.match(/^kedves\s+([^!?.]{1,60})[!?]\s*/i);
+  if (!m) return { name: rec, rest: msg };
+
+  const inMsg = m[1].trim();
+  const rest = msg.slice(m[0].length).trim();
+  if (!rec) return { name: inMsg, rest: rest };
+
+  const a = fold(rec), b = fold(inMsg);
+  // Részleges egyezés is elég: a mezőben „Zsolt”, az üzenetben „Zsolt és Judit”.
+  if (a && b && (b.includes(a) || a.includes(b))) return { name: rec, rest: rest };
+  // Más névnek szól — ez nem ismétlés, maradjon mindkettő.
+  return { name: rec, rest: msg };
+}
+
 // Az üzenet tördelése az éles PDF szabálya szerint: 34 karakter, legfeljebb
 // 5 sor (class-pgv-pdf.php MSG_WRAP_CHARS / MSG_MAX_LINES).
 function wrapMessage(txt) {
@@ -79,12 +107,40 @@ function wrapMessage(txt) {
   return lines.slice(0, 5);
 }
 
+// Alapértelmezett kép a bal félre. Beágyazott SVG, mert az TARTALOM — a
+// böngésző akkor is kinyomtatja, ha a „háttérgrafika” ki van kapcsolva, míg
+// egy CSS-háttér ilyenkor lemaradna a papírról. Külső hivatkozás nincs, tehát
+// a lap továbbra is önállóan megáll.
+function cardArt() {
+  return '<svg class="pgv-card-art" viewBox="0 0 105 148" preserveAspectRatio="xMidYMid slice" ' +
+    'xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">' +
+    '<defs><linearGradient id="pgvArt" x1="0" y1="0" x2="0.35" y2="1">' +
+    '<stop offset="0" stop-color="#b94e2b"/><stop offset="1" stop-color="#e7a373"/>' +
+    '</linearGradient></defs>' +
+    '<rect width="105" height="148" fill="url(#pgvArt)"/>' +
+    '<circle cx="86" cy="24" r="17" fill="#fff" opacity=".10"/>' +
+    '<circle cx="14" cy="128" r="24" fill="#fff" opacity=".07"/>' +
+    '<g fill="none" stroke="#fff" stroke-opacity=".85" stroke-width="1.7" ' +
+    'stroke-linecap="round" stroke-linejoin="round">' +
+      '<circle cx="52.5" cy="74" r="21"/>' +
+      '<circle cx="52.5" cy="74" r="13.5"/>' +
+      // villa
+      '<path d="M16.5 52v8M20.5 52v8M24.5 52v8"/>' +
+      '<path d="M15 60h11v2.5a5.5 5.5 0 0 1-5.5 5.5A5.5 5.5 0 0 1 15 62.5z"/>' +
+      '<path d="M20.5 68v28"/>' +
+      // kés
+      '<path d="M85 52c3.2 5.2 3.2 13.4 0 18.4-3.2-5-3.2-13.2 0-18.4z"/>' +
+      '<path d="M85 70.4V96"/>' +
+    '</g></svg>';
+}
+
 // Nyomtatásra kész utalvány. A méretek az éles PDF-generátorból jönnek
 // (class-pgv-pdf.php:61-141): A5 fekvő, bal fél kép/halvány mező, jobb oldalon
 // a szövegoszlop. Képernyőn 1em = a 720 px-es kártya 1%-a, nyomtatásban
 // 1em = 2,1 mm — így mindkettő ugyanazt az elrendezést adja.
 function printPage(v, unitName) {
-  const lines = wrapMessage(v.message);
+  const greet = splitGreeting(v.message, v.recipient_name);
+  const lines = wrapMessage(greet.rest);
   const validUntil = effectiveValidUntil(v);
   const amount = Math.round(Number(v.amount) || 0);
 
@@ -104,7 +160,8 @@ function printPage(v, unitName) {
     'overflow:hidden;border-radius:8px;background:#fff;font-size:7.2px;' +
     'box-shadow:0 1px 3px rgba(0,0,0,.12),0 6px 18px rgba(0,0,0,.08);' +
     'font-family:"Liberation Sans",Helvetica,Arial,sans-serif;line-height:1.2;color:#212121}' +
-    '.pgv-card-img{flex:0 0 50%;background:#f0efed}' +
+    '.pgv-card-img{flex:0 0 50%;background:#f0efed;line-height:0;overflow:hidden}' +
+    '.pgv-card-art{width:100%;height:100%;display:block}' +
     '.pgv-card-body{flex:1 1 50%;display:flex;flex-direction:column;align-items:flex-start;' +
     'padding:7.62em 4.76em 6.2em;min-width:0}' +
     '.pgv-card-unit{color:#e65744;font-weight:700;font-size:2.02em;margin-bottom:2.1em}' +
@@ -134,14 +191,14 @@ function printPage(v, unitName) {
       '„Mentés PDF-be” lehetőséget, ha fájlként kell.</p>' +
     '</div>' +
     '<div class="pgv-card">' +
-      '<div class="pgv-card-img"></div>' +
+      '<div class="pgv-card-img">' + cardArt() + '</div>' +
       '<div class="pgv-card-body">' +
         '<div class="pgv-card-unit">' + esc(unitName) + '</div>' +
         '<div class="pgv-card-heading">AJÁNDÉKUTALVÁNY</div>' +
         // Nulla összegnél nem írunk „0 Ft”-ot: az hivatalosnak látszó, de hamis
         // utalvány lenne. Ilyenkor inkább nincs összeg-sor.
         (amount > 0 ? '<div class="pgv-card-amount">' + esc(money(amount)) + '</div>' : '') +
-        (v.recipient_name ? '<div class="pgv-card-greeting">Kedves ' + esc(v.recipient_name) + '!</div>' : '') +
+        (greet.name ? '<div class="pgv-card-greeting">Kedves ' + esc(greet.name) + '!</div>' : '') +
         (lines.length ? '<div class="pgv-card-message">' + esc(lines.join('\n')) + '</div>' : '') +
         '<div class="pgv-card-foot">' +
           '<span class="pgv-card-serial">Sorszám: ' + esc(v.serial) + '</span>' +
