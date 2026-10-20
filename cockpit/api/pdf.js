@@ -182,7 +182,7 @@ function printPage(v, unitName, images) {
     // A kép kitölti a bal felet, a széleit levágva — ahogy az éles PDF is teszi.
     // A tartalék rajz alatta van: ha a kép nem töltődik be, az marad látható.
     '.pgv-card-photo{object-fit:cover;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
-    '.pick{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:14px 0 0}' +
+    '.pick{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:14px 0 18px}' +
     '.pick b{font-weight:600;font-size:13.5px;color:#6d6357}' +
     '.pick button{width:54px;height:38px;padding:0;border:2px solid transparent;border-radius:8px;' +
     'background:#fff center/cover no-repeat;cursor:pointer;box-shadow:0 0 0 1px #d9d0c0}' +
