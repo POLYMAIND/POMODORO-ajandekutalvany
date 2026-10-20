@@ -1,6 +1,6 @@
 const { getShops } = require('../lib/shops.js');
 const { resolveUser, canSeeUnit, authFail } = require('../lib/auth.js');
-const { ensureSchema, getVoucher, getVoucherPdf } = require('../lib/db.js');
+const { ensureSchema, getVoucher, getVoucherPdf, getConfig } = require('../lib/db.js');
 const { effectiveValidUntil } = require('../lib/dates.js');
 
 // Az utalvány PDF-je.
@@ -107,10 +107,26 @@ function wrapMessage(txt) {
   return lines.slice(0, 5);
 }
 
-// Alapértelmezett kép a bal félre. Beágyazott SVG, mert az TARTALOM — a
-// böngésző akkor is kinyomtatja, ha a „háttérgrafika” ki van kapcsolva, míg
-// egy CSS-háttér ilyenkor lemaradna a papírról. Külső hivatkozás nincs, tehát
-// a lap továbbra is önállóan megáll.
+// Az egység beállított utalvány-képei. A bolt pluginja minden felküldéssel
+// elküldi a média-URL-eket (lásd /api/ingest), mert a vezérlőpult kiszolgálója
+// nem tudja lekérdezni a boltot — a tárhely bot-védelme a bejövő kérést
+// elfogja. A képet nem a kiszolgáló tölti le, hanem a kolléga böngészője,
+// annak pedig a bolt rendesen kiszolgálja.
+async function unitImages(slug) {
+  try {
+    const m = await getConfig('unit:' + slug);
+    const arr = (m && Array.isArray(m.images)) ? m.images : [];
+    return arr
+      .filter(x => x && /^https?:\/\//i.test(String(x.url || '')))
+      .map(x => ({ title: String(x.title || ''), url: String(x.url) }));
+  } catch (e) {
+    return []; // a kép sosem állhat a nyomtatás útjába
+  }
+}
+
+// Tartalék kép, ha az egységhez (még) nem ismerünk egyet sem: beágyazott SVG,
+// mert az TARTALOM — a böngésző akkor is kinyomtatja, ha a „háttérgrafika” ki
+// van kapcsolva, míg egy CSS-háttér ilyenkor lemaradna a papírról.
 function cardArt() {
   return '<svg class="pgv-card-art" viewBox="0 0 105 148" preserveAspectRatio="xMidYMid slice" ' +
     'xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">' +
@@ -138,7 +154,8 @@ function cardArt() {
 // (class-pgv-pdf.php:61-141): A5 fekvő, bal fél kép/halvány mező, jobb oldalon
 // a szövegoszlop. Képernyőn 1em = a 720 px-es kártya 1%-a, nyomtatásban
 // 1em = 2,1 mm — így mindkettő ugyanazt az elrendezést adja.
-function printPage(v, unitName) {
+function printPage(v, unitName, images) {
+  const imgs = Array.isArray(images) ? images : [];
   const greet = splitGreeting(v.message, v.recipient_name);
   const lines = wrapMessage(greet.rest);
   const validUntil = effectiveValidUntil(v);
@@ -160,8 +177,16 @@ function printPage(v, unitName) {
     'overflow:hidden;border-radius:8px;background:#fff;font-size:7.2px;' +
     'box-shadow:0 1px 3px rgba(0,0,0,.12),0 6px 18px rgba(0,0,0,.08);' +
     'font-family:"Liberation Sans",Helvetica,Arial,sans-serif;line-height:1.2;color:#212121}' +
-    '.pgv-card-img{flex:0 0 50%;background:#f0efed;line-height:0;overflow:hidden}' +
-    '.pgv-card-art{width:100%;height:100%;display:block}' +
+    '.pgv-card-img{position:relative;flex:0 0 50%;background:#f0efed;line-height:0;overflow:hidden}' +
+    '.pgv-card-art,.pgv-card-photo{position:absolute;inset:0;width:100%;height:100%;display:block}' +
+    // A kép kitölti a bal felet, a széleit levágva — ahogy az éles PDF is teszi.
+    // A tartalék rajz alatta van: ha a kép nem töltődik be, az marad látható.
+    '.pgv-card-photo{object-fit:cover;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+    '.pick{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:14px 0 0}' +
+    '.pick b{font-weight:600;font-size:13.5px;color:#6d6357}' +
+    '.pick button{width:54px;height:38px;padding:0;border:2px solid transparent;border-radius:8px;' +
+    'background:#fff center/cover no-repeat;cursor:pointer;box-shadow:0 0 0 1px #d9d0c0}' +
+    '.pick button[aria-pressed="true"]{border-color:#e2552b}' +
     '.pgv-card-body{flex:1 1 50%;display:flex;flex-direction:column;align-items:flex-start;' +
     'padding:7.62em 4.76em 6.2em;min-width:0}' +
     '.pgv-card-unit{color:#e65744;font-weight:700;font-size:2.02em;margin-bottom:2.1em}' +
@@ -190,8 +215,25 @@ function printPage(v, unitName) {
       'nyilvántartás adataiból készült. A nyomtatás párbeszédében válaszd a ' +
       '„Mentés PDF-be” lehetőséget, ha fájlként kell.</p>' +
     '</div>' +
+    // Ha az egységnél több kép is be van állítva, a kolléga válthat köztük.
+    (imgs.length > 1
+      ? '<div class="pick noprint"><b>Kép:</b>' +
+        imgs.map((im, i) => '<button type="button" title="' + esc(im.title || ('Kép ' + (i + 1))) +
+          '" aria-pressed="' + (i === 0 ? 'true' : 'false') +
+          '" style="background-image:url(' + esc(JSON.stringify(im.url)) + ')" ' +
+          'data-src="' + esc(im.url) + '"></button>').join('') +
+        '</div>'
+      : '') +
     '<div class="pgv-card">' +
-      '<div class="pgv-card-img">' + cardArt() + '</div>' +
+      '<div class="pgv-card-img">' + cardArt() +
+        (imgs.length
+          // A böngésző tölti le a bolt médiatárából. Ha nem sikerül (törölt kép,
+          // elérhetetlen bolt), a kép eltűnik és alatta marad a tartalék rajz —
+          // üres folt így sosem kerül a papírra.
+          ? '<img class="pgv-card-photo" id="pgvPhoto" src="' + esc(imgs[0].url) +
+            '" alt="" onerror="this.remove()">'
+          : '') +
+      '</div>' +
       '<div class="pgv-card-body">' +
         '<div class="pgv-card-unit">' + esc(unitName) + '</div>' +
         '<div class="pgv-card-heading">AJÁNDÉKUTALVÁNY</div>' +
@@ -206,7 +248,15 @@ function printPage(v, unitName) {
         '</div>' +
         '<div class="pgv-card-note"><span>A nyilvántartás alapján kiállított példány</span></div>' +
       '</div>' +
-    '</div></div></body></html>';
+    '</div></div>' +
+    (imgs.length > 1
+      ? '<script>document.querySelectorAll(".pick button").forEach(function(b){' +
+        'b.onclick=function(){var p=document.getElementById("pgvPhoto");' +
+        'if(p){p.src=b.dataset.src;}' +
+        'document.querySelectorAll(".pick button").forEach(function(x){' +
+        'x.setAttribute("aria-pressed",x===b?"true":"false");});};});<\/script>'
+      : '') +
+    '</body></html>';
 }
 
 module.exports = async (req, res) => {
@@ -252,7 +302,7 @@ module.exports = async (req, res) => {
     }
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store');
-    res.status(200).send(printPage(v, String(shop.name || shop.slug)));
+    res.status(200).send(printPage(v, String(shop.name || shop.slug), await unitImages(shop.slug)));
   } catch (e) {
     fail(req, res, 500, 'Nem sikerült megnyitni a PDF-et', String((e && e.message) || e), serial);
   }

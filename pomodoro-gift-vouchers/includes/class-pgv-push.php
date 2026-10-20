@@ -16,6 +16,8 @@ class PGV_Push {
 	/** A legutóbbi felküldés eredménye (idő, siker, hibaszöveg). */
 	const LAST_OPTION  = 'pgv_push_last';
 	const RETRY_HOOK   = 'pgv_push_retry';
+	/** Az egység névjegye kérésenként egyszer áll össze. */
+	private static $meta_cache = null;
 
 	public function __construct() {
 		// Minden mentett/megváltozott utalvány azonnal felkerül.
@@ -92,6 +94,61 @@ class PGV_Push {
 	 * @return true|WP_Error
 	 */
 	public static function test_connection() {
+		self::$meta_cache = null; // a képeket épp most módosították
+		$r = self::send( array(), true );
+		return is_wp_error( $r ) ? $r : true;
+	}
+
+	/**
+	 * Az egység „névjegye”: név + a beállított utalvány-képek nyilvános URL-jei.
+	 *
+	 * A vezérlőpult kiszolgálója nem tudja lekérdezni a boltot (a tárhely
+	 * bot-védelme a bejövő kérést elfogja), viszont a képekre szüksége van:
+	 * a korábbi rendszerből importált utalványokhoz ő rajzolja ki a
+	 * nyomtatható példányt. Ezért minden felküldéssel elküldjük őket — a kép
+	 * magát nem, csak a hivatkozást; a lapot megnyitó kolléga böngészője
+	 * tölti le, annak a bolt rendesen kiszolgálja.
+	 *
+	 * @return array{slug:string,name:string,images:array<int,array{title:string,url:string}>}
+	 */
+	public static function unit_meta() {
+		if ( null !== self::$meta_cache ) {
+			return self::$meta_cache;
+		}
+		$images = array();
+		if ( class_exists( 'PGV_Images' ) ) {
+			foreach ( PGV_Images::get_active() as $img ) {
+				$url = isset( $img['url'] ) ? (string) $img['url'] : '';
+				if ( ! $url ) {
+					continue;
+				}
+				$images[] = array(
+					'title' => isset( $img['title'] ) ? (string) $img['title'] : '',
+					'url'   => $url,
+				);
+				if ( count( $images ) >= 12 ) {
+					break;
+				}
+			}
+		}
+		self::$meta_cache = array(
+			'slug'   => PGV_Settings::unit_slug(),
+			'name'   => (string) PGV_Settings::get( 'unit_name', get_bloginfo( 'name' ) ),
+			'images' => $images,
+		);
+		return self::$meta_cache;
+	}
+
+	/**
+	 * Csak a névjegy felküldése (utalvány nélkül) — a képek módosítása után.
+	 *
+	 * @return true|WP_Error
+	 */
+	public static function push_unit_meta() {
+		if ( ! self::configured() ) {
+			return new WP_Error( 'pgv_not_configured', __( 'A vezérlőpult nincs beállítva.', 'pomodoro-gift-vouchers' ) );
+		}
+		self::$meta_cache = null; // a képeket épp most módosították
 		$r = self::send( array(), true );
 		return is_wp_error( $r ) ? $r : true;
 	}
@@ -311,7 +368,10 @@ class PGV_Push {
 					'Content-Type'    => 'application/json',
 					'x-ingest-secret' => self::secret(),
 				),
-				'body'     => wp_json_encode( array( 'vouchers' => array_values( $vouchers ) ) ),
+				'body'     => wp_json_encode( array(
+					'vouchers'  => array_values( $vouchers ),
+					'unit_meta' => self::unit_meta(),
+				) ),
 			)
 		);
 		if ( ! $blocking ) {

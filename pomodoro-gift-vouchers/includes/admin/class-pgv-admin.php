@@ -372,6 +372,7 @@ class PGV_Admin {
 		$title         = sanitize_text_field( wp_unslash( $_POST['title'] ?? '' ) );
 		if ( $attachment_id ) {
 			PGV_Images::add( $attachment_id, $title );
+			self::sync_images();
 		}
 		$this->redirect_with( self::SLUG . '-images', 'image_added' );
 	}
@@ -385,7 +386,22 @@ class PGV_Admin {
 			PGV_Images::rename( (int) $id, sanitize_text_field( $title ) );
 			PGV_Images::set_active( (int) $id, in_array( (int) $id, $active, true ) );
 		}
+		self::sync_images();
 		$this->redirect_with( self::SLUG . '-images', 'images_updated' );
+	}
+
+	/**
+	 * A képkészlet változását azonnal megtudja a vezérlőpult.
+	 *
+	 * A korábbi rendszerből importált utalványokhoz ott készül a nyomtatható
+	 * példány, és ahhoz az itt beállított képek kellenek. Ha a felküldés nem
+	 * sikerül, nem szólunk érte: a képek a következő utalvány-felküldéssel
+	 * úgyis felkerülnek.
+	 */
+	private static function sync_images() {
+		if ( class_exists( 'PGV_Push' ) && PGV_Push::configured() ) {
+			PGV_Push::push_unit_meta();
+		}
 	}
 
 	private function do_import() {

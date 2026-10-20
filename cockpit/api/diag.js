@@ -1,5 +1,6 @@
 const { getShops } = require('../lib/shops.js');
 const { resolveUser, authFail } = require('../lib/auth.js');
+const { getConfig } = require('../lib/db.js');
 
 // Diagnosztika: megmutatja, mit válaszol a bolt a szerver felől érkező kérésre
 // (a 403 forrása). Három próbát futtat ugyanarra a boltra:
@@ -57,6 +58,17 @@ module.exports = async (req, res) => {
     if (out.pdfMode && typeof out.pdfMode.body === 'string') {
       out.pdfMode.body = out.pdfMode.body.split(secret).join('«titok»');
     }
+  }
+
+  // A bolt által felküldött névjegy: ebből veszi a nyomtatható példány a képet.
+  try {
+    const m = await getConfig('unit:' + shop.slug);
+    const imgs = (m && Array.isArray(m.images)) ? m.images : [];
+    out.unitMeta = m
+      ? { name: m.name || '', images: imgs.length, first: imgs[0] ? imgs[0].url : null, updated_at: m.updated_at || null }
+      : { missing: 'A bolt még nem küldött fel képeket (1.9.6-tól teszi).' };
+  } catch (e) {
+    out.unitMeta = { error: String((e && e.message) || e) };
   }
 
   res.setHeader('Cache-Control', 'no-store');
