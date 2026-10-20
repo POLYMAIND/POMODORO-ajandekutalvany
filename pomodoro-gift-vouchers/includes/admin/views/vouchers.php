@@ -109,8 +109,10 @@ $export_url = wp_nonce_url(
 								<?php endif; ?>
 								<?php
 								// A vezérlőpult a kiküldéskori PDF-et őrzi; sablonváltozás után
-								// ezzel a gombbal küldjük fel újra a frisset.
-								if ( empty( $v['is_legacy'] ) && ! empty( $v['serial'] ) ) :
+								// ezzel a gombbal küldjük fel újra a frisset. A korábbról
+								// importált utalványnál is kell: a vezérlőpultra enélkül
+								// sosem kerülne fel PDF.
+								if ( ! empty( $v['serial'] ) ) :
 									?>
 									<form method="post" style="display:inline">
 										<?php wp_nonce_field( 'pgv_refresh_pdf' ); ?>

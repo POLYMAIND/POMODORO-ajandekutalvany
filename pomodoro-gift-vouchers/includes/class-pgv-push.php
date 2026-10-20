@@ -179,8 +179,13 @@ class PGV_Push {
 
 		// Az utalvány-PDF feltöltése (base64) — így az emlékeztetőnél a vezérlőpult
 		// tudja csatolni anélkül, hogy visszahívná a boltot (a bejövő kérést a tárhely
-		// bot-védelme blokkolná). Csak nem-legacy, sorszámmal bíró utalványnál.
-		if ( $include_pdf && empty( $v['is_legacy'] ) && ! empty( $v['serial'] )
+		// bot-védelme blokkolja; ez mérésileg igazolt, nem feltételezés).
+		//
+		// A korábbról importált (legacy) utalványt is felküldjük: a generátor
+		// elbírja a hiányos sorokat is (kép helyett halvány mező, dátum nélkül
+		// elmarad az érvényességi sor), és a vezérlőpulton enélkül sosem lenne
+		// PDF-jük. Sorszám továbbra is kell — anélkül nincs mit azonosítani.
+		if ( $include_pdf && ! empty( $v['serial'] )
 			&& class_exists( 'PGV_Voucher_PDF' ) && PGV_Voucher_PDF::enabled() ) {
 			$bytes = PGV_Voucher_PDF::bytes( $v );
 			if ( is_string( $bytes ) && '' !== $bytes ) {
@@ -240,7 +245,7 @@ class PGV_Push {
 		if ( ! self::configured() ) {
 			return new WP_Error( 'pgv_not_configured', __( 'A vezérlőpult nincs beállítva.', 'pomodoro-gift-vouchers' ) );
 		}
-		if ( ! empty( $v['is_legacy'] ) || empty( $v['serial'] ) ) {
+		if ( empty( $v['serial'] ) ) {
 			return new WP_Error( 'pgv_no_serial', __( 'Ehhez az utalványhoz nem tartozik kiadott kód.', 'pomodoro-gift-vouchers' ) );
 		}
 		$p = self::payload( $v, true );
@@ -270,7 +275,7 @@ class PGV_Push {
 			ARRAY_A
 		);
 		foreach ( (array) $rows as $v ) {
-			if ( ! empty( $v['is_legacy'] ) || empty( $v['serial'] ) ) {
+			if ( empty( $v['serial'] ) ) {
 				$out['skipped']++;
 				continue;
 			}
@@ -365,11 +370,11 @@ class PGV_Push {
 		}
 
 		// PDF-ek back-fillje: tételenként (egy PDF/kérés), hogy ne lépjük túl a
-		// serverless kérés-törzs korlátot. Csak nem-legacy, sorszámmal bíró utalvány.
+		// serverless kérés-törzs korlátot. A régi, importált utalványok is bekerülnek.
 		$result['pdfs'] = 0;
 		if ( class_exists( 'PGV_Voucher_PDF' ) && PGV_Voucher_PDF::enabled() ) {
 			foreach ( (array) $rows as $v ) {
-				if ( ! empty( $v['is_legacy'] ) || empty( $v['serial'] ) ) {
+				if ( empty( $v['serial'] ) ) {
 					continue;
 				}
 				$p = self::payload( $v, true );

@@ -69,7 +69,17 @@ async function fetchFromShop(shop, serial) {
   const status = r && r.status;
   if (status === 404) return { reason: 'not_in_shop' };
   if (status === 409) return { reason: 'pdf_off' };
-  if (status === 401 || status === 403) return { reason: 'auth' };
+  // 401/403 kétfélét jelenthet, és nagyon mást:
+  //  - a plugin válaszol JSON-nal (pgv_bad_secret) → tényleg a titok tér el;
+  //  - nem jön JSON, hanem a tárhely bot-szűrőjének HTML oldala → a kérés el
+  //    sem jutott a WordPressig. (A Pomo d'Oro boltoknál mérés szerint ez a
+  //    helyzet: Apache, „Hitelesítés / Verification” oldal.)
+  if (status === 401 || status === 403) {
+    const code = r && r.json && r.json.code;
+    if (code === 'pgv_bad_secret') return { reason: 'auth' };
+    if (!r.json) return { reason: 'blocked', log: 'status=' + status };
+    return { reason: 'auth', log: 'code=' + code };
+  }
   return { reason: 'unreachable', detail: status ? ('A bolt ' + status + ' választ adott.') : '', log: 'status=' + status };
 }
 
@@ -126,6 +136,10 @@ module.exports = async (req, res) => {
           auth: [
             'A bolt elutasította a kérést',
             'Nem egyezik az ingest titok a bolt beállításaiban és a vezérlőpulton. A bolt Beállítások → Központi vezérlőpult résznél ellenőrizhető.',
+          ],
+          blocked: [
+            'A bolt tárhelye nem engedi be a vezérlőpultot',
+            'A kérést a tárhely bot-szűrője fordította vissza, még mielőtt a bolt megkapta volna — a PDF így nem kérhető le menet közben. Megoldás: a boltban a Beállítások → „PDF-ek frissítése" gombbal a bolt maga tölti fel a PDF-eket, azt a szűrő nem érinti.',
           ],
           config: ['Hiányzó beállítás', got.detail || ''],
           unreachable: [

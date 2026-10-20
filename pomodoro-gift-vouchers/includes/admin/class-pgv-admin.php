@@ -642,7 +642,7 @@ class PGV_Admin {
 				empty( $r['failed'] ) ? 'success' : 'error',
 				esc_html( sprintf(
 					/* translators: 1: sikeres, 2: sikertelen, 3: kihagyott */
-					__( 'PDF-ek frissítve a vezérlőpulton: %1$d rendben, %2$d sikertelen, %3$d kihagyva (importált vagy kód nélküli).', 'pomodoro-gift-vouchers' ),
+					__( 'PDF-ek frissítve a vezérlőpulton: %1$d rendben, %2$d sikertelen, %3$d kihagyva (kód nélküli).', 'pomodoro-gift-vouchers' ),
 					(int) $r['sent'], (int) $r['failed'], (int) $r['skipped']
 				) )
 			);
