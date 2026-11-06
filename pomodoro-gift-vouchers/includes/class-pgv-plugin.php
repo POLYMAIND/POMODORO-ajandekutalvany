@@ -41,6 +41,7 @@ final class PGV_Plugin {
 		require_once $dir . 'class-pgv-export.php';
 		require_once $dir . 'class-pgv-rest.php';
 		require_once $dir . 'class-pgv-push.php';
+		require_once $dir . 'class-pgv-fleet.php';
 		require_once $dir . 'lib/class-pgv-qr.php';
 		require_once $dir . 'class-pgv-font.php';
 		require_once $dir . 'class-pgv-pdf.php';
@@ -72,6 +73,7 @@ final class PGV_Plugin {
 		new PGV_Emails();
 		new PGV_REST();
 		new PGV_Push();
+		new PGV_Fleet();
 
 		if ( is_admin() ) {
 			new PGV_Admin();

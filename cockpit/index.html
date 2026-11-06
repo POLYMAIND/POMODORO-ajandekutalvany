@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pomo d'Oro Vezérlőpult</title>
+<title>Utalvány vezérlőpult</title>
 <style>
 :root{
   --ground:#efe9df;--surface:#fff;--surface-2:#faf7f1;--surface-3:#f2ede4;
@@ -240,7 +240,7 @@ tbody tr.clickable{cursor:pointer}
 
 <div id="login">
   <form class="login-card" id="loginForm">
-    <div class="bname">Pomo d'Oro</div>
+    <div class="bname" data-brand>&nbsp;</div>
     <div class="bsub">Utalvány vezérlőpult</div>
     <div class="login-err" id="loginErr"></div>
     <input type="email" id="loginEmail" placeholder="E-mail" autocomplete="username">
@@ -253,7 +253,7 @@ tbody tr.clickable{cursor:pointer}
 <div id="app">
   <aside class="sidebar" id="sidebar">
     <div class="brand">
-      <div class="brand-name">Pomo d'Oro</div>
+      <div class="brand-name" data-brand>&nbsp;</div>
       <div class="brand-sub">Utalvány vezérlőpult</div>
     </div>
     <div class="nav-label">Áttekintés</div>
@@ -351,7 +351,7 @@ tbody tr.clickable{cursor:pointer}
           <div class="cashier">
             <div class="card" style="padding:18px 20px">
               <div class="search-box">
-                <input id="cashInput" placeholder="pl. Kovács Anna, anna@…, vagy CASA-2026-000042" autocomplete="off">
+                <input id="cashInput" placeholder="pl. Kovács Anna, anna@…, vagy MINTA-7K3M9QP2" autocomplete="off">
               </div>
             </div>
             <div class="card" id="cashListCard" style="display:none;margin-top:12px"><div id="cashList"></div></div>
@@ -447,7 +447,7 @@ tbody tr.clickable{cursor:pointer}
               <label class="fl">Név</label>
               <input class="fi" id="uName" placeholder="Pl. Kiss Anna" autocomplete="off">
               <label class="fl">E-mail (belépéshez)</label>
-              <input class="fi" id="uEmail" type="email" placeholder="anna@pomodoro.hu" autocomplete="off">
+              <input class="fi" id="uEmail" type="email" placeholder="anna@pelda.hu" autocomplete="off">
               <p class="t-sub" id="uEmailHint" style="margin:5px 0 0;display:none">Módosítás után a felhasználó már az új címmel lép be. A jelszava marad.</p>
               <label class="fl" id="uPassLabel">Jelszó</label>
               <input class="fi" id="uPass" type="text" placeholder="Kezdő jelszó" autocomplete="new-password">
@@ -525,14 +525,29 @@ let CFG={authed:false,configured:false,shops:[],role:null,name:'',units:[],canMa
 const ROLE_LABELS={superadmin:'Központi admin',unit_manager:'Egység-kezelő',cashier:'Kasszás'};
 let DATA={orders:[],vouchers:[],errors:[]};
 let currentUnit='all';
+// Egységszínek: a meglévő (Pomo d'Oro) egységek megszokott színe marad, a többi a palettából, sorrendben.
 const UNIT_COLORS={casa:'#c0392b',osteria:'#1f7a4d',pizzabar:'#c98a1e',trattoria:'#7d3350'};
-function unitColor(s){return UNIT_COLORS[s]||'#b4892f';}
+const UNIT_PALETTE=['#c0392b','#1f7a4d','#c98a1e','#7d3350','#2f5d8a','#6b4fa0','#b4892f','#3f7f7a'];
+function unitColor(s){if(UNIT_COLORS[s])return UNIT_COLORS[s];const i=(CFG.shops||[]).findIndex(x=>x.slug===s);return i>=0?UNIT_PALETTE[i%UNIT_PALETTE.length]:'#b4892f';}
 function shopName(slug){const s=CFG.shops.find(x=>x.slug===slug);return s?s.name:slug;}
-function shortName(slug){return shopName(slug).replace(" Pomo d'Oro","");}
+function brandName(){return (CFG.brand&&CFG.brand.name)||'Ajándékutalvány';}
+function shortName(slug){const n=shopName(slug),b=' '+brandName();return (n.endsWith(b)&&n.length>b.length)?n.slice(0,-b.length):n;}
+// A márka (fehér címkés telepítés): név a fejlécben és a lapcímben, opcionális logó és kiemelő szín.
+function applyBrand(){
+  const b=CFG.brand||{};
+  document.title=brandName()+' · Utalvány vezérlőpult';
+  document.querySelectorAll('[data-brand]').forEach(el=>{
+    el.textContent='';
+    if(b.logo_url){const im=document.createElement('img');im.src=b.logo_url;im.alt=brandName();im.style.cssText='max-height:34px;max-width:160px;display:block';el.appendChild(im);}
+    else el.textContent=brandName();
+  });
+  if(b.color)document.documentElement.style.setProperty('--accent',b.color);
+}
 
 // ---- auth / boot ----
 async function boot(){
   CFG=await fetch('/api/config').then(r=>r.json()).catch(()=>CFG);
+  applyBrand();
   if(!CFG.authed){ $('#login').classList.add('show'); $('#app').classList.remove('show'); return; }
   $('#login').classList.remove('show'); $('#app').classList.add('show');
   buildUnitSwitch();
@@ -1338,7 +1353,7 @@ async function loadEmailSettings(){
       const f=from[u.slug]||{};
       return '<tr><td class="t-strong">'+esc(shortName(u.slug))+'</td>'+
         '<td><input class="fi em-email" data-slug="'+esc(u.slug)+'" type="email" value="'+esc(f.email||'')+'" placeholder="pl. utalvany@'+esc(u.slug)+'.hu"></td>'+
-        '<td><input class="fi em-name" data-slug="'+esc(u.slug)+'" type="text" value="'+esc(f.name||'')+'" placeholder="pl. '+esc(shortName(u.slug))+' Pomo d\'Oro"></td></tr>';
+        '<td><input class="fi em-name" data-slug="'+esc(u.slug)+'" type="text" value="'+esc(f.name||'')+'" placeholder="pl. '+esc(shortName(u.slug))+' '+esc(brandName())+'"></td></tr>';
     }).join('');
     $('#emFromTable').innerHTML=head+'<tbody>'+rows+'</tbody>';
   }catch(e){ $('#emMsg').textContent='Nem sikerült betölteni a beállításokat.'; }

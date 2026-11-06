@@ -96,6 +96,7 @@ class PGV_Order {
 				$alloc = PGV_Vouchers::allocate_serial( $unit, $prefix );
 				if ( is_wp_error( $alloc ) ) {
 					$order->add_order_note( 'Utalvány sorszám-allokálás hiba: ' . $alloc->get_error_message() );
+					do_action( 'pgv_error', 'sorszam_allokalas', 'Fizetett rendelésnél nem jött létre sorszám: ' . $alloc->get_error_message(), array( 'order_id' => (int) $order_id ), 'error' );
 					continue;
 				}
 				$serial = $alloc['serial'];
@@ -128,6 +129,9 @@ class PGV_Order {
 					)
 				);
 
+				if ( is_wp_error( $vid ) ) {
+					do_action( 'pgv_error', 'utalvany_letrehozas', 'Fizetett rendelésnél nem jött létre utalvány: ' . $vid->get_error_message(), array( 'order_id' => (int) $order_id ), 'error' );
+				}
 				if ( ! is_wp_error( $vid ) ) {
 					$created_ids[] = $vid;
 					/**

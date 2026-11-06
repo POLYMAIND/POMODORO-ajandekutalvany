@@ -7,10 +7,37 @@ const crypto = require('crypto');
 function getShops() {
   try {
     const arr = JSON.parse(process.env.SHOPS || '[]');
-    return Array.isArray(arr) ? arr.filter(s => s && s.url && s.apiKey) : [];
+    // Csak a slug kötelező: a push-alapú boltnál (a bolt küld, mi nem hívjuk) nincs szükség
+    // url-re és CRM API-kulcsra. A régi, teljes sorok változatlanul működnek.
+    return Array.isArray(arr) ? arr.filter(s => s && /^[a-z0-9_-]{1,40}$/i.test(String(s.slug || ''))) : [];
   } catch (e) {
     return [];
   }
+}
+
+// A MÁRKA (fehér címkés telepítés): ügyfelenként külön Vercel-projekt, a nevet, logót és a
+// kiemelő színt környezeti változó adja. Üresen a semleges „Ajándékutalvány” felirat jelenik meg.
+function getBrand() {
+  const color = String(process.env.BRAND_COLOR || '').trim();
+  const logo = String(process.env.BRAND_LOGO_URL || '').trim();
+  return {
+    name: String(process.env.BRAND_NAME || '').trim().slice(0, 80) || 'Ajándékutalvány',
+    logo_url: /^https:\/\//i.test(logo) ? logo.slice(0, 500) : '',
+    color: /^#[0-9a-f]{6}$/i.test(color) ? color : '',
+  };
+}
+
+// A bolt felküldésének hitelesítése a POLYMAIND-licenccel (a bővítmény 2.0-tól ezt küldi, ha nincs
+// külön ingest-titok beállítva). A projektben CSAK a licenc sha256-hash-e van (VOUCHER_LICENCE_SHA256),
+// maga a kulcs nem. Időzítés-biztos összehasonlítás.
+function licenceOk(req) {
+  const want = String(process.env.VOUCHER_LICENCE_SHA256 || '').trim().toLowerCase();
+  if (!/^[a-f0-9]{64}$/.test(want)) return false;
+  const h = String((req.headers && (req.headers.authorization || req.headers.Authorization)) || '');
+  const m = /^Bearer\s+(vfl_[A-Za-z0-9_-]{16,76})$/.exec(h.trim());
+  if (!m) return false;
+  const got = crypto.createHash('sha256').update(m[1]).digest('hex');
+  return crypto.timingSafeEqual(Buffer.from(got), Buffer.from(want));
 }
 
 function secret() {
@@ -90,4 +117,4 @@ async function shopFetch(shop, path, opts = {}) {
   return res2.ok ? res2 : res; // ha egyik sem, az elsődleges hibát adjuk vissza
 }
 
-module.exports = { getShops, makeToken, isAuthed, parseCookies, readBody, shopFetch, sign };
+module.exports = { getBrand, licenceOk, getShops, makeToken, isAuthed, parseCookies, readBody, shopFetch, sign };

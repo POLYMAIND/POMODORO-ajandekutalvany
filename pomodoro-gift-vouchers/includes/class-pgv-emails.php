@@ -133,7 +133,12 @@ class PGV_Emails {
 		}
 
 		$html = apply_filters( 'pgv_email_html', $html, $to, $subject );
-		return wp_mail( $to, $subject, $html, $headers, $attachments );
+		$sent = wp_mail( $to, $subject, $html, $headers, $attachments );
+		if ( ! $sent ) {
+			// A címzettet SZÁNDÉKOSAN nem küldjük tovább (személyes adat) — csak a tényt.
+			do_action( 'pgv_error', 'email_kuldes', 'Az utalvány-e-mail kiküldése nem sikerült (wp_mail hibát adott). Ellenőrizd az SMTP-beállítást.', array( 'attachments' => count( (array) $attachments ) ), 'error' );
+		}
+		return $sent;
 	}
 
 	private static function pdf_attachments( array $vouchers ) {
@@ -148,6 +153,8 @@ class PGV_Emails {
 			$p = PGV_Voucher_PDF::to_temp_file( $v );
 			if ( ! is_wp_error( $p ) ) {
 				$paths[] = $p;
+			} else {
+				do_action( 'pgv_error', 'pdf_generalas', 'Az utalvány PDF-je nem készült el, az e-mail melléklet nélkül ment ki: ' . $p->get_error_message(), array( 'voucher_id' => (int) ( $v['id'] ?? 0 ) ), 'error' );
 			}
 		}
 		return $paths;

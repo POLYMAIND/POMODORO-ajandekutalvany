@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name:       Pomo d'Oro — Ajándékutalvány
+ * Plugin Name:       Ajándékutalvány (POLYMAIND)
  * Plugin URI:        https://polymaind.hu/
- * Description:        Ajándékutalványok értékesítése WooCommerce termékként: személyre szabás a termék-/kosároldalon, egyedi sorszám a sikeres fizetés után, szigorú számadású audit napló, kasszás beváltás, NAV-formátumú CSV export/import és CRM olvasó API. Egységenként (Casa / Osteria / Pizzabar / Trattoria) külön store-ra telepítendő.
- * Version:           1.9.6
+ * Description:        Ajándékutalványok értékesítése WooCommerce termékként: személyre szabás a termék-/kosároldalon, egyedi sorszám a sikeres fizetés után, szigorú számadású audit napló, kasszás beváltás, NAV-formátumú CSV export/import. Egy WordPress-oldal = egy egység. Licenccel a POLYMAIND vezérlőpultja kezeli az arculatot, és innen jön a frissítés.
+ * Version:           2.0.0
  * Requires at least: 6.2
  * Requires PHP:      7.4
  * Author:            Polymaind
@@ -18,7 +18,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'PGV_VERSION', '1.9.6' );
+define( 'PGV_VERSION', '2.0.0' );
 define( 'PGV_PLUGIN_FILE', __FILE__ );
 define( 'PGV_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PGV_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -54,9 +54,11 @@ register_activation_hook( __FILE__, 'pgv_activate' );
  * maradjon árva bejegyzés a WP-Cronban.
  */
 function pgv_deactivate() {
-	$ts = wp_next_scheduled( 'pgv_push_retry' );
-	if ( $ts ) {
-		wp_unschedule_event( $ts, 'pgv_push_retry' );
+	foreach ( array( 'pgv_push_retry', 'pgv_fleet_heartbeat' ) as $hook ) {
+		$ts = wp_next_scheduled( $hook );
+		if ( $ts ) {
+			wp_unschedule_event( $ts, $hook );
+		}
 	}
 }
 register_deactivation_hook( __FILE__, 'pgv_deactivate' );
@@ -69,7 +71,7 @@ function pgv_bootstrap() {
 		add_action(
 			'admin_notices',
 			static function () {
-				echo '<div class="notice notice-error"><p><strong>Pomo d\'Oro Ajándékutalvány</strong>: a plugin működéséhez a <strong>WooCommerce</strong> szükséges.</p></div>';
+				echo '<div class="notice notice-error"><p><strong>Ajándékutalvány</strong>: a plugin működéséhez a <strong>WooCommerce</strong> szükséges.</p></div>';
 			}
 		);
 		return;

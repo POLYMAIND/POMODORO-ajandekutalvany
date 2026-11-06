@@ -1,4 +1,4 @@
-const { getShops } = require('../lib/shops.js');
+const { getShops, getBrand } = require('../lib/shops.js');
 const { resolveUser, authFail } = require('../lib/auth.js');
 const { ensureSchema, allVouchers } = require('../lib/db.js');
 const { toCSV } = require('../lib/csv.js');
@@ -37,7 +37,8 @@ module.exports = async (req, res) => {
     if (st) rows = rows.filter(v => String(v.status || '').toLowerCase() === st);
 
     const names = {};
-    getShops().forEach(s => { names[n(s.slug)] = String(s.name || s.slug).replace(" Pomo d'Oro", ''); });
+    const brand = getBrand().name;
+    getShops().forEach(s => { names[n(s.slug)] = String(s.name || s.slug).replace(' ' + brand, '').trim() || s.slug; });
     const unitName = slug => names[n(slug)] || slug;
 
     // Üres eredménynél ne adjunk letölthető fájlt.
@@ -64,7 +65,8 @@ module.exports = async (req, res) => {
     }
 
     const stamp = new Date().toISOString().slice(0, 10);
-    const base = (only ? only : 'pomodoro') + (st ? '-' + st : ''); // egység slug (+ státusz)
+    // Az összes egységes fájl előtagja ügyfelenként állítható (EXPORT_PREFIX); a régi név a meglévő telepítésé.
+    const base = (only ? only : (String(process.env.EXPORT_PREFIX || '').replace(/[^a-z0-9-]/gi, '') || 'pomodoro')) + (st ? '-' + st : ''); // egység slug (+ státusz)
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${base}-utalvanyok-${stamp}.csv"`);
     res.setHeader('Cache-Control', 'no-store');

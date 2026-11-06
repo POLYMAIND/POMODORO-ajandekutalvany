@@ -1,4 +1,4 @@
-const { readBody } = require('../lib/shops.js');
+const { readBody, licenceOk } = require('../lib/shops.js');
 const { ensureSchema, upsertVouchers, upsertVoucherPdfs, renameVoucher,
         getConfig, setConfig } = require('../lib/db.js');
 
@@ -37,12 +37,14 @@ async function saveUnitMeta(m) {
   return true;
 }
 
-// A boltok pluginja ide küldi (push) az utalványokat. Titok-alapú hitelesítés.
+// A boltok pluginja ide küldi (push) az utalványokat. Hitelesítés: az ingest-titok (INGEST_SECRET),
+// VAGY a POLYMAIND-licenc (Authorization: Bearer vfl_…, ha a projektben be van állítva a hash-e).
 module.exports = async (req, res) => {
   if (req.method !== 'POST') { res.status(405).json({ error: 'POST' }); return; }
 
   const secret = req.headers['x-ingest-secret'] || (req.query && req.query.secret);
-  if (!process.env.INGEST_SECRET || secret !== process.env.INGEST_SECRET) {
+  const bySecret = !!process.env.INGEST_SECRET && secret === process.env.INGEST_SECRET;
+  if (!bySecret && !licenceOk(req)) {
     res.status(401).json({ error: 'Érvénytelen ingest titok.' });
     return;
   }

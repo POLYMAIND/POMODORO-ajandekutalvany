@@ -9,12 +9,9 @@
 defined( 'ABSPATH' ) || exit;
 
 $s     = PGV_Settings::all();
-$units = array(
-	'casa'      => "Casa Pomo d'Oro",
-	'osteria'   => "Osteria Pomo d'Oro",
-	'pizzabar'  => "Pizzabar Pomo d'Oro",
-	'trattoria' => "Trattoria Pomo d'Oro",
-);
+// Licenccel a vezérlőpult kezeli az egység adatait → itt csak olvashatók (a mentés úgysem írná felül).
+$managed = class_exists( 'PGV_Fleet' ) && PGV_Fleet::managed();
+$ro      = $managed ? ' readonly' : '';
 ?>
 <div class="wrap pgv-wrap">
 	<h1 class="pgv-title"><?php esc_html_e( 'Beállítások', 'pomodoro-gift-vouchers' ); ?></h1>
@@ -24,44 +21,43 @@ $units = array(
 		<input type="hidden" name="pgv_action" value="save_settings">
 
 		<h2><?php esc_html_e( 'Egység', 'pomodoro-gift-vouchers' ); ?></h2>
+		<?php if ( $managed ) : ?>
+			<p class="description">Az egység adatait (név, cég, adószám, előtag, érvényesség, aktív) a POLYMAIND vezérlőpultja kezeli — itt csak olvashatók. <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . PGV_Fleet::PAGE ) ); ?>">Licenc oldal</a></p>
+		<?php endif; ?>
 		<table class="form-table">
 			<tr>
 				<th><label for="unit_slug"><?php esc_html_e( 'Egység', 'pomodoro-gift-vouchers' ); ?></label></th>
 				<td>
-					<select name="unit_slug" id="unit_slug">
-						<?php foreach ( $units as $slug => $label ) : ?>
-							<option value="<?php echo esc_attr( $slug ); ?>" <?php selected( $s['unit_slug'], $slug ); ?>><?php echo esc_html( $label ); ?></option>
-						<?php endforeach; ?>
-					</select>
-					<p class="description"><?php esc_html_e( 'Egy store = egy egység. A négy egység külön WP-oldalon fut.', 'pomodoro-gift-vouchers' ); ?></p>
+					<input type="text" name="unit_slug" id="unit_slug" pattern="[a-z0-9_-]+" value="<?php echo esc_attr( $s['unit_slug'] ); ?>"<?php echo $ro; ?>>
+					<p class="description"><?php esc_html_e( 'Egy WordPress-oldal = egy egység. Az azonosító (kisbetű, szám, kötőjel) az utalványokhoz és a sorszámokhoz kötődik — utalvány-kiadás után ne változtasd.', 'pomodoro-gift-vouchers' ); ?></p>
 				</td>
 			</tr>
 			<tr>
 				<th><label for="unit_name"><?php esc_html_e( 'Egység neve', 'pomodoro-gift-vouchers' ); ?></label></th>
-				<td><input type="text" name="unit_name" id="unit_name" class="regular-text" value="<?php echo esc_attr( $s['unit_name'] ); ?>"></td>
+				<td><input type="text" name="unit_name" id="unit_name" class="regular-text" value="<?php echo esc_attr( $s['unit_name'] ); ?>"<?php echo $ro; ?>></td>
 			</tr>
 			<tr>
 				<th><label for="serial_prefix"><?php esc_html_e( 'Sorszám-előtag', 'pomodoro-gift-vouchers' ); ?></label></th>
 				<td>
-					<input type="text" name="serial_prefix" id="serial_prefix" value="<?php echo esc_attr( $s['serial_prefix'] ); ?>">
+					<input type="text" name="serial_prefix" id="serial_prefix" value="<?php echo esc_attr( $s['serial_prefix'] ); ?>"<?php echo $ro; ?>>
 					<p class="description"><?php echo esc_html( sprintf( __( 'Pl. %s → %s-2026-000042', 'pomodoro-gift-vouchers' ), $s['serial_prefix'], $s['serial_prefix'] ) ); ?></p>
 				</td>
 			</tr>
 			<tr>
 				<th><label for="company_name"><?php esc_html_e( 'Cégnév', 'pomodoro-gift-vouchers' ); ?></label></th>
-				<td><input type="text" name="company_name" id="company_name" class="regular-text" value="<?php echo esc_attr( $s['company_name'] ); ?>"></td>
+				<td><input type="text" name="company_name" id="company_name" class="regular-text" value="<?php echo esc_attr( $s['company_name'] ); ?>"<?php echo $ro; ?>></td>
 			</tr>
 			<tr>
 				<th><label for="tax_number"><?php esc_html_e( 'Adószám', 'pomodoro-gift-vouchers' ); ?></label></th>
-				<td><input type="text" name="tax_number" id="tax_number" class="regular-text" value="<?php echo esc_attr( $s['tax_number'] ); ?>"></td>
+				<td><input type="text" name="tax_number" id="tax_number" class="regular-text" value="<?php echo esc_attr( $s['tax_number'] ); ?>"<?php echo $ro; ?>></td>
 			</tr>
 			<tr>
 				<th><label for="validity_months"><?php esc_html_e( 'Érvényesség (hónap)', 'pomodoro-gift-vouchers' ); ?></label></th>
-				<td><input type="number" name="validity_months" id="validity_months" min="1" value="<?php echo esc_attr( $s['validity_months'] ); ?>"> <span class="description"><?php esc_html_e( 'A vásárlástól számítva.', 'pomodoro-gift-vouchers' ); ?></span></td>
+				<td><input type="number" name="validity_months" id="validity_months" min="1" value="<?php echo esc_attr( $s['validity_months'] ); ?>"<?php echo $ro; ?>> <span class="description"><?php esc_html_e( 'A vásárlástól számítva.', 'pomodoro-gift-vouchers' ); ?></span></td>
 			</tr>
 			<tr>
 				<th><?php esc_html_e( 'Aktív', 'pomodoro-gift-vouchers' ); ?></th>
-				<td><label><input type="checkbox" name="active" value="1" <?php checked( $s['active'], 1 ); ?>> <?php esc_html_e( 'Az egység értékesít utalványt', 'pomodoro-gift-vouchers' ); ?></label></td>
+				<td><label><input type="checkbox" name="active" value="1" <?php checked( $s['active'], 1 ); ?><?php disabled( $managed ); ?>> <?php esc_html_e( 'Az egység értékesít utalványt', 'pomodoro-gift-vouchers' ); ?></label></td>
 			</tr>
 			<tr>
 				<th><?php esc_html_e( 'Logó', 'pomodoro-gift-vouchers' ); ?></th>
@@ -223,7 +219,7 @@ $units = array(
 				<tr>
 					<th><label for="cockpit_url"><?php esc_html_e( 'Vezérlőpult URL', 'pomodoro-gift-vouchers' ); ?></label></th>
 					<td>
-						<input type="url" name="cockpit_url" id="cockpit_url" class="large-text" placeholder="https://pomodoro-ajandekutalvany.vercel.app" value="<?php echo esc_attr( isset( $s['cockpit_url'] ) ? $s['cockpit_url'] : '' ); ?>">
+						<input type="url" name="cockpit_url" id="cockpit_url" class="large-text" placeholder="https://minta.hu" value="<?php echo esc_attr( isset( $s['cockpit_url'] ) ? $s['cockpit_url'] : '' ); ?>">
 						<p class="description"><?php esc_html_e( 'A vezérlőpult címe (a /api/ingest végpontot automatikusan hozzáfűzi).', 'pomodoro-gift-vouchers' ); ?></p>
 					</td>
 				</tr>
