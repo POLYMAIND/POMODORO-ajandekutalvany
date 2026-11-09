@@ -175,17 +175,19 @@ Az utalvány **részletek ablakában** legyen „**Megajándékozott módosítá
 - Átírja a megajándékozott nevét.
 - **Újragenerálja a PDF-et** az új névvel.
 - Felajánlja az **újraküldést** a megajándékozottnak (e-mail).
-- **A WooCommerce-rendelésben is frissíti a nevet** (ha ott is tárolva van, pl. order item
-  meta / számlázási mező) — különben a két rendszerben eltérő név lenne. A WooCommerce-
-  kommunikáció **azonnali** (szinkron a mentéssel): `PUT /wp-json/wc/v3/orders/{id}`
-  (consumer key/secret), a válasz megerősítése után tekintjük mentettnek; hiba esetén a
-  mentés jelez, hogy ne desync-eljen a két rendszer.
-- A módosítás **naplózandó** (ki, mikor, régi → új név; PDF-újragenerálás; WooCommerce-
-  szinkron; újraküldés). Az adatmodellben ehhez új audit-akció kell (pl. `edited`/`updated`,
-  vagy a `voucher_audit.detail` jsonb-ben a régi/új érték).
+- **A WooCommerce-rendelésben is frissíti a nevet** (order item meta `_pgv_recipient` + a
+  látható „Megajándékozott” sor, rendelés-jegyzettel) — különben a két rendszerben eltérő
+  név lenne. A WooCommerce-kommunikáció **azonnali** (egy kérésen belül, várólista nélkül).
+  Mivel a tárhely bot-védelme a vezérlőpult szerverének bejövő kérését elfogja, a
+  `PUT /wp-json/wc/v3/orders/{id}` nem járható; helyette a vezérlőpult aláírt, egyszer
+  használható jegyet ad, és a kolléga böngészője nyitja meg vele a bolt
+  `/pgv/v1/recipient-change` végpontját. Ha a rendelés mentése nem sikerül, semmi nem változik.
+- A módosítás **naplózott**: a boltban `recipient_changed` audit-sor (régi → új, ki), a
+  vezérlőpulton `recipient_change` naplósor (ki, mikor, régi → új, WooCommerce-szinkron, PDF).
 
-*(A prototípus adminban — `prototype/admin.html` — ez a folyamat kattintható módon
-elkészült, a PDF/WooCommerce/e-mail lépéseket szimulálva, naplóval és újraküldéssel.)*
+*Elkészült:* a kasszás vezérlőpult adatlapján (`cockpit/`) és a bővítmény 2.1.0-ban — a
+részletek a `cockpit/README.md` „Megajándékozott módosítása” szakaszában. A prototípus
+adminban (`prototype/admin.html`) ugyanez kattintható, szimulált formában is megvan.
 
 ## 13. Mi készült el ebben a fázisban (referenciaként átvehető)
 
