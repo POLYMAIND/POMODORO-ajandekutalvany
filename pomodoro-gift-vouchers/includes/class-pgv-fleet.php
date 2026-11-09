@@ -49,6 +49,7 @@ class PGV_Fleet {
 
 		// Frissítés a vezérlőpultból.
 		add_filter( 'pre_set_site_transient_update_plugins', array( __CLASS__, 'inject_update' ) );
+		add_filter( 'site_transient_update_plugins', array( __CLASS__, 'drop_stale_update' ) );
 		add_filter( 'plugins_api', array( __CLASS__, 'plugin_info' ), 10, 3 );
 		add_filter( 'http_request_args', array( __CLASS__, 'auth_download' ), 10, 2 );
 
@@ -516,6 +517,22 @@ class PGV_Fleet {
 			'requires'     => $info['requires_wp'] ?? '',
 			'requires_php' => $info['requires_php'] ?? '',
 		);
+		return $transient;
+	}
+
+	/**
+	 * A WordPress a frissítés-listát órákig tárolja. Ha közben kézzel (ZIP-pel) újabb verzió került
+	 * fel, a tárolt bejegyzés egy RÉGEBBI verziót ajánlana „frissítésként” — azt kiszűrjük, hogy
+	 * senki ne frissítsen véletlenül visszafelé.
+	 */
+	public static function drop_stale_update( $transient ) {
+		if ( is_object( $transient ) && isset( $transient->response[ PGV_PLUGIN_BASENAME ] ) ) {
+			$offer = $transient->response[ PGV_PLUGIN_BASENAME ];
+			$ver   = is_object( $offer ) ? (string) ( $offer->new_version ?? '' ) : '';
+			if ( '' === $ver || version_compare( $ver, PGV_VERSION, '<=' ) ) {
+				unset( $transient->response[ PGV_PLUGIN_BASENAME ] );
+			}
+		}
 		return $transient;
 	}
 

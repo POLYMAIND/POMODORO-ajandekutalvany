@@ -4,6 +4,9 @@ A POLYMAIND vezérlőpultja kiadáskor innen olvassa ki, mi változott: a verzi�
 `## x.y.z` szakasz kerül a WordPress frissítési ablakába. Új verziónál a `Version:` fejléccel
 és a `PGV_VERSION` konstanssal együtt ide is írj egy szakaszt.
 
+## 2.0.5
+- Ha a bővítmény kézzel (ZIP-pel) frissült, a WordPress nem ajánl fel többé egy régebbi verziót „frissítésként” — így véletlenül sem lehet visszafelé frissíteni.
+
 ## 2.0.4
 - Új kiadás után a bővítmény egy órán belül magától felajánlja a frissítést (eddig akár 12 órát is várni kellett).
 - A „Szinkronizálás most” gomb a frissítést is azonnal behozza.
