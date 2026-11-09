@@ -21,7 +21,7 @@ A POLYMAIND vezérlőpultja (`ajandekutalvany.polyapp.hu/admin`) ügyfelenként 
 - „Hiányzó címlet-termékek létrehozása”: a beállított címletekből piszkozat-terméket készít.
 
 Az **egység-azonosító védett**: ha az oldalon már van utalvány, a vezérlőpult nem írja át (csak
-figyelmeztet) — a vezérlőpultban kell a meglévő azonosítóhoz igazítani (pl. `casa`).
+figyelmeztet) — a vezérlőpultban kell a meglévő azonosítóhoz igazítani (pl. az oldalon már használt azonosítóhoz).
 Licenc nélkül a plugin pontosan úgy működik, mint 1.9-ben.
 
 ## Telepítés

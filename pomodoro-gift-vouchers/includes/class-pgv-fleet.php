@@ -16,7 +16,7 @@
  * esetleg belekerült e-mail-címet és telefonszámot.)
  *
  * BIZTONSÁG: a licenc csak a vezérlőpult felé megy, HTTPS-en, az Authorization fejlécben.
- * A licenc nélküli telepítés (pl. a meglévő Pomo d'Oro oldalak a beírás előtt) változatlanul működik.
+ * A licenc nélküli telepítés (pl. egy meglévő oldal a licenc beírása előtt) változatlanul működik.
  *
  * @package Pomodoro_Gift_Vouchers
  */

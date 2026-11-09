@@ -2,7 +2,7 @@
 /**
  * Voucher core — szigorú számadás.
  *
- * - Hézagmentes, per-egység + év sorszám (CASA-2026-000042), atomikusan.
+ * - Hézagmentes, per-egység + év sorszám (AJ-2026-000042), atomikusan.
  * - A sorszám CSAK a sikeres fizetés után születik (soha nem a kliens-redirectből).
  * - Minden státuszváltozás auditba kerül; törlés sehol (a sztornó is cancelled + audit).
  * - Beváltás: aktív utalvány. A lejártat a kassza kifejezett megerősítéssel
