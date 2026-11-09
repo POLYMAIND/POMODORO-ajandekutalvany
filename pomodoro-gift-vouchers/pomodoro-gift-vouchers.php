@@ -3,7 +3,7 @@
  * Plugin Name:       Ajándékutalvány (POLYMAIND)
  * Plugin URI:        https://polymaind.hu/
  * Description:        Ajándékutalványok értékesítése WooCommerce termékként: személyre szabás a termék-/kosároldalon, egyedi sorszám a sikeres fizetés után, szigorú számadású audit napló, kasszás beváltás, NAV-formátumú CSV export/import. Egy WordPress-oldal = egy egység. Licenccel a POLYMAIND vezérlőpultja kezeli az arculatot, és innen jön a frissítés.
- * Version:           2.0.4
+ * Version:           2.0.5
  * Requires at least: 6.2
  * Requires PHP:      7.4
  * Author:            Polymaind
@@ -18,7 +18,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'PGV_VERSION', '2.0.4' );
+define( 'PGV_VERSION', '2.0.5' );
 define( 'PGV_PLUGIN_FILE', __FILE__ );
 define( 'PGV_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PGV_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
