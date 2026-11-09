@@ -530,7 +530,7 @@ class PGV_Admin {
 			array(
 				'id'           => (int) $v['id'],
 				'serial'       => $v['serial'],
-				'amount'       => number_format_i18n( (int) $v['amount'] ) . ' Ft',
+				'amount'       => html_entity_decode( number_format_i18n( (int) $v['amount'] ), ENT_QUOTES, 'UTF-8' ) . ' Ft', // a JS .text()-tel írja ki: ne maradjon benne &nbsp;
 				'status'       => PGV_Vouchers::status_label( $v['status'] ),
 				'status_key'   => $v['status'],
 				'recipient'    => $v['recipient_name'],
