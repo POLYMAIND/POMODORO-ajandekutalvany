@@ -30,7 +30,7 @@ class PGV_Emails {
 	 */
 	public function on_vouchers_issued( $order, $voucher_ids ) {
 		$buyer_email = $order->get_billing_email();
-		$buyer_name  = trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() );
+		$buyer_name  = PGV_Order::buyer_name( $order );
 
 		$issued = array();
 		foreach ( (array) $voucher_ids as $id ) {
