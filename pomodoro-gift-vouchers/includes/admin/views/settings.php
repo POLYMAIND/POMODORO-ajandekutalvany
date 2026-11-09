@@ -190,10 +190,14 @@ $ro      = $managed ? ' readonly' : '';
 			<tr>
 				<th><label for="serial_format"><?php esc_html_e( 'Utalvány-kód', 'pomodoro-gift-vouchers' ); ?></label></th>
 				<td>
-					<?php $pgv_sf = isset( $s['serial_format'] ) ? $s['serial_format'] : 'random'; ?>
+					<?php
+					$pgv_sf  = isset( $s['serial_format'] ) ? $s['serial_format'] : 'random';
+					// A minta a telepítés SAJÁT előtagját mutatja (soha nem egy másik ügyfélét).
+					$pgv_pfx = strtoupper( (string) ( $s['serial_prefix'] ?? '' ) ) ?: 'AJ';
+					?>
 					<select name="serial_format" id="serial_format">
-						<option value="random" <?php selected( $pgv_sf, 'random' ); ?>><?php esc_html_e( 'Véletlen kód (pl. CASA-7K3M9QP2) — a kasszán gyorsan kereshető', 'pomodoro-gift-vouchers' ); ?></option>
-						<option value="sequential" <?php selected( $pgv_sf, 'sequential' ); ?>><?php esc_html_e( 'Folytonos sorszám (pl. CASA-2026-000041)', 'pomodoro-gift-vouchers' ); ?></option>
+						<option value="random" <?php selected( $pgv_sf, 'random' ); ?>><?php echo esc_html( sprintf( __( 'Véletlen kód (pl. %s-7K3M9QP2) — a kasszán gyorsan kereshető', 'pomodoro-gift-vouchers' ), $pgv_pfx ) ); ?></option>
+						<option value="sequential" <?php selected( $pgv_sf, 'sequential' ); ?>><?php echo esc_html( sprintf( __( 'Folytonos sorszám (pl. %s-%s-000041)', 'pomodoro-gift-vouchers' ), $pgv_pfx, gmdate( 'Y' ) ) ); ?></option>
 					</select>
 					<p class="description"><?php esc_html_e( 'A hézagmentes belső sorszám mindkét esetben megmarad (az utalvány adatlapján és az exportban látszik) — csak az utalványra nyomtatott kód változik. A már kiadott utalványok kódja nem módosul.', 'pomodoro-gift-vouchers' ); ?></p>
 				</td>
@@ -240,6 +244,8 @@ $ro      = $managed ? ' readonly' : '';
 									esc_html__( 'Már be van állítva (%s). Hagyd üresen, ha nem módosítod — csak új értéknél töltsd ki.', 'pomodoro-gift-vouchers' ),
 									esc_html( $pgv_secret_hint )
 								);
+							} elseif ( class_exists( 'PGV_Fleet' ) && PGV_Fleet::has_licence() ) {
+								esc_html_e( 'Nem kell kitölteni: a felküldés a licenccel hitelesít. Csak akkor adj meg titkot, ha a vezérlőpult kifejezetten azt kéri.', 'pomodoro-gift-vouchers' );
 							} else {
 								esc_html_e( 'Ugyanaz a titok, mint a vezérlőpult INGEST_SECRET környezeti változója.', 'pomodoro-gift-vouchers' );
 							}

@@ -103,8 +103,20 @@
 		}
 
 		function digitsOf( txt ) {
-			// Az ezres elválasztókat eldobjuk, a tizedeseket levágjuk (Ft-nál nincs).
-			var m = String( txt || '' ).replace( /[^\d]/g, '' );
+			// Előbb a tizedeseket vágjuk le a bolt saját tizedesjele szerint
+			// („10 000,00 Ft” → „10 000”), csak utána dobjuk el az ezres elválasztót —
+			// különben a két nulla az összeghez tapad (1 000 000 Ft).
+			var s = String( txt || '' );
+			var sep = cfg.decimalSep || ',';
+			var dec = parseInt( cfg.decimals, 10 ) || 0;
+			if ( dec > 0 ) {
+				var at = s.lastIndexOf( sep );
+				var tail = at >= 0 ? s.slice( at + sep.length ).match( /^\d+/ ) : null;
+				if ( tail && tail[0].length === dec ) {
+					s = s.slice( 0, at );
+				}
+			}
+			var m = s.replace( /[^\d]/g, '' );
 			return m ? parseInt( m, 10 ) : null;
 		}
 

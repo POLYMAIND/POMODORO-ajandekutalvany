@@ -108,7 +108,7 @@ class PGV_Emails {
 			'amount'          => 25000,
 			'recipient_name'  => 'Teszt Elek',
 			'message'         => 'Boldog születésnapot kívánunk! Élvezd a vacsorát nálunk.',
-			'serial'          => strtoupper( PGV_Settings::get( 'serial_prefix', 'CASA' ) ) . '-' . gmdate( 'Y' ) . '-000001',
+			'serial'          => strtoupper( PGV_Settings::get( 'serial_prefix', 'AJ' ) ) . '-' . gmdate( 'Y' ) . '-000001',
 			'valid_until'     => gmdate( 'Y-m-d', strtotime( '+1 year' ) ),
 			'delivery_method' => 'recipient',
 			'delivery_email'  => $to,

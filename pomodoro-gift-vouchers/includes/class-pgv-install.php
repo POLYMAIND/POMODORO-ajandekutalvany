@@ -179,7 +179,7 @@ function PGV_Settings_Defaults() {
 
 		// A kinyomtatott utalvány-kód formátuma:
 		// 'random' = előtag + 8 véletlen karakter (a kasszán 2-3 karakter után egyedi),
-		// 'sequential' = a régi, folytonos forma (CASA-2026-000041).
+		// 'sequential' = a régi, folytonos forma (AJ-2026-000041).
 		// A hézagmentes belső sorszám (seq_no) mindkettőnél megmarad.
 		'serial_format'       => 'random',
 		'delivery_default'    => 'recipient',

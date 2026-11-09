@@ -16,7 +16,7 @@
  * esetleg belekerült e-mail-címet és telefonszámot.)
  *
  * BIZTONSÁG: a licenc csak a vezérlőpult felé megy, HTTPS-en, az Authorization fejlécben.
- * A licenc nélküli telepítés (pl. a meglévő Pomo d'Oro oldalak a beírás előtt) változatlanul működik.
+ * A licenc nélküli telepítés (pl. egy meglévő oldal a licenc beírása előtt) változatlanul működik.
  *
  * @package Pomodoro_Gift_Vouchers
  */
@@ -157,7 +157,16 @@ class PGV_Fleet {
 			self::remember( false, $r->get_error_message() );
 			return $r;
 		}
-		self::put( array( 'latest_version' => (string) ( $r['latest_version'] ?? '' ) ) );
+		$latest = (string) ( $r['latest_version'] ?? '' );
+		if ( $latest !== (string) self::state()['latest_version'] ) {
+			// Új kiadás a vezérlőpulton: eldobjuk a tárolt frissítés-infót (6 óra) és a WordPress
+			// saját frissítés-listáját (12 óra), hogy a következő oldalbetöltéskor már felajánlja.
+			delete_transient( 'pgv_fleet_update' );
+			if ( $latest && version_compare( $latest, PGV_VERSION, '>' ) ) {
+				delete_site_transient( 'update_plugins' );
+			}
+		}
+		self::put( array( 'latest_version' => $latest ) );
 
 		// Ha a vezérlőpultban azóta módosítottak, azonnal letöltjük (nem várunk a következő óráig).
 		if ( (int) ( $r['config_version'] ?? 0 ) > (int) self::state()['config_version'] ) {
@@ -566,6 +575,7 @@ class PGV_Fleet {
 			}
 		} elseif ( 'sync' === $do ) {
 			delete_transient( 'pgv_fleet_update' );
+			delete_site_transient( 'update_plugins' ); // a kézi szinkron a frissítést is azonnal felajánlja
 			$r   = self::sync( true );
 			$msg = is_wp_error( $r ) ? 'error:' . $r->get_error_message() : 'ok:Szinkronizálva.';
 		} elseif ( 'choose_unit' === $do ) {
