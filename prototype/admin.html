@@ -378,6 +378,31 @@
 
   .hidden { display: none !important; }
 
+  /* Utalvány-sor kattintható */
+  .vrow { cursor: pointer; }
+
+  /* Utalvány részletei modal */
+  .dd-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .dd-serial { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 15px; font-weight: 650; }
+  .dl { display: grid; grid-template-columns: 160px 1fr; gap: 9px 14px; font-size: 13.5px; align-items: baseline; }
+  .dl dt { color: var(--muted); }
+  .dl dd { margin: 0; font-weight: 550; }
+  .dd-edit { display: flex; gap: 8px; align-items: center; }
+  .dd-edit input { flex: 1; min-width: 120px; padding: 8px 11px; border: 1px solid var(--line-strong);
+    border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 13.5px; }
+  .dd-note { font-size: 12.5px; border-radius: 10px; padding: 10px 12px; margin-top: 16px; line-height: 1.5; }
+  .dd-note.ok { background: var(--good-soft); color: var(--good); border: 1px solid var(--good); }
+  .dd-sec { margin-top: 20px; }
+  .dd-sec h4 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted);
+    margin: 0 0 12px; font-weight: 600; }
+  .dd-log { list-style: none; margin: 0; padding: 0; }
+  .dd-log li { position: relative; padding: 0 0 15px 18px; border-left: 2px solid var(--line); }
+  .dd-log li:last-child { border-left-color: transparent; padding-bottom: 0; }
+  .dd-log li::before { content: ""; position: absolute; left: -5px; top: 3px; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--accent); }
+  .dd-log .lt { font-size: 13px; }
+  .dd-log .lm { font-size: 11.5px; color: var(--faint); margin-top: 1px; font-variant-numeric: tabular-nums; }
+
   @media (max-width: 720px) {
     .stats { grid-template-columns: repeat(2, 1fr); }
     .denom { grid-template-columns: 1fr 90px; grid-auto-flow: dense; }
@@ -583,6 +608,15 @@
   </div>
 </div>
 
+<!-- Utalvány részletei -->
+<div class="overlay" id="ovd">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ddt" style="max-width:600px">
+    <div class="modal-h"><h3 id="ddt">Utalvány részletei</h3><button class="x" id="dd-x" aria-label="Bezárás">×</button></div>
+    <div class="modal-b" id="dd-body"></div>
+    <div class="modal-f"><button class="btn btn-ghost" id="dd-close">Bezár</button></div>
+  </div>
+</div>
+
 <script>
 (function () {
   "use strict";
@@ -731,7 +765,7 @@
     }
     $("#rows").innerHTML = out.map(function(r){
       var legacy = r.legacy ? '<span class="legacy-tag">RESnWEB</span>' : '';
-      return '<tr>'
+      return '<tr class="vrow" data-serial="'+esc(r.serial)+'" title="Részletek megnyitása">'
         + '<td><span class="serial">'+esc(r.serial)+'</span>'+legacy+'</td>'
         + '<td class="amt">'+money(r.amount)+'</td>'
         + '<td>'+esc(r.giver)+'</td>'
@@ -1318,6 +1352,137 @@
       }
     }
   });
+
+  // ============================================================
+  // Utalvány részletei + „Megajándékozott módosítása"
+  // (prototípus: a PDF-újragenerálást, a WooCommerce-hívást és az e-mailt
+  //  szimuláljuk; a valós bekötés logikáját lásd a kommenteknél / a handoverben.)
+  // ============================================================
+  var ovd = $("#ovd");
+  var dd = { v: null, editing: false, resend: false, note: "" };
+
+  function nowStr(){
+    var d = new Date(), p = function(n){ return (n < 10 ? "0" : "") + n; };
+    return d.getFullYear() + "-" + p(d.getMonth()+1) + "-" + p(d.getDate())
+      + " " + p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds());
+  }
+  function findVoucher(serial){
+    var rows = SEED[state.unit] || [];
+    for (var i = 0; i < rows.length; i++) if (rows[i].serial === serial) return rows[i];
+    return null;
+  }
+  // Mock metaadat: WooCommerce-rendelésazonosító + induló napló (egyszer, lazyn)
+  function ensureMeta(v){
+    if (!v._woo) {
+      var h = 0; for (var i = 0; i < v.serial.length; i++) h = (h * 31 + v.serial.charCodeAt(i)) >>> 0;
+      v._woo = "#WC-" + (1000 + (h % 9000));
+    }
+    if (!v._log) {
+      v._log = [];
+      v._log.push({ t: v.purchase, who: "rendszer", text: "Rendelés létrehozva (WooCommerce) · " + v._woo });
+      if (v.status !== "pending")
+        v._log.push({ t: v.purchase, who: "rendszer", text: "Fizetés teljesült · sorszám kiadva · PDF kiküldve e-mailben" });
+      if (v.status === "redeemed" && v.redeemed)
+        v._log.push({ t: v.redeemed, who: "kasszás", text: "Beváltva" });
+      v._log.reverse(); // legújabb elöl
+    }
+  }
+
+  function openDetails(v){
+    ensureMeta(v);
+    dd = { v: v, editing: false, resend: false, note: "" };
+    renderDetails();
+    ovd.classList.add("open");
+  }
+  function closeDetails(){ ovd.classList.remove("open"); }
+
+  function renderDetails(){
+    var v = dd.v; if (!v) return;
+    var recHtml;
+    if (dd.editing) {
+      recHtml = '<div class="dd-edit"><input id="dd-rec" type="text" value="'+esc(v.recipient)+'" placeholder="Megajándékozott neve">'
+        + '<button class="btn btn-primary" data-act="save-edit">Mentés</button>'
+        + '<button class="btn btn-ghost" data-act="cancel-edit">Mégse</button></div>';
+    } else {
+      recHtml = (v.recipient ? esc(v.recipient) : '<span class="muted">—</span>')
+        + ' <button class="btn btn-ghost" data-act="edit" style="padding:2px 9px;font-size:12px;margin-left:8px">Módosítás</button>';
+    }
+    var dl = '<dl class="dl">'
+      + '<dt>Címlet</dt><dd>'+money(v.amount)+'</dd>'
+      + '<dt>Ajándékozó</dt><dd>'+esc(v.giver || "—")+'</dd>'
+      + '<dt>Megajándékozott</dt><dd>'+recHtml+'</dd>'
+      + '<dt>Kézbesítési e-mail</dt><dd>'+esc(v.email || "—")+'</dd>'
+      + '<dt>Vásárlás</dt><dd class="muted">'+esc(v.purchase)+'</dd>'
+      + '<dt>Érvényes</dt><dd class="muted">'+esc(v.validUntil)+'</dd>'
+      + '<dt>WooCommerce rendelés</dt><dd>'+esc(v._woo)+'</dd>'
+      + '</dl>';
+    var note = dd.note ? '<div class="dd-note ok">'+esc(dd.note)+'</div>' : '';
+    var resend = dd.resend
+      ? '<div style="margin-top:14px"><button class="btn" data-act="resend">↻ Újraküldés a megajándékozottnak</button></div>'
+      : '';
+    var log = '<div class="dd-sec"><h4>Napló</h4><ul class="dd-log">'
+      + v._log.map(function(e){ return '<li><div class="lt">'+esc(e.text)+'</div><div class="lm">'+esc(e.t)+' · '+esc(e.who)+'</div></li>'; }).join("")
+      + '</ul></div>';
+    $("#dd-body").innerHTML =
+      '<div class="dd-head"><span class="serial dd-serial">'+esc(v.serial)+'</span>'
+        + (v.legacy ? '<span class="legacy-tag">RESnWEB</span>' : '')
+        + '<span class="pill '+v.status+'" style="margin-left:auto">'+STATUS[v.status]+'</span></div>'
+      + dl + note + resend + log;
+    if (dd.editing) { var inp = $("#dd-rec"); if (inp) { inp.focus(); inp.select(); } }
+  }
+
+  // A mentés „azonnali": a WooCommerce-rendelés nevét rögtön frissíti, hogy a két
+  // rendszerben ne térjen el. Valós bekötés: PUT /wp-json/wc/v3/orders/{id}
+  // (a megajándékozott neve order item meta / billing mezőként) + PDF-újragenerálás
+  // + e-mail újraküldés, minden lépés az auditba.
+  function saveRecipient(newName){
+    var v = dd.v, old = v.recipient || "(üres)";
+    newName = (newName || "").trim();
+    if (!newName) { var inp = $("#dd-rec"); if (inp) inp.focus(); return; }
+    if (newName === v.recipient) { dd.editing = false; renderDetails(); return; }
+    v.recipient = newName;
+    var ts = nowStr();
+    // legújabb elöl: a WooCommerce-szinkron kerül legfelülre
+    v._log.unshift({ t: ts, who: "admin",     text: "Megajándékozott módosítva: «"+old+"» → «"+newName+"»" });
+    v._log.unshift({ t: ts, who: "rendszer",  text: "PDF újragenerálva az új névvel" });
+    v._log.unshift({ t: ts, who: "rendszer",  text: "WooCommerce rendelés frissítve ("+v._woo+") — név szinkronizálva (azonnali)" });
+    dd.editing = false;
+    dd.resend = true;
+    dd.note = "Mentve. A PDF újragenerálódott, és a WooCommerce-rendelés ("+v._woo+") neve "
+      + "azonnal frissült — így a két rendszerben ugyanaz a név. Elküldheted újra a megajándékozottnak.";
+    renderRows();     // a lista is tükrözze az új nevet
+    renderDetails();
+  }
+
+  function resendVoucher(){
+    var v = dd.v;
+    v._log.unshift({ t: nowStr(), who: "admin", text: "Utalvány újraküldve e-mailben: " + (v.email || "—") });
+    dd.note = "Újraküldve a megajándékozottnak: " + (v.email || "—");
+    renderDetails();
+  }
+
+  // Sorra kattintás → részletek
+  $("#rows").addEventListener("click", function(e){
+    var tr = e.target.closest(".vrow"); if (!tr) return;
+    var v = findVoucher(tr.getAttribute("data-serial"));
+    if (v) openDetails(v);
+  });
+  // Műveletek a részletek-ablakban (event delegation)
+  $("#dd-body").addEventListener("click", function(e){
+    var b = e.target.closest("[data-act]"); if (!b) return;
+    var act = b.getAttribute("data-act");
+    if (act === "edit")        { dd.editing = true; dd.note = ""; renderDetails(); }
+    else if (act === "cancel-edit") { dd.editing = false; renderDetails(); }
+    else if (act === "save-edit")   { saveRecipient($("#dd-rec") ? $("#dd-rec").value : ""); }
+    else if (act === "resend")      { resendVoucher(); }
+  });
+  $("#dd-body").addEventListener("keydown", function(e){
+    if (e.key === "Enter" && e.target.id === "dd-rec") { e.preventDefault(); saveRecipient(e.target.value); }
+  });
+  $("#dd-x").addEventListener("click", closeDetails);
+  $("#dd-close").addEventListener("click", closeDetails);
+  ovd.addEventListener("click", function(e){ if (e.target === ovd) closeDetails(); });
+  document.addEventListener("keydown", function(e){ if (e.key === "Escape") closeDetails(); });
 
   renderAll();
 })();

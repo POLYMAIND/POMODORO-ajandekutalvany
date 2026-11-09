@@ -169,6 +169,24 @@ A jelenlegi RESnWEB-export **1:1 követendő** (importhoz és NAV-kimutatáshoz)
 - Csak **aktív** utalvány váltható be; lejárat-ellenőrzés; a beváltás **auditba** kerül.
 - Legacy és új sorszám egyaránt beváltható.
 
+## 12/b. Megajándékozott utólagos módosítása (admin — részletek ablak)
+
+Az utalvány **részletek ablakában** legyen „**Megajándékozott módosítása**":
+- Átírja a megajándékozott nevét.
+- **Újragenerálja a PDF-et** az új névvel.
+- Felajánlja az **újraküldést** a megajándékozottnak (e-mail).
+- **A WooCommerce-rendelésben is frissíti a nevet** (ha ott is tárolva van, pl. order item
+  meta / számlázási mező) — különben a két rendszerben eltérő név lenne. A WooCommerce-
+  kommunikáció **azonnali** (szinkron a mentéssel): `PUT /wp-json/wc/v3/orders/{id}`
+  (consumer key/secret), a válasz megerősítése után tekintjük mentettnek; hiba esetén a
+  mentés jelez, hogy ne desync-eljen a két rendszer.
+- A módosítás **naplózandó** (ki, mikor, régi → új név; PDF-újragenerálás; WooCommerce-
+  szinkron; újraküldés). Az adatmodellben ehhez új audit-akció kell (pl. `edited`/`updated`,
+  vagy a `voucher_audit.detail` jsonb-ben a régi/új érték).
+
+*(A prototípus adminban — `prototype/admin.html` — ez a folyamat kattintható módon
+elkészült, a PDF/WooCommerce/e-mail lépéseket szimulálva, naplóval és újraküldéssel.)*
+
 ## 13. Mi készült el ebben a fázisban (referenciaként átvehető)
 
 A repóban (az eredeti, egyedi-app irányból) — **specifikációként/UX-referenciaként**
