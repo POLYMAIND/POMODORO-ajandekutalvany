@@ -50,6 +50,10 @@ class PGV_Fleet {
 		// Frissítés a vezérlőpultból.
 		add_filter( 'pre_set_site_transient_update_plugins', array( __CLASS__, 'inject_update' ) );
 		add_filter( 'site_transient_update_plugins', array( __CLASS__, 'drop_stale_update' ) );
+		// A wp-admin kezdőlapján, a Bővítmények és a Frissítések oldalon magától ránéz az új kiadásra.
+		foreach ( array( 'load-index.php', 'load-plugins.php', 'load-update-core.php' ) as $hook ) {
+			add_action( $hook, array( __CLASS__, 'refresh_offer' ) );
+		}
 		add_filter( 'plugins_api', array( __CLASS__, 'plugin_info' ), 10, 3 );
 		add_filter( 'http_request_args', array( __CLASS__, 'auth_download' ), 10, 2 );
 
@@ -494,10 +498,35 @@ class PGV_Fleet {
 		if ( ! $force && is_array( $cached ) ) {
 			return $cached;
 		}
-		$r = self::call( 'update_check', array(), 10 );
+		$r = self::call( 'update_check', array(), 5 ); // admin-oldalbetöltésben fut: rövid időkorlát
 		$info = is_wp_error( $r ) ? array() : $r;
-		set_transient( 'pgv_fleet_update', $info, 6 * HOUR_IN_SECONDS );
+		set_transient( 'pgv_fleet_update', $info, 15 * MINUTE_IN_SECONDS );
 		return $info;
+	}
+
+	/**
+	 * Admin-oldal betöltésekor: ha a vezérlőpulton újabb kiadás van, mint amit a WordPress tárolt
+	 * frissítés-listája ajánl, beírjuk a listába (a pre_set szűrő teszi hozzá) — nem kell a
+	 * „Szinkronizálás most” gomb, és nem kell a WordPress 12 órás újraellenőrzésére várni.
+	 * A vezérlőpultot legfeljebb 15 percenként kérdezi.
+	 */
+	public static function refresh_offer() {
+		if ( ! self::has_licence() || ! current_user_can( 'update_plugins' ) ) {
+			return;
+		}
+		$info = self::update_info();
+		if ( empty( $info['version'] ) || version_compare( $info['version'], PGV_VERSION, '<=' ) ) {
+			return;
+		}
+		$t = get_site_transient( 'update_plugins' );
+		if ( ! is_object( $t ) ) {
+			return; // nincs tárolt lista: a WordPress most úgyis lekéri, és a pre_set szűrő beteszi
+		}
+		$cur = $t->response[ PGV_PLUGIN_BASENAME ] ?? null;
+		if ( is_object( $cur ) && ( $cur->new_version ?? '' ) === $info['version'] ) {
+			return;
+		}
+		set_site_transient( 'update_plugins', $t );
 	}
 
 	public static function inject_update( $transient ) {
