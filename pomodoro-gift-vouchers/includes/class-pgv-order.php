@@ -59,7 +59,7 @@ class PGV_Order {
 		$valid_from  = $paid_at->format( 'Y-m-d' );
 		$valid_until = ( clone $paid_at )->modify( '+' . max( 1, $months ) . ' months' )->format( 'Y-m-d' );
 
-		$giver_name = trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() );
+		$giver_name = self::buyer_name( $order );
 		$buyer_email = $order->get_billing_email();
 		$marketing   = 'yes' === $order->get_meta( '_pgv_marketing_opt_in' ) ? 1 : 0;
 
@@ -212,6 +212,19 @@ class PGV_Order {
 	/**
 	 * Új, egyedi QR token.
 	 */
+	/**
+	 * A vásárló neve magyar sorrendben (vezetéknév + keresztnév), ha a számlázási ország
+	 * Magyarország vagy a bolt magyar nyelvű — különben a nemzetközi sorrend.
+	 * Pl. Vezetéknév: Nagy, Keresztnév: Béla → „Nagy Béla”, nem „Béla Nagy”.
+	 */
+	public static function buyer_name( $order ) {
+		$first = trim( (string) $order->get_billing_first_name() );
+		$last  = trim( (string) $order->get_billing_last_name() );
+		$hu    = 'HU' === strtoupper( (string) $order->get_billing_country() ) || 0 === strpos( (string) get_locale(), 'hu' );
+		$hu    = (bool) apply_filters( 'pgv_name_family_first', $hu, $order );
+		return trim( $hu ? $last . ' ' . $first : $first . ' ' . $last );
+	}
+
 	public static function new_qr_token() {
 		return bin2hex( random_bytes( 16 ) );
 	}

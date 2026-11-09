@@ -229,7 +229,7 @@ class PGV_Push {
 			if ( $order ) {
 				$data['order_ref']        = (string) $order->get_order_number();
 				$data['transaction_id']   = (string) $order->get_transaction_id();
-				$name                     = trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() );
+				$name                     = PGV_Order::buyer_name( $order );
 				$data['buyer_name']       = $name;
 				$data['buyer_phone']      = $order->get_billing_phone();
 				$data['country']          = $order->get_billing_country();
