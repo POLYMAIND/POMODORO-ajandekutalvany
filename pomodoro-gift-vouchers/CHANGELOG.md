@@ -4,6 +4,9 @@ A POLYMAIND vezérlőpultja kiadáskor innen olvassa ki, mi változott: a verzi�
 `## x.y.z` szakasz kerül a WordPress frissítési ablakába. Új verziónál a `Version:` fejléccel
 és a `PGV_VERSION` konstanssal együtt ide is írj egy szakaszt.
 
+## 2.0.7
+- Az új verzió magától megjelenik, amint megnyitod a wp-admin kezdőlapját, a Bővítmények vagy a Frissítések oldalt (legfeljebb 15 perces késéssel) — nem kell hozzá a „Szinkronizálás most” gomb.
+
 ## 2.0.6
 - A vásárló neve magyar sorrendben (vezetéknév, keresztnév) szerepel a levelek tárgyában és szövegében, az utalványon és a kasszában — eddig „Béla Nagy” lett „Nagy Béla” helyett.
 
