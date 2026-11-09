@@ -388,6 +388,19 @@ class PGV_Vouchers {
 		if ( ! $data ) {
 			return $v;
 		}
+
+		// A megajándékozott neve a WooCommerce-rendelésben is szerepel — azt ELŐBB
+		// írjuk át, és ha nem sikerül, semmit nem mentünk (ne térjen el a két rendszer).
+		$old_name = (string) $v['recipient_name'];
+		$renamed  = array_key_exists( 'recipient_name', $data ) && (string) $data['recipient_name'] !== $old_name;
+		$sync     = null;
+		if ( $renamed ) {
+			$sync = PGV_Order::sync_recipient( $v, $old_name, (string) $data['recipient_name'], self::actor() );
+			if ( is_wp_error( $sync ) ) {
+				return $sync;
+			}
+		}
+
 		$data['updated_at'] = current_time( 'mysql' );
 		$wpdb->update(
 			PGV_Install::table( 'vouchers' ),
@@ -397,8 +410,87 @@ class PGV_Vouchers {
 			array( '%d' )
 		);
 		self::audit( $id, 'edited', $v['status'], $v['status'], self::actor(), array( 'fields' => array_keys( $data ) ) );
+		if ( $renamed ) {
+			self::audit_recipient( $id, $v['status'], $old_name, (string) $data['recipient_name'], self::actor(), 'admin', $sync );
+			PGV_Push::set_change( $v['serial'], array(
+				'type'  => 'recipient',
+				'old'   => $old_name,
+				'new'   => (string) $data['recipient_name'],
+				'by'    => self::actor(),
+				'via'   => 'admin',
+				'order' => $sync,
+			) );
+		}
 		do_action( 'pgv_voucher_saved', $id );
+		PGV_Push::set_change( null );
 		return self::get( $id );
+	}
+
+	/**
+	 * A megajándékozott nevének módosítása (a kasszás vezérlőpult adatlapjáról).
+	 *
+	 * Sorrend: WooCommerce-rendelés → utalvány-tábla → audit → felküldés a
+	 * vezérlőpultra az újragenerált PDF-fel. A rendelés írása az első, így ha az
+	 * nem sikerül, nem változik semmi.
+	 *
+	 * @param int    $id    Utalvány-azonosító.
+	 * @param string $new   Új név.
+	 * @param string $actor Ki kezdeményezte (pl. „kassza: Kiss Anna <anna@…>”).
+	 * @param array  $ctx   A vezérlőpult felé visszaadott kontextus (nonce).
+	 * @return array|WP_Error {voucher, old, order, unchanged}
+	 */
+	public static function change_recipient( $id, $new, $actor, array $ctx = array() ) {
+		global $wpdb;
+		$v = self::get( $id );
+		if ( ! $v ) {
+			return new WP_Error( 'pgv_notfound', __( 'Nincs ilyen utalvány.', 'pomodoro-gift-vouchers' ) );
+		}
+		$old = (string) $v['recipient_name'];
+		$new = (string) $new;
+		if ( $old === $new ) {
+			return array( 'voucher' => $v, 'old' => $old, 'order' => 'unchanged', 'unchanged' => true );
+		}
+
+		$sync = PGV_Order::sync_recipient( $v, $old, $new, $actor );
+		if ( is_wp_error( $sync ) ) {
+			return $sync;
+		}
+
+		$wpdb->update(
+			PGV_Install::table( 'vouchers' ),
+			array( 'recipient_name' => $new, 'updated_at' => current_time( 'mysql' ) ),
+			array( 'id' => (int) $id ),
+			array( '%s', '%s' ),
+			array( '%d' )
+		);
+		self::audit_recipient( $id, $v['status'], $old, $new, $actor, 'cockpit', $sync );
+
+		// A felküldés (pgv_voucher_saved → PGV_Push::on_saved) újragenerálja a PDF-et
+		// az új névvel, és a vezérlőpult a változást is megkapja a naplóhoz.
+		PGV_Push::set_change( $v['serial'], array_merge( $ctx, array(
+			'type'  => 'recipient',
+			'old'   => $old,
+			'new'   => $new,
+			'by'    => $actor,
+			'via'   => 'cockpit',
+			'order' => $sync,
+		) ) );
+		do_action( 'pgv_voucher_saved', $id );
+		PGV_Push::set_change( null );
+
+		return array( 'voucher' => self::get( $id ), 'old' => $old, 'order' => $sync, 'unchanged' => false );
+	}
+
+	/**
+	 * Külön audit-sor a névváltozásról (régi → új), hogy utólag visszakereshető legyen.
+	 */
+	private static function audit_recipient( $id, $status, $old, $new, $actor, $via, $sync ) {
+		self::audit( $id, 'recipient_changed', $status, $status, $actor, array(
+			'from'  => $old,
+			'to'    => $new,
+			'via'   => $via,
+			'order' => $sync,
+		) );
 	}
 
 	/**

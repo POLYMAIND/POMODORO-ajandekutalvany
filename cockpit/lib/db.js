@@ -335,6 +335,16 @@ async function renameVoucher(unit, oldSerial, newSerial) {
   return true;
 }
 
+// A megajándékozott nevének közvetlen átírása — CSAK a bolt nélküli (a
+// vezérlőpultba CSV-ből importált) utalványnál. Boltból jött utalványnál a név a
+// boltban változik, és a felküldés hozza ide (lásd api/recipient.js).
+async function setRecipientName(unit, serial, name) {
+  const sql = db();
+  const rows = await sql`UPDATE pgv_vouchers SET recipient_name = ${String(name)}, updated_at = ${nowLocal(sql)}
+    WHERE lower(unit) = lower(${String(unit)}) AND serial = ${String(serial)} RETURNING *`;
+  return rows[0] || null;
+}
+
 async function getVoucher(unit, serial) {
   const sql = db();
   const r = await sql`SELECT * FROM pgv_vouchers
@@ -539,6 +549,18 @@ async function setConfig(key, value) {
     ON CONFLICT (k) DO UPDATE SET v = EXCLUDED.v, updated_at = now()`;
 }
 
+// A függő (vezérlőpultról indított, a bolt visszajelzésére váró) névmódosítások —
+// egyetlen lekérdezéssel, hogy a bolt kötegelt felküldése ne utalványonként kérdezzen.
+async function pendingRecipientOps() {
+  await ensureConfigSchema();
+  const sql = db();
+  const rows = await sql`SELECT k, v FROM pgv_config
+    WHERE k LIKE 'recipient_op:%' AND v->>'state' = 'pending'`;
+  const out = {};
+  rows.forEach(r => { out[r.k] = r.v; });
+  return out;
+}
+
 // ---- Felhasználók (többfelhasználós admin) ----
 let _usersReady = false;
 async function ensureUsersSchema() {
@@ -599,7 +621,7 @@ module.exports = {
   deleteVoucher, undeleteVoucher, dataVersion, listVouchers, setRedeemedAt,
   db, ensureSchema, upsertVouchers, upsertVoucherPdfs, getVoucherPdf, allVouchers, getVoucher,
   redeemVoucher, unredeemVoucher, renameVoucher, markReminderSent, deleteLegacyByUnit,
-  ensureLogSchema, logVoucherAction, recentVoucherLog,
-  ensureConfigSchema, getConfig, setConfig,
+  ensureLogSchema, logVoucherAction, recentVoucherLog, setRecipientName,
+  ensureConfigSchema, getConfig, setConfig, pendingRecipientOps,
   ensureUsersSchema, countUsers, getUserByEmail, getUserById, listUsers, createUser, updateUser, deleteUser,
 };

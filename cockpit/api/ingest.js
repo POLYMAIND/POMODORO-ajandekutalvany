@@ -1,6 +1,7 @@
 const { readBody, licenceOk } = require('../lib/shops.js');
 const { ensureSchema, upsertVouchers, upsertVoucherPdfs, renameVoucher,
         getConfig, setConfig } = require('../lib/db.js');
+const { applyIngestChanges } = require('../lib/recipient.js');
 
 // Az egység „névjegye”: a bolt minden felküldéssel elküldi a nevét és a
 // beállított utalvány-képeit (nyilvános média-URL-ek). A vezérlőpult ezekből
@@ -70,6 +71,11 @@ module.exports = async (req, res) => {
     const { total: count } = await upsertVouchers(vouchers);
     const pdfs = await upsertVoucherPdfs(vouchers); // base64 PDF-ek külön táblába (ha jött)
 
+    // Névmódosítás (megajándékozott): naplózás + a kasszáról indított művelet lezárása.
+    // Az upsert UTÁN, hogy a napló sosem előzze meg a tényleges adatot.
+    let changes = 0;
+    try { changes = await applyIngestChanges(vouchers); } catch (e) { changes = 0; }
+
     // Az egység névjegye (név + utalvány-képek). Üres felküldésnél is jön —
     // a boltban a „Kapcsolat tesztelése” gomb ezzel frissíti a képeket.
     let unit = null;
@@ -79,7 +85,7 @@ module.exports = async (req, res) => {
       catch (e) { unit = { slug: meta.slug, error: String((e && e.message) || e) }; }
     }
 
-    res.status(200).json({ ok: true, count, pdfs, renamed, unit });
+    res.status(200).json({ ok: true, count, pdfs, renamed, changes, unit });
   } catch (e) {
     res.status(500).json({ error: String(e && e.message || e) });
   }

@@ -222,6 +222,14 @@ tbody tr.clickable{cursor:pointer}
 .presend[hidden]{display:none}
 .presend-row{display:flex;gap:8px}
 .presend-row .fi{flex:1}
+/* Megajándékozott módosítása */
+.prename{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.prename[hidden]{display:none}
+.prename .t-sub{margin:0}
+.plog{font-size:13px}
+.plog .pl{padding:7px 0;border-bottom:1px solid var(--line-soft)}
+.plog .pl:last-child{border-bottom:none}
+.plog .pl-note{font-weight:550;word-break:break-word}
 /* Kassza élő találatok + emlékeztető */
 .cash-hit{display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid var(--line-soft);cursor:pointer}
 .cash-hit:hover{background:var(--surface-2)}.cash-hit:last-child{border-bottom:none}
@@ -1451,12 +1459,13 @@ function openProfile(unit,serial){
       prow('Belső sorszám', v.seq_no?((v.seq_year||'')+'/'+String(v.seq_no).padStart(6,'0')):'')+
       '<div class="prow"><span class="pk">Státusz</span><span class="pv">'+statusPill(v.status)+'</span></div>'+
       prow('Érvényes',fdate(v.valid_until)+(d!=null&&v.status==='active'?(d<0?' (lejárt)':' ('+d+' nap)'):''))+
-      prow('Megajándékozott',v.recipient_name)+
+      '<div class="prow"><span class="pk">Megajándékozott</span><span class="pv" id="pRecName">'+esc(v.recipient_name||'—')+'</span></div>'+
       prow('Üzenet',v.message)+
       '<div class="psec">Műveletek</div>'+
       '<div class="pacts">'+
         '<a class="pbtn" href="/api/pdf?unit='+encodeURIComponent(v.unit)+'&serial='+encodeURIComponent(v.serial)+'" target="_blank" rel="noopener">Utalvány PDF</a>'+
         '<button class="pbtn" id="pResend">E-mail újraküldése</button>'+
+        '<button class="pbtn" id="pRename">Megajándékozott módosítása</button>'+
         (CFG.role==='superadmin'?'<button class="pbtn danger" id="pDel">Utalvány törlése</button>':'')+
       '</div>'+
       '<div class="pdel" id="pDelBox" hidden>'+
@@ -1478,6 +1487,24 @@ function openProfile(unit,serial){
         '</div>'+
       '</div>'+
       '<p class="res-msg" id="pResendMsg"></p>'+
+      '<div class="prename" id="pRenameBox" hidden>'+
+        '<label class="fl" for="pRenameName" style="margin:0">A megajándékozott új neve</label>'+
+        '<div class="presend-row">'+
+          '<input class="fi" id="pRenameName" maxlength="120" autocomplete="off" value="'+esc(v.recipient_name||'')+'">'+
+          '<button class="btn" id="pRenameGo">Mentés</button>'+
+        '</div>'+
+        '<p class="t-sub">A név a WooCommerce-rendelésben is azonnal átíródik, és új PDF készül. A mentéshez a bolt egy kis ablakban nyílik meg, majd magától bezárul. A módosítás naplózva lesz.</p>'+
+      '</div>'+
+      '<p class="res-msg" id="pRenameMsg"></p>'+
+      '<div class="prename" id="pRenameResend" hidden>'+
+        '<p class="t-sub">Küldjük el újra a frissített utalványt a megajándékozottnak?</p>'+
+        '<div class="presend-row">'+
+          '<input class="fi" id="pRenameTo" type="email" placeholder="e-mail cím" value="'+esc(v.delivery_email||v.buyer_email||'')+'">'+
+          '<button class="btn" id="pRenameSend">Újraküldés</button>'+
+          '<button class="btn ghost" id="pRenameSkip">Most nem</button>'+
+        '</div>'+
+      '</div>'+
+      recipientLogHtml(v)+
       '<div class="psec">Korábbi vásárlások — '+rel.length+' db · összesen '+money(spent)+'</div>'+
       '<div class="phist">'+hist+'</div>'+
     '</div>';
@@ -1508,6 +1535,8 @@ function openProfile(unit,serial){
     go.disabled=false; go.textContent=o;
   };
 
+  bindRename(v);
+
   // Végleges törlés — csak központi adminnak, a sorszám pontos beírásával.
   const db_=$('#pDel'), dbox=$('#pDelBox'), dmsg=$('#pDelMsg');
   if(db_) db_.onclick=()=>{
@@ -1530,7 +1559,121 @@ function openProfile(unit,serial){
     }catch(e){ dmsg.className='res-msg err'; dmsg.textContent='Hálózati hiba.'; dgo.disabled=false; dgo.textContent=o; }
   };
 }
-function closeProfile(){$('#profile').classList.remove('show');}
+// A megajándékozott névváltozásainak naplója az adatlapon.
+function recipientLogHtml(v){
+  const rows=(DATA.log||[]).filter(x=>x.action==='recipient_change'&&String(x.unit)===String(v.unit)&&String(x.serial)===String(v.serial));
+  if(!rows.length)return '';
+  return '<div class="psec">Névmódosítások</div><div class="plog">'+rows.map(x=>
+    '<div class="pl"><div class="pl-note">'+esc(x.note||'')+'</div>'+
+    '<div class="t-sub">'+esc(x.created_at?fdt(x.created_at):'')+(x.user_name?' · '+esc(x.user_name):'')+'</div></div>').join('')+'</div>';
+}
+function fdt(s){const t=String(s||'');return t.length>10?fdate(t.slice(0,10))+' '+t.slice(11,16):fdate(t);}
+
+// „Megajándékozott módosítása”: a vezérlőpult aláírt jegyet ad, a bolt egy kis
+// ablakban azonnal átírja a WooCommerce-rendelést és az utalványt, újragenerálja a
+// PDF-et és felküldi ide. Mi addig kérdezzük az állapotot, amíg a felküldés meg nem
+// érkezik — így itt csak az jelenik meg, amit a bolt ténylegesen elmentett.
+let RENAME_STOP=null;
+function bindRename(v){
+  const btn=$('#pRename'), box=$('#pRenameBox'), msg=$('#pRenameMsg'), go=$('#pRenameGo'), inp=$('#pRenameName');
+  const rbox=$('#pRenameResend');
+  if(!btn)return;
+  if(RENAME_STOP){RENAME_STOP();RENAME_STOP=null;}
+  btn.onclick=()=>{box.hidden=!box.hidden; msg.textContent=''; if(!box.hidden){inp.focus();inp.select();}};
+  inp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();go.click();}};
+  const say=(cls,t)=>{msg.className='res-msg'+(cls?' '+cls:''); msg.textContent=t;};
+  const reset=()=>{go.disabled=false; go.textContent='Mentés'; inp.disabled=false;};
+  const finish=(j,old,name)=>{
+    if(RENAME_STOP){RENAME_STOP();RENAME_STOP=null;}
+    const parts=['Mentve: „'+(old||'—')+'” → „'+name+'”'];
+    if(j.order==='updated'||j.order==='updated_per_serial') parts.push('WooCommerce-rendelés frissítve');
+    else if(j.order==='no_order') parts.push('nincs hozzá WooCommerce-rendelés');
+    else if(j.mode==='local') parts.push('csak a vezérlőpulton létezik, nincs bolti rendelés');
+    if(j.pdf) parts.push('PDF újragenerálva');
+    say('ok',parts.join(' · ')+' — naplózva.');
+    const cell=$('#pRecName'); if(cell) cell.textContent=name;
+    v.recipient_name=name;
+    box.hidden=true; reset();
+    if(rbox){ rbox.hidden=false; }
+    refresh(true);
+  };
+  go.onclick=async()=>{
+    const name=inp.value.replace(/\s+/g,' ').trim();
+    const old=v.recipient_name||'';
+    if(!name){say('err','Add meg az új nevet.');return;}
+    if(name===old){say('err','Ez a név már így szerepel.');return;}
+    go.disabled=true; inp.disabled=true; go.textContent='Mentés…'; say('','');
+    if(rbox) rbox.hidden=true;
+    // Az ablakot még a kattintásban nyitjuk meg, különben a böngésző letiltja.
+    let w=null;
+    try{ w=window.open('','pgvRecipient','width=520,height=620');
+      if(w) w.document.write('<!doctype html><meta charset="utf-8"><title>Kapcsolódás…</title><p style="font:15px sans-serif;padding:24px">Kapcsolódás a bolthoz…</p>'); }catch(e){ w=null; }
+    let j={};
+    try{
+      const r=await fetch('/api/recipient',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({unit:v.unit,serial:v.serial,name})});
+      j=await r.json().catch(()=>({}));
+      if(!r.ok||!j.ok){ if(w)try{w.close();}catch(e){} say('err',j.error||'A módosítás nem sikerült.'); reset(); return; }
+    }catch(e){ if(w)try{w.close();}catch(e2){} say('err','Hálózati hiba.'); reset(); return; }
+
+    if(j.mode==='local'){ if(w)try{w.close();}catch(e){} finish(j,old,name); return; }
+
+    if(w&&!w.closed){ w.location.href=j.applyUrl; say('','A bolt ablakában folyik a mentés…'); }
+    else{
+      msg.className='res-msg';
+      msg.innerHTML='A böngésző letiltotta a felugró ablakot. <a href="'+esc(j.applyUrl)+'" target="_blank">Kattints ide a mentéshez a boltban</a>, utána ez az ablak magától frissül.';
+    }
+
+    // Visszajelzés: a bolt ablaka postMessage-dzsel szól (gyors út, hibánál is), és
+    // közben az állapotot is kérdezzük (akkor is működik, ha az ablak nem tud szólni).
+    let stopped=false, timer=null;
+    const started=Date.now();
+    const onMsg=e=>{
+      if(e.origin!==j.shopOrigin||!e.data||e.data.type!=='pgv-recipient'||e.data.nonce!==j.nonce)return;
+      if(!e.data.ok){ stop(); say('err','A bolt nem mentette: '+(e.data.error||'ismeretlen hiba')); reset(); return; }
+      if(e.data.pushed===false){ say('','A bolt elmentette, de a kasszára küldés elakadt — a bolt hamarosan újrapróbálja, addig várunk…'); }
+      poll();
+    };
+    const stop=()=>{ stopped=true; clearTimeout(timer); window.removeEventListener('message',onMsg); };
+    RENAME_STOP=stop;
+    window.addEventListener('message',onMsg);
+    const poll=async()=>{
+      if(stopped)return;
+      clearTimeout(timer);
+      try{
+        const r=await fetch('/api/recipient?unit='+encodeURIComponent(v.unit)+'&serial='+encodeURIComponent(v.serial)+'&nonce='+encodeURIComponent(j.nonce),{cache:'no-store'});
+        const st=await r.json().catch(()=>({}));
+        if(stopped)return;
+        if(r.ok&&st.state==='done'){ stop(); finish(st,old,name); return; }
+        if(r.status===404){ stop(); say('err','A módosítást közben egy újabb váltotta fel.'); reset(); return; }
+      }catch(e){}
+      if(Date.now()-started>3*60*1000){
+        stop(); reset();
+        say('err','Nem jött visszajelzés a bolttól. Ha a bolt ablakában hibaüzenet látszik, az a teendő; ha az ablak nem nyílt meg, próbáld újra. (A bolti bővítmény legalább 2.1.0 legyen.)');
+        return;
+      }
+      timer=setTimeout(poll,1500);
+    };
+    timer=setTimeout(poll,1500);
+  };
+
+  // Felajánlott újraküldés a frissített PDF-fel.
+  const send=$('#pRenameSend'), skip=$('#pRenameSkip');
+  if(skip) skip.onclick=()=>{ rbox.hidden=true; };
+  if(send) send.onclick=async()=>{
+    const to=$('#pRenameTo').value.trim();
+    send.disabled=true; const o=send.textContent; send.textContent='Küldés…';
+    try{
+      const r=await fetch('/api/resend',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({unit:v.unit,serial:v.serial,to,reason:'rename'})});
+      const j=await r.json().catch(()=>({}));
+      if(r.ok&&j.ok){ rbox.hidden=true; say('ok','Elküldve ide: '+j.to+(j.pdfAttached?' (a frissített PDF mellékelve)':' — PDF nélkül, mert nincs feltöltve')); }
+      else say('err',j.error||'A küldés nem sikerült.');
+    }catch(e){ say('err','Hálózati hiba.'); }
+    send.disabled=false; send.textContent=o;
+  };
+}
+function closeProfile(){$('#profile').classList.remove('show'); if(RENAME_STOP){RENAME_STOP();RENAME_STOP=null;}}
 $('#profile').addEventListener('click',e=>{
   if(e.target.id==='profile'){closeProfile();return;}
   const cp=e.target.closest('.copy'); if(cp){copyText(cp.dataset.copy,cp);return;}

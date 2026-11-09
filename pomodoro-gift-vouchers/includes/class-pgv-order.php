@@ -230,6 +230,103 @@ class PGV_Order {
 	}
 
 	/**
+	 * A megajándékozott nevének átvezetése a WooCommerce-rendelésbe.
+	 *
+	 * A név a rendelés-tétel metájában is el van mentve (`_pgv_recipient` + a vevőnek
+	 * látható „Megajándékozott” sor), ezért ha csak az utalvány-táblában írnánk át, a
+	 * rendelés (visszaigazoló, admin, CRM a Woo REST-en át) a régi nevet mutatná.
+	 *
+	 * Ha a tételből egyetlen utalvány lett, a tétel neve egyszerűen átíródik. Ha több
+	 * (mennyiség > 1, mind ugyanazzal a névvel), a közös tétel-metát nem írhatjuk át —
+	 * az a többi utalvány nevét is megváltoztatná —, ezért sorszámra szóló külön sort
+	 * kap: „Megajándékozott (CASA-7K3M9QP2)”. Mindkét esetben rendelés-jegyzet készül.
+	 *
+	 * ELŐBB hívandó, mint az utalvány-tábla írása: ha a rendelés mentése elhasal, a
+	 * hívó nem módosít semmit, így a két rendszer nem csúszik szét.
+	 *
+	 * @param array  $v     Az utalvány (módosítás előtti) sora.
+	 * @param string $old   Régi név.
+	 * @param string $new   Új név.
+	 * @param string $actor Ki módosította (a jegyzetbe).
+	 * @return string|WP_Error 'no_order' | 'updated' | 'updated_per_serial'
+	 */
+	public static function sync_recipient( array $v, $old, $new, $actor = '' ) {
+		if ( empty( $v['order_id'] ) || ! function_exists( 'wc_get_order' ) ) {
+			return 'no_order'; // importált / kézi utalvány: nincs mit szinkronizálni
+		}
+		$order = wc_get_order( (int) $v['order_id'] );
+		if ( ! $order ) {
+			return 'no_order';
+		}
+
+		try {
+			$item = ! empty( $v['order_item_id'] ) ? $order->get_item( (int) $v['order_item_id'] ) : null;
+			if ( ! $item ) {
+				// Régebbi sor tétel-azonosító nélkül: az első utalvány-tétel, amelyen a régi név áll.
+				foreach ( $order->get_items() as $it ) {
+					if ( $it instanceof WC_Order_Item_Product && '' !== (string) $it->get_meta( '_pgv_image_id' )
+						&& (string) $it->get_meta( '_pgv_recipient' ) === (string) $old ) {
+						$item = $it;
+						break;
+					}
+				}
+			}
+
+			$mode  = 'updated';
+			$label = __( 'Megajándékozott', 'pomodoro-gift-vouchers' );
+			if ( $item ) {
+				if ( self::vouchers_on_item( $v, $item ) > 1 ) {
+					$mode = 'updated_per_serial';
+					$map  = $item->get_meta( '_pgv_recipient_by_serial' );
+					$map  = is_array( $map ) ? $map : array();
+					$map[ (string) $v['serial'] ] = (string) $new;
+					$item->update_meta_data( '_pgv_recipient_by_serial', $map );
+					$item->update_meta_data( $label . ' (' . $v['serial'] . ')', (string) $new );
+				} else {
+					$item->update_meta_data( '_pgv_recipient', (string) $new );
+					if ( '' === (string) $new ) {
+						$item->delete_meta_data( $label );
+					} else {
+						$item->update_meta_data( $label, (string) $new );
+					}
+				}
+				$item->save();
+			}
+
+			$order->add_order_note(
+				sprintf(
+					/* translators: 1: serial, 2: old name, 3: new name, 4: actor */
+					__( 'Megajándékozott neve módosítva (%1$s): „%2$s” → „%3$s”. Módosította: %4$s', 'pomodoro-gift-vouchers' ),
+					$v['serial'],
+					'' !== (string) $old ? $old : '—',
+					'' !== (string) $new ? $new : '—',
+					$actor ? $actor : PGV_Vouchers::actor()
+				)
+			);
+			$order->save();
+		} catch ( \Throwable $e ) {
+			return new WP_Error( 'pgv_order_sync', sprintf( __( 'A WooCommerce-rendelés frissítése nem sikerült: %s', 'pomodoro-gift-vouchers' ), $e->getMessage() ) );
+		}
+		return $mode;
+	}
+
+	/**
+	 * Hány utalvány született ugyanabból a rendelés-tételből.
+	 */
+	private static function vouchers_on_item( array $v, $item ) {
+		$qty = method_exists( $item, 'get_quantity' ) ? (int) $item->get_quantity() : 1;
+		if ( empty( $v['order_item_id'] ) ) {
+			return max( 1, $qty );
+		}
+		global $wpdb;
+		$table = PGV_Install::table( 'vouchers' );
+		$n     = (int) $wpdb->get_var(
+			$wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE order_item_id = %d", (int) $v['order_item_id'] ) // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		);
+		return max( $n, 1 );
+	}
+
+	/**
 	 * Admin rendelés-oldali doboz a kibocsátott utalványokról.
 	 */
 	public function render_admin_box( $order ) {
