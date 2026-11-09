@@ -323,9 +323,10 @@ class PGV_Admin {
 		check_admin_referer( 'pgv_settings' );
 		$in = wp_unslash( $_POST );
 
-		PGV_Settings::save(
+		// A licenccel kezelt telepítésnél a vezérlőpult adta mezőket a PGV_Fleet kiszedi.
+		PGV_Settings::save( apply_filters( 'pgv_settings_before_save',
 			array(
-				'unit_slug'        => sanitize_key( $in['unit_slug'] ?? 'casa' ),
+				'unit_slug'        => sanitize_key( $in['unit_slug'] ?? '' ) ?: PGV_Settings::unit_slug(),
 				'unit_name'        => sanitize_text_field( $in['unit_name'] ?? '' ),
 				'serial_prefix'    => strtoupper( sanitize_text_field( $in['serial_prefix'] ?? '' ) ),
 				'company_name'     => sanitize_text_field( $in['company_name'] ?? '' ),
@@ -356,7 +357,7 @@ class PGV_Admin {
 				'hide_express_on_product' => empty( $in['hide_express_on_product'] ) ? 0 : 1,
 				'preview_position'        => in_array( $in['preview_position'] ?? 'gallery', array( 'gallery', 'fields', 'off' ), true ) ? $in['preview_position'] : 'gallery',
 			)
-		);
+		) );
 
 		// A nyers CRM API-kulcsot az első mentés után eldobjuk — csak a hash marad.
 		if ( get_option( 'pgv_api_key' ) ) {

@@ -1,4 +1,4 @@
-const { getShops } = require('../lib/shops.js');
+const { getShops, getBrand } = require('../lib/shops.js');
 const { resolveUser } = require('../lib/auth.js');
 
 module.exports = async (req, res) => {
@@ -19,6 +19,7 @@ module.exports = async (req, res) => {
     units: s ? (s.units || []) : [],
     canManageUsers: !!s && s.role === 'superadmin',
     configured: shops.length > 0,
+    brand: getBrand(),
     shops,
   });
 };

@@ -1,4 +1,9 @@
-# Pomo d'Oro — Központi vezérlőpult (cockpit)
+# Ajándékutalvány — kasszás vezérlőpult (cockpit)
+
+> **Ügyfelenként külön telepítés:** ugyanaz a kód, ügyfelenként külön Vercel-projekt (Root
+> directory: `cockpit`, ugyanerről az ágról) + saját Neon-adatbázis + saját domain
+> (pl. `zenobia.ajandekutalvany.polyapp.hu`). Egy push minden ügyfél kasszáját frissíti.
+> Új ügyfél beüzemelése: `cockpit/UJ-UGYFEL.md`.
 
 Statikus UI (`index.html`) + Vercel serverless API (`api/*.js`), ami szerveroldalon
 összegzi a 4 bolt adatait (a WordPress plugin `pgv/v1` API-járól). Nincs saját
@@ -104,9 +109,15 @@ Ugyanaz a fájl **másik egységbe** importálva külön tételeket hoz létre (
 kulcs része) — ez szándékos, de figyelni kell rá.
 
 ## Környezeti változók (Vercel → Settings → Environment Variables)
+- `BRAND_NAME` — az ügyfél neve a fejlécben és a lapcímben (üresen: „Ajándékutalvány”).
+  A meglévő Pomo d'Oro telepítésnél: `Pomo d'Oro`.
+- `BRAND_LOGO_URL` — (nem kötelező) https-logó a név helyett. `BRAND_COLOR` — (nem kötelező) `#rrggbb` kiemelő szín.
+- `EXPORT_PREFIX` — (nem kötelező) az „összes egység” export fájlnév-előtagja (alap: `pomodoro`).
+- `VOUCHER_LICENCE_SHA256` — a POLYMAIND-licenc sha256-hash-e: ezzel a bolt titok nélkül, a licencével
+  küldheti fel az utalványokat (bővítmény 2.0+). Az `INGEST_SECRET` továbbra is működik.
 - `APP_PASSWORD` — belépési jelszó a vezérlőpulthoz.
 - `AUTH_SECRET` — hosszú véletlen string a süti-aláíráshoz.
-- `SHOPS` — a boltok JSON tömbje:
+- `SHOPS` — a boltok JSON tömbje (új ügyfélnél elég a `slug`, `name`, `prefix`; az `url`/`apiKey` nem kötelező):
   ```json
   [
     {"slug":"casa","name":"Casa Pomo d'Oro","prefix":"CASA","url":"https://casa.pomodorobudapest.com","apiKey":"pk_..."},

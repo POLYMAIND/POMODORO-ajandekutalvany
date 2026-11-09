@@ -1,4 +1,4 @@
-const { readBody, getShops } = require('../lib/shops.js');
+const { readBody, getShops, getBrand } = require('../lib/shops.js');
 const { resolveUser, authFail } = require('../lib/auth.js');
 const { getConfig, setConfig } = require('../lib/db.js');
 const { getEmailConfig, senderFor, sendBrevo } = require('../lib/email.js');
@@ -81,8 +81,9 @@ module.exports = async (req, res) => {
     if (!cfg.apiKey) { res.status(200).json({ ok: true, test: { ok: false, error: 'Nincs API kulcs.' } }); return; }
     const sender = senderFor(cfg, body.test.unit);
     if (!sender) { res.status(200).json({ ok: true, test: { ok: false, error: 'Ehhez az egységhez nincs feladó cím.' } }); return; }
-    const r = await sendBrevo(cfg.apiKey, sender, String(body.test.to), 'Teszt e-mail – Pomo d\'Oro vezérlőpult',
-      'Ez egy teszt e-mail a Pomo d\'Oro vezérlőpultból. Ha megkaptad, a Brevo-küldés működik.');
+    const brand = getBrand().name;
+    const r = await sendBrevo(cfg.apiKey, sender, String(body.test.to), 'Teszt e-mail – ' + brand + ' vezérlőpult',
+      'Ez egy teszt e-mail a(z) ' + brand + ' vezérlőpultból. Ha megkaptad, a Brevo-küldés működik.');
     res.status(200).json({ ok: true, test: r });
     return;
   }

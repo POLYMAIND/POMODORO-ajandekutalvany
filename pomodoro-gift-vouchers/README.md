@@ -1,13 +1,28 @@
-# Pomo d'Oro — Ajándékutalvány (WooCommerce plugin)
+# Ajándékutalvány (POLYMAIND) — WooCommerce plugin
 
 Ajándékutalványok értékesítése **WooCommerce termékként**: a plugin a termék-/kosár-/
 checkout oldalon begyűjti a személyre szabást, a **sikeres fizetés után** egyedi,
 hézagmentes sorszámmal létrehozza az utalványokat, szigorú számadású audit naplót vezet,
 kasszás beváltást, NAV-formátumú CSV export/importot és CRM olvasó API-t ad.
 
-> Egy store = egy egység. A négy egység (Casa / Osteria / Pizzabar / Trattoria) **külön
-> WordPress-oldalon, külön WooCommerce-szel** fut; a plugin mind a négyre telepítendő,
-> a **Beállítások** oldalon az adott egységre állítva (slug, előtag, cégnév, adószám stb.).
+> Egy WordPress-oldal = egy egység. Több egységes ügyfélnél (pl. több étterem) minden egység
+> külön oldalon, külön WooCommerce-szel fut; a plugin mindegyikre telepítendő, ugyanazzal a licenccel.
+
+## Licenc és vezérlőpult (2.0-tól)
+
+A POLYMAIND vezérlőpultja (`ajandekutalvany.polyapp.hu/admin`) ügyfelenként kiad egy licenckulcsot
+(`vfl_…`). **Ajándékutalvány → Licenc** alatt beírva a plugin:
+
+- letölti az arculatot (logó, e-mail-szín és -szövegek, feladó) és az egység adatait (név, cég, adószám,
+  előtag, érvényesség) — a domain alapján ismeri fel, melyik egység; ha nem, ott választható;
+- óránként jelez: verziók, havi összesítő (eladott/beváltott db + Ft), kint lévő összeg, hibák
+  (sikertelen e-mail, PDF, sorszám-allokálás, push). **Személyes adatot nem küld.**
+- a vezérlőpultból kapja a frissítést (a WordPress szokásos frissítés-értesítőjében jelenik meg);
+- „Hiányzó címlet-termékek létrehozása”: a beállított címletekből piszkozat-terméket készít.
+
+Az **egység-azonosító védett**: ha az oldalon már van utalvány, a vezérlőpult nem írja át (csak
+figyelmeztet) — a vezérlőpultban kell a meglévő azonosítóhoz igazítani (pl. `casa`).
+Licenc nélkül a plugin pontosan úgy működik, mint 1.9-ben.
 
 ## Telepítés
 

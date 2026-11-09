@@ -36,6 +36,10 @@ class PGV_Push {
 		return is_array( $r ) ? $r : array();
 	}
 	private static function remember( $ok, $error = '' ) {
+		// A beállított, de hibázó push a vezérlőpultba is jelez (a „nincs beállítva” nem hiba).
+		if ( ! $ok && self::configured() ) {
+			do_action( 'pgv_error', 'push_szinkron', 'A kasszás felületre küldés nem sikerült: ' . $error, array( 'queue' => count( self::queue() ) ), 'warning' );
+		}
 		update_option( self::LAST_OPTION, array(
 			'time'  => time(),
 			'ok'    => (bool) $ok,
@@ -161,7 +165,17 @@ class PGV_Push {
 		return trim( (string) PGV_Settings::get( 'cockpit_secret', '' ) );
 	}
 	public static function configured() {
-		return self::url() && self::secret();
+		// 2.0-tól: ha nincs külön ingest-titok, a POLYMAIND-licenc hitelesít (a kassza a hash-ét ismeri).
+		return self::url() && ( self::secret() || self::licence() );
+	}
+	private static function licence() {
+		return class_exists( 'PGV_Fleet' ) ? PGV_Fleet::state()['licence'] : '';
+	}
+	/** A kassza felé menő hitelesítő fejléc: a titok, ha van; különben a licenc. */
+	private static function auth_headers() {
+		return self::secret()
+			? array( 'x-ingest-secret' => self::secret() )
+			: array( 'Authorization' => 'Bearer ' . self::licence() );
 	}
 
 	/**
@@ -364,10 +378,7 @@ class PGV_Push {
 			array(
 				'timeout'  => $blocking ? 20 : 1,
 				'blocking' => (bool) $blocking,
-				'headers'  => array(
-					'Content-Type'    => 'application/json',
-					'x-ingest-secret' => self::secret(),
-				),
+				'headers'  => array_merge( array( 'Content-Type' => 'application/json' ), self::auth_headers() ),
 				'body'     => wp_json_encode( array(
 					'vouchers'  => array_values( $vouchers ),
 					'unit_meta' => self::unit_meta(),

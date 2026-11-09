@@ -161,9 +161,9 @@ class PGV_Install {
  */
 function PGV_Settings_Defaults() {
 	return array(
-		'unit_slug'           => 'casa',
-		'unit_name'           => "Casa Pomo d'Oro",
-		'serial_prefix'       => 'CASA',
+		'unit_slug'           => 'egyseg',
+		'unit_name'           => get_bloginfo( 'name' ),
+		'serial_prefix'       => 'AJ',
 		'company_name'        => '',
 		'tax_number'          => '',
 		'currency'            => 'HUF',
@@ -171,7 +171,7 @@ function PGV_Settings_Defaults() {
 		'active'              => 1,
 		'logo_attachment_id'  => 0,
 		'from_email'          => '',
-		'from_name'           => "Casa Pomo d'Oro",
+		'from_name'           => get_bloginfo( 'name' ),
 		'marketing_label'     => 'Szeretnék értesülni akciókról, újdonságokról.',
 		'corporate_warn'      => 1,
 		'corporate_block'     => 0,

@@ -47,7 +47,7 @@ class PGV_Settings {
 	 * Aktuális egység slug (kényelmi).
 	 */
 	public static function unit_slug() {
-		$slug = (string) self::get( 'unit_slug', 'casa' );
+		$slug = (string) self::get( 'unit_slug', 'egyseg' );
 		return sanitize_key( $slug );
 	}
 
