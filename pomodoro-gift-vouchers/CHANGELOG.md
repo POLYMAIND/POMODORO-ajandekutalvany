@@ -4,6 +4,10 @@ A POLYMAIND vezérlőpultja kiadáskor innen olvassa ki, mi változott: a verzi�
 `## x.y.z` szakasz kerül a WordPress frissítési ablakába. Új verziónál a `Version:` fejléccel
 és a `PGV_VERSION` konstanssal együtt ide is írj egy szakaszt.
 
+## 2.1.0
+- Megajándékozott módosítása a kasszás felület adatlapjáról: a név azonnal átíródik az utalványon és a WooCommerce-rendelésben is (tétel-adat + rendelés-jegyzet), a PDF újragenerálódik és felkerül a kasszára, a módosítás az utalvány naplójába kerül.
+- A WP adminban szerkesztett megajándékozott-név is átkerül a WooCommerce-rendelésbe — eddig csak az utalványon változott, és a rendelés a régi nevet mutatta.
+
 ## 2.0.7
 - Az új verzió magától megjelenik, amint megnyitod a wp-admin kezdőlapját, a Bővítmények vagy a Frissítések oldalt (legfeljebb 15 perces késéssel) — nem kell hozzá a „Szinkronizálás most” gomb.
 

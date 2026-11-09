@@ -59,6 +59,38 @@ A vásárlás/lejárat/kassza listákból megnyíló mini adatlapon:
 
 Mindkettő csak bejelentkezve, és csak arra az egységre, amit a felhasználó láthat.
 
+### Megajándékozott módosítása
+
+Az adatlapon a **Megajándékozott módosítása** átírja a nevet, újragenerálja a PDF-et,
+és utána felajánlja az újraküldést a megajándékozottnak (`/api/resend`, `reason: 'rename'`
+— külön levélszöveg: „a nevet javítottuk”). A név a **WooCommerce-rendelésben is**
+átíródik, azonnal — várólista nélkül.
+
+Hogyan, ha a vezérlőpult szervere nem éri el a boltot? A tárhely bot-védelme a szerver
+bejövő kérését elfogja, a kolléga **böngészőjét** viszont kiszolgálja. Ezért:
+
+1. `POST /api/recipient {unit, serial, name}` — a vezérlőpult **aláírt, egyszer
+   használható, 15 percig érvényes jegyet** ad (HMAC az `INGEST_SECRET`-tel és/vagy a
+   `VOUCHER_LICENCE_SHA256`-tal — a bolt azt ellenőrzi, amelyik nála be van állítva).
+2. A böngésző egy kis ablakban megnyitja a bolt `?rest_route=/pgv/v1/recipient-change`
+   címét (bővítmény **2.1.0+**). A bolt egyetlen kérésen belül: átírja a rendelés-tételt
+   (`_pgv_recipient` + a látható „Megajándékozott” sor; több utalványos tételnél
+   sorszámra szóló külön sor) és rendelés-jegyzetet ír → átírja az utalványt → audit
+   (`recipient_changed`) → felküldi ide az **újragenerált PDF-fel** és a `change`
+   mezővel. Ha a rendelés mentése nem sikerül, semmi nem változik.
+3. Az ingest naplóz (`pgv_voucher_log`, `recipient_change`: ki, mikor, régi → új név,
+   WooCommerce-szinkron, PDF), és lezárja a függő műveletet. Az adatlap közben
+   `GET /api/recipient?unit=&serial=&nonce=`-vel kérdezi az állapotot (a bolt ablaka
+   `postMessage`-dzsel is visszaszól), és csak a bolt felküldése után írja ki, hogy kész
+   — így a két rendszerben sosem lehet eltérő a név.
+
+Ha a felküldés épp elakad, a bolt óránként újrapróbálja; a művelet akkor zárul le,
+amikor az új név megérkezik. A WP adminban szerkesztett név is bekerül a naplóba
+(„Bolt (WP admin): …”). A csak a vezérlőpulton létező (CSV-ből importált) utalványnál
+nincs bolt és rendelés: ott a vezérlőpult maga írja át a nevet, és a nyomtatható
+példány már azt mutatja. Az adatlap alján a **Névmódosítások** lista mutatja az eddigi
+változásokat.
+
 ## Belső sorszám és kód-csere
 
 Az utalványra nyomtatott kód véletlen (`CASA-7K3M9QP2`), mellette a bolt felküldi

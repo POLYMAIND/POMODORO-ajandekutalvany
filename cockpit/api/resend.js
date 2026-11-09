@@ -18,6 +18,18 @@ Foglalj asztalt, hozd magaddal ezt a levelet, a többiről pedig mi gondoskodunk
 Viszontlátásra:
 a(z) {egyseg} csapata`,
   },
+  rename: {
+    subject: '{egyseg} · Az ajándékutalványod — frissített névvel',
+    body:
+`Kedves {nev}!
+
+Az ajándékutalványodon szereplő nevet javítottuk — a frissített utalványt PDF-ben mellékeltük. A kód, az érték és az érvényesség nem változott.
+
+Foglalj asztalt, hozd magaddal ezt a levelet, a többiről pedig mi gondoskodunk.
+
+Viszontlátásra:
+a(z) {egyseg} csapata`,
+  },
   newcode: {
     subject: '{egyseg} · Az ajándékutalványod új azonosítót kapott',
     body:
@@ -102,7 +114,7 @@ module.exports = async (req, res) => {
     if (!r.ok) { res.status(502).json({ error: 'A küldés nem sikerült: ' + r.error }); return; }
 
     try {
-      await logVoucherAction({ unit: shop.slug, serial, action: 'newcode' === reason ? 'resend_newcode' : 'resend', amount: v.amount, user });
+      await logVoucherAction({ unit: shop.slug, serial, action: 'newcode' === reason ? 'resend_newcode' : ('rename' === reason ? 'resend_rename' : 'resend'), amount: v.amount, user });
     } catch (e) { /* a napló hibája ne buktassa el a küldést */ }
 
     res.status(200).json({ ok: true, to, reason, pdfAttached: attachments.length > 0 });

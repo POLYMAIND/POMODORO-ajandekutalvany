@@ -18,6 +18,8 @@ class PGV_Push {
 	const RETRY_HOOK   = 'pgv_push_retry';
 	/** Az egység névjegye kérésenként egyszer áll össze. */
 	private static $meta_cache = null;
+	/** Épp folyamatban lévő módosítás (pl. névváltozás) — a vezérlőpult naplójához. */
+	private static $change = null;
 
 	public function __construct() {
 		// Minden mentett/megváltozott utalvány azonnal felkerül.
@@ -28,6 +30,20 @@ class PGV_Push {
 		if ( ! wp_next_scheduled( self::RETRY_HOOK ) ) {
 			wp_schedule_event( time() + 600, 'hourly', self::RETRY_HOOK );
 		}
+	}
+
+	/**
+	 * A következő felküldéshez csatolt módosítás-leírás (sorszámra szűrve).
+	 *
+	 * A vezérlőpult ebből tudja naplózni, hogy MI változott és KI változtatta
+	 * (pl. megajándékozott: régi → új név), és ebből zárja le a kasszáról indított
+	 * módosítást. `null` törli.
+	 *
+	 * @param string|null $serial Az érintett utalvány sorszáma.
+	 * @param array       $change {type, old, new, by, via, order, nonce?}
+	 */
+	public static function set_change( $serial, array $change = array() ) {
+		self::$change = ( null === $serial ) ? null : array( 'serial' => (string) $serial, 'data' => $change );
 	}
 
 	/** A legutóbbi felküldés állapota az admin figyelmeztetéshez. */
@@ -222,6 +238,10 @@ class PGV_Push {
 		// mondanunk, melyik régi sort kell átnevezni — különben ott duplikátum lenne.
 		if ( $previous_serial && $previous_serial !== $v['serial'] ) {
 			$data['previous_serial'] = (string) $previous_serial;
+		}
+
+		if ( null !== self::$change && self::$change['serial'] === (string) $v['serial'] ) {
+			$data['change'] = self::$change['data'];
 		}
 
 		if ( ! empty( $v['order_id'] ) && function_exists( 'wc_get_order' ) ) {
