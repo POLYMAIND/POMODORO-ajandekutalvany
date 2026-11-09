@@ -244,6 +244,8 @@ $ro      = $managed ? ' readonly' : '';
 									esc_html__( 'Már be van állítva (%s). Hagyd üresen, ha nem módosítod — csak új értéknél töltsd ki.', 'pomodoro-gift-vouchers' ),
 									esc_html( $pgv_secret_hint )
 								);
+							} elseif ( class_exists( 'PGV_Fleet' ) && PGV_Fleet::has_licence() ) {
+								esc_html_e( 'Nem kell kitölteni: a felküldés a licenccel hitelesít. Csak akkor adj meg titkot, ha a vezérlőpult kifejezetten azt kéri.', 'pomodoro-gift-vouchers' );
 							} else {
 								esc_html_e( 'Ugyanaz a titok, mint a vezérlőpult INGEST_SECRET környezeti változója.', 'pomodoro-gift-vouchers' );
 							}
