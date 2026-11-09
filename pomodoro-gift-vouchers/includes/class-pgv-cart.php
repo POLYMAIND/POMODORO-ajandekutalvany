@@ -88,6 +88,9 @@ class PGV_Cart {
 			'tooLong'     => __( 'Ennél hosszabb üzenet nem fér rá az utalványra — a maradékot levágjuk.', 'pomodoro-gift-vouchers' ),
 			// Az előnézet pontosan azokat az emojikat mutassa, amikhez képünk is van.
 			'emoji'       => PGV_PDF::emoji_codepoints(),
+			// A kiírt ár tizedesei (pl. „10 000,00 Ft”) ne olvadjanak bele az összegbe.
+			'decimalSep'  => function_exists( 'wc_get_price_decimal_separator' ) ? wc_get_price_decimal_separator() : ',',
+			'decimals'    => function_exists( 'wc_get_price_decimals' ) ? (int) wc_get_price_decimals() : 0,
 		);
 	}
 
