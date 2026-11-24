@@ -392,6 +392,14 @@
     border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 13.5px; }
   .dd-note { font-size: 12.5px; border-radius: 10px; padding: 10px 12px; margin-top: 16px; line-height: 1.5; }
   .dd-note.ok { background: var(--good-soft); color: var(--good); border: 1px solid var(--good); }
+  .dd-note.err { background: transparent; color: var(--warn); border: 1px solid var(--warn); }
+  .dd-ext { display: grid; gap: 8px; }
+  .dd-ext .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .dd-ext input { padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 8px;
+    background: var(--card); color: var(--ink); font: inherit; font-size: 13.5px; }
+  .dd-ext input[type=text] { flex: 1; min-width: 160px; }
+  .dd-ext .q { padding: 3px 10px; font-size: 12px; }
+  .dd-ext .hint { font-size: 12px; color: var(--muted); font-weight: 400; }
   .dd-sec { margin-top: 20px; }
   .dd-sec h4 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted);
     margin: 0 0 12px; font-weight: 600; }
@@ -1359,7 +1367,7 @@
   //  szimuláljuk; a valós bekötés logikáját lásd a kommenteknél / a handoverben.)
   // ============================================================
   var ovd = $("#ovd");
-  var dd = { v: null, editing: false, resend: false, note: "" };
+  var dd = { v: null, editing: false, extending: false, resend: false, note: "", err: "" };
 
   function nowStr(){
     var d = new Date(), p = function(n){ return (n < 10 ? "0" : "") + n; };
@@ -1371,6 +1379,20 @@
     for (var i = 0; i < rows.length; i++) if (rows[i].serial === serial) return rows[i];
     return null;
   }
+  // Dátum-segédek az érvényesség-hosszabbításhoz (YYYY-MM-DD, helyi idő)
+  function todayStr(){ return nowStr().slice(0, 10); }
+  function addMonths(dateStr, n){
+    var d = new Date(dateStr + "T00:00:00"), day = d.getDate();
+    d.setDate(1); d.setMonth(d.getMonth() + n);
+    var last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    d.setDate(Math.min(day, last));
+    var p = function(x){ return (x < 10 ? "0" : "") + x; };
+    return d.getFullYear() + "-" + p(d.getMonth()+1) + "-" + p(d.getDate());
+  }
+  // A hosszabbítás alapja: a régi lejárat, de ha az már elmúlt, akkor a mai nap
+  function extendBase(v){ var t = todayStr(); return (v.validUntil && v.validUntil > t) ? v.validUntil : t; }
+  function canExtend(v){ return v.status === "active" || v.status === "expired"; }
+
   // Mock metaadat: WooCommerce-rendelésazonosító + induló napló (egyszer, lazyn)
   function ensureMeta(v){
     if (!v._woo) {
@@ -1390,7 +1412,7 @@
 
   function openDetails(v){
     ensureMeta(v);
-    dd = { v: v, editing: false, resend: false, note: "" };
+    dd = { v: v, editing: false, extending: false, resend: false, note: "", err: "" };
     renderDetails();
     ovd.classList.add("open");
   }
@@ -1407,18 +1429,41 @@
       recHtml = (v.recipient ? esc(v.recipient) : '<span class="muted">—</span>')
         + ' <button class="btn btn-ghost" data-act="edit" style="padding:2px 9px;font-size:12px;margin-left:8px">Módosítás</button>';
     }
+    var validHtml;
+    if (dd.extending) {
+      var base = extendBase(v);
+      validHtml = '<div class="dd-ext">'
+        + '<div class="row"><span class="hint">Jelenleg: '+esc(v.validUntil || "—")+'</span></div>'
+        + '<div class="row">'
+        +   '<button class="btn q" data-act="ext-q" data-m="1">+1 hó</button>'
+        +   '<button class="btn q" data-act="ext-q" data-m="3">+3 hó</button>'
+        +   '<button class="btn q" data-act="ext-q" data-m="6">+6 hó</button>'
+        +   '<button class="btn q" data-act="ext-q" data-m="12">+12 hó</button>'
+        +   '<input id="dd-ext-date" type="date" min="'+esc(addMonths(todayStr(), 0))+'" value="'+esc(addMonths(base, 3))+'">'
+        + '</div>'
+        + '<div class="row"><input id="dd-ext-reason" type="text" placeholder="Indoklás (pl. vendég kérésére, e-mail 2026-11-24)"></div>'
+        + '<div class="row"><button class="btn btn-primary" data-act="ext-save">Hosszabbítás mentése</button>'
+        +   '<button class="btn btn-ghost" data-act="ext-cancel">Mégse</button></div>'
+        + '<span class="hint">Az alap a régi lejárat, vagy ha az már elmúlt, a mai nap.</span>'
+        + '</div>';
+    } else {
+      validHtml = '<span'+(v.status === "expired" ? ' style="color:var(--warn)"' : ' class="muted"')+'>'+esc(v.validUntil || "—")+'</span>'
+        + (canExtend(v) ? ' <button class="btn btn-ghost" data-act="ext" style="padding:2px 9px;font-size:12px;margin-left:8px">Meghosszabbítás</button>' : '');
+    }
     var dl = '<dl class="dl">'
       + '<dt>Címlet</dt><dd>'+money(v.amount)+'</dd>'
       + '<dt>Ajándékozó</dt><dd>'+esc(v.giver || "—")+'</dd>'
       + '<dt>Megajándékozott</dt><dd>'+recHtml+'</dd>'
       + '<dt>Kézbesítési e-mail</dt><dd>'+esc(v.email || "—")+'</dd>'
       + '<dt>Vásárlás</dt><dd class="muted">'+esc(v.purchase)+'</dd>'
-      + '<dt>Érvényes</dt><dd class="muted">'+esc(v.validUntil)+'</dd>'
+      + '<dt>Érvényes</dt><dd>'+validHtml+'</dd>'
       + '<dt>WooCommerce rendelés</dt><dd>'+esc(v._woo)+'</dd>'
       + '</dl>';
-    var note = dd.note ? '<div class="dd-note ok">'+esc(dd.note)+'</div>' : '';
-    var resend = dd.resend
-      ? '<div style="margin-top:14px"><button class="btn" data-act="resend">↻ Újraküldés a megajándékozottnak</button></div>'
+    var note = (dd.err ? '<div class="dd-note err">'+esc(dd.err)+'</div>' : '')
+      + (dd.note ? '<div class="dd-note ok">'+esc(dd.note)+'</div>' : '');
+    // Újraküldés: módosítás után kiemelve, egyébként minden aktív utalványnál elérhető
+    var resend = (dd.resend || v.status === "active")
+      ? '<div style="margin-top:14px"><button class="btn'+(dd.resend ? ' btn-primary' : '')+'" data-act="resend">↻ Újraküldés e-mailben ('+esc(v.email || "—")+')</button></div>'
       : '';
     var log = '<div class="dd-sec"><h4>Napló</h4><ul class="dd-log">'
       + v._log.map(function(e){ return '<li><div class="lt">'+esc(e.text)+'</div><div class="lm">'+esc(e.t)+' · '+esc(e.who)+'</div></li>'; }).join("")
@@ -1454,10 +1499,48 @@
     renderDetails();
   }
 
+  // Érvényesség meghosszabbítása (vendég kérésére). Lejárt utalványnál az új dátummal
+  // újra aktív lesz. Valós bekötés: voucher.valid_until frissítése + audit (régi → új
+  // dátum, indoklás, ki), PDF-újragenerálás az új lejárattal, a WooCommerce-rendelés
+  // meta-adatának frissítése (PUT /wp-json/wc/v3/orders/{id}), majd újraküldés.
+  function saveExtension(newDate, reason){
+    var v = dd.v, old = v.validUntil || "—", t = todayStr();
+    reason = (reason || "").trim();
+    dd.err = "";
+    if (!newDate || !/^\d{4}-\d{2}-\d{2}$/.test(newDate)) dd.err = "Adj meg egy érvényes dátumot.";
+    else if (newDate <= t) dd.err = "Az új lejáratnak a mai napnál későbbinek kell lennie.";
+    else if (v.validUntil && newDate <= v.validUntil) dd.err = "Az új lejárat legyen későbbi a jelenleginél ("+v.validUntil+").";
+    else if (!reason) dd.err = "Írd be az indoklást (a naplóba kerül).";
+    if (dd.err) { renderDetails(); keepExtInputs(newDate, reason); return; }
+
+    var wasExpired = v.status === "expired";
+    v.validUntil = newDate;
+    if (wasExpired) v.status = "active";
+    var ts = nowStr();
+    v._log.unshift({ t: ts, who: "admin",    text: "Érvényesség meghosszabbítva: "+old+" → "+newDate+" · indoklás: "+reason });
+    if (wasExpired) v._log.unshift({ t: ts, who: "rendszer", text: "Státusz: Lejárt → Aktív (hosszabbítás miatt)" });
+    v._log.unshift({ t: ts, who: "rendszer", text: "PDF újragenerálva az új lejárattal ("+newDate+")" });
+    v._log.unshift({ t: ts, who: "rendszer", text: "WooCommerce rendelés frissítve ("+v._woo+") — lejárat szinkronizálva (azonnali)" });
+    dd.extending = false;
+    dd.resend = true;
+    dd.note = "Meghosszabbítva "+newDate+"-ig"+(wasExpired ? ", az utalvány újra aktív" : "")
+      + ". A PDF újragenerálódott az új dátummal. Most küldd ki újra a vendégnek az alábbi gombbal.";
+    renderStats();
+    renderRows();
+    renderDetails();
+  }
+  // Hibás mentés után a beírt értékek maradjanak meg
+  function keepExtInputs(d, r){
+    var di = $("#dd-ext-date"), ri = $("#dd-ext-reason");
+    if (di && d) di.value = d;
+    if (ri) { ri.value = r || ""; if (!r) ri.focus(); }
+  }
+
   function resendVoucher(){
     var v = dd.v;
     v._log.unshift({ t: nowStr(), who: "admin", text: "Utalvány újraküldve e-mailben: " + (v.email || "—") });
-    dd.note = "Újraküldve a megajándékozottnak: " + (v.email || "—");
+    dd.resend = false; dd.err = "";
+    dd.note = "Újraküldve (a PDF az aktuális adatokkal, érvényes: " + (v.validUntil || "—") + "): " + (v.email || "—");
     renderDetails();
   }
 
@@ -1471,7 +1554,11 @@
   $("#dd-body").addEventListener("click", function(e){
     var b = e.target.closest("[data-act]"); if (!b) return;
     var act = b.getAttribute("data-act");
-    if (act === "edit")        { dd.editing = true; dd.note = ""; renderDetails(); }
+    if (act === "edit")        { dd.editing = true; dd.extending = false; dd.note = ""; dd.err = ""; renderDetails(); }
+    else if (act === "ext")         { dd.extending = true; dd.editing = false; dd.note = ""; dd.err = ""; renderDetails(); }
+    else if (act === "ext-cancel")  { dd.extending = false; dd.err = ""; renderDetails(); }
+    else if (act === "ext-q")       { var di = $("#dd-ext-date"); if (di) di.value = addMonths(extendBase(dd.v), +b.getAttribute("data-m")); }
+    else if (act === "ext-save")    { saveExtension($("#dd-ext-date").value, $("#dd-ext-reason").value); }
     else if (act === "cancel-edit") { dd.editing = false; renderDetails(); }
     else if (act === "save-edit")   { saveRecipient($("#dd-rec") ? $("#dd-rec").value : ""); }
     else if (act === "resend")      { resendVoucher(); }
