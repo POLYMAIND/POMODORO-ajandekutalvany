@@ -311,6 +311,42 @@ class PGV_Order {
 	}
 
 	/**
+	 * Érvényesség-hosszabbítás jegyzete a WooCommerce-rendelésen.
+	 *
+	 * A lejárat a rendelés-tétel metájában nem szerepel, ezért itt csak rendelés-jegyzet
+	 * készül (visszakereshető, ki, mikor, mire hosszabbított). ELŐBB hívandó, mint az
+	 * utalvány-tábla írása: ha a rendelés mentése elhasal, a hívó nem módosít semmit.
+	 *
+	 * @return string|WP_Error 'no_order' | 'noted'
+	 */
+	public static function note_validity( array $v, $old, $new, $reason = '', $actor = '' ) {
+		if ( empty( $v['order_id'] ) || ! function_exists( 'wc_get_order' ) ) {
+			return 'no_order';
+		}
+		$order = wc_get_order( (int) $v['order_id'] );
+		if ( ! $order ) {
+			return 'no_order';
+		}
+		try {
+			$order->add_order_note(
+				sprintf(
+					/* translators: 1: serial, 2: old date, 3: new date, 4: reason, 5: actor */
+					__( 'Utalvány érvényessége meghosszabbítva (%1$s): %2$s → %3$s. Indoklás: %4$s. Módosította: %5$s', 'pomodoro-gift-vouchers' ),
+					$v['serial'],
+					'' !== (string) $old ? $old : '—',
+					$new,
+					'' !== (string) $reason ? $reason : '—',
+					$actor ? $actor : PGV_Vouchers::actor()
+				)
+			);
+			$order->save();
+		} catch ( \Throwable $e ) {
+			return new WP_Error( 'pgv_order_sync', sprintf( __( 'A WooCommerce-rendelés frissítése nem sikerült: %s', 'pomodoro-gift-vouchers' ), $e->getMessage() ) );
+		}
+		return 'noted';
+	}
+
+	/**
 	 * Hány utalvány született ugyanabból a rendelés-tételből.
 	 */
 	private static function vouchers_on_item( array $v, $item ) {

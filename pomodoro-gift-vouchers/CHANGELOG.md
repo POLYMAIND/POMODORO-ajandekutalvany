@@ -4,6 +4,9 @@ A POLYMAIND vezérlőpultja kiadáskor innen olvassa ki, mi változott: a verzi�
 `## x.y.z` szakasz kerül a WordPress frissítési ablakába. Új verziónál a `Version:` fejléccel
 és a `PGV_VERSION` konstanssal együtt ide is írj egy szakaszt.
 
+## 2.2.0
+- Érvényesség meghosszabbítása a kasszás felület adatlapjáról (pl. vendég kérésére): az új lejárat azonnal átíródik, a lejárt utalvány újra aktív lesz, a PDF újragenerálódik az új dátummal és felkerül a kasszára, a WooCommerce-rendelés jegyzetet kap, a módosítás (régi → új dátum, indoklás, ki) az utalvány naplójába kerül.
+
 ## 2.1.1
 - A wp-admin Kassza oldalán az összeg rendesen jelenik meg (10 000 Ft, nem „10&nbsp;000 Ft”).
 

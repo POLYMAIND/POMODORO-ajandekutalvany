@@ -68,6 +68,105 @@ class PGV_REST {
 				'callback'            => array( $this, 'recipient_change' ),
 			)
 		);
+
+		// Érvényesség meghosszabbítása a vezérlőpult adatlapjáról — ugyanaz az aláírt,
+		// böngészős jegy, mint a névmódosításnál (op = 'validity').
+		register_rest_route(
+			self::NS,
+			'/validity-change',
+			array(
+				'permission_callback' => '__return_true',
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'validity_change' ),
+			)
+		);
+	}
+
+	/**
+	 * GET /validity-change?p=…&s=…&l=… — az utalvány lejáratának kitolása (vendég
+	 * kérésére) a kasszás vezérlőpultról. Működése a recipient_change-ével azonos:
+	 * aláírt, 15 percig érvényes, egyszer használható jegy; azonnali végrehajtás
+	 * (rendelés-jegyzet → utalvány → audit → új PDF felküldése); eredmény-oldal,
+	 * ami postMessage-dzsel visszaszól.
+	 */
+	public function validity_change( WP_REST_Request $request ) {
+		$ticket = self::verify_ticket(
+			(string) $request->get_param( 'p' ),
+			(string) $request->get_param( 's' ),
+			(string) $request->get_param( 'l' ),
+			'validity'
+		);
+		if ( is_wp_error( $ticket ) ) {
+			self::render_result_page( array( 'ok' => false, 'op' => 'validity', 'error' => $ticket->get_error_message() ), '' );
+		}
+		$ret   = isset( $ticket['ret'] ) ? (string) $ticket['ret'] : '';
+		$nonce = (string) $ticket['nonce'];
+
+		$key  = 'pgv_vc_' . md5( $nonce );
+		$prev = get_transient( $key );
+		if ( is_array( $prev ) ) {
+			self::render_result_page( $prev, $ret );
+		}
+		set_transient( $key, array( 'ok' => false, 'op' => 'validity', 'nonce' => $nonce, 'error' => __( 'A módosítás már folyamatban van.', 'pomodoro-gift-vouchers' ) ), HOUR_IN_SECONDS );
+
+		$out = self::apply_validity_ticket( $ticket );
+		set_transient( $key, $out, HOUR_IN_SECONDS );
+		self::render_result_page( $out, $ret );
+	}
+
+	/**
+	 * A jegyben kért hosszabbítás végrehajtása.
+	 */
+	private static function apply_validity_ticket( array $t ) {
+		$base = array( 'ok' => false, 'op' => 'validity', 'nonce' => (string) $t['nonce'], 'serial' => (string) $t['serial'] );
+
+		if ( sanitize_key( (string) $t['unit'] ) !== PGV_Settings::unit_slug() ) {
+			return $base + array( 'error' => __( 'A jegy egy másik egységnek szól, nem ennek a boltnak.', 'pomodoro-gift-vouchers' ) );
+		}
+		$v = PGV_Vouchers::get_by_serial_or_token( (string) $t['serial'] );
+		if ( ! $v || (string) $v['serial'] !== (string) $t['serial'] ) {
+			return $base + array( 'error' => __( 'Ez az utalvány nem található a boltban.', 'pomodoro-gift-vouchers' ) );
+		}
+		$cur = (string) $v['valid_until'];
+		$old = (string) $t['old'];
+		$new = (string) $t['until'];
+		// Ha közben a boltban már átírták, nem írjuk felül vakon.
+		if ( $cur !== $old && $cur !== $new ) {
+			return $base + array(
+				'error' => sprintf(
+					/* translators: %s: current date */
+					__( 'A lejárat időközben megváltozott a boltban (most: %s). Nyisd meg újra az adatlapot, és próbáld újra.', 'pomodoro-gift-vouchers' ),
+					'' !== $cur ? $cur : '—'
+				),
+			);
+		}
+
+		$actor  = 'kassza: ' . (string) $t['by'];
+		$actor  = function_exists( 'mb_substr' ) ? mb_substr( $actor, 0, 190 ) : substr( $actor, 0, 190 );
+		$reason = sanitize_text_field( (string) $t['reason'] );
+		$reason = function_exists( 'mb_substr' ) ? mb_substr( $reason, 0, 300 ) : substr( $reason, 0, 300 );
+		$push0  = time();
+		$r      = PGV_Vouchers::extend_validity( (int) $v['id'], $new, $actor, $reason, array( 'nonce' => (string) $t['nonce'] ) );
+		if ( is_wp_error( $r ) ) {
+			return $base + array( 'error' => $r->get_error_message() );
+		}
+
+		$pdf    = class_exists( 'PGV_Voucher_PDF' ) && PGV_Voucher_PDF::enabled();
+		$last   = PGV_Push::last_result();
+		$pushed = ! empty( $r['unchanged'] ) ? null
+			: ( PGV_Push::configured() && ! empty( $last['ok'] ) && (int) ( $last['time'] ?? 0 ) >= $push0 );
+
+		return array_merge( $base, array(
+			'ok'          => true,
+			'old'         => $r['old'],
+			'until'       => $new,
+			'reactivated' => ! empty( $r['reactivated'] ),
+			'unchanged'   => ! empty( $r['unchanged'] ),
+			'order'       => $r['order'],
+			'pdf'         => $pdf,
+			'pushed'      => $pushed,
+			'push_error'  => ( false === $pushed && ! empty( $last['error'] ) ) ? (string) $last['error'] : '',
+		) );
 	}
 
 	/**
@@ -183,7 +282,7 @@ class PGV_REST {
 	 *
 	 * @return array|WP_Error A jegy mezői.
 	 */
-	public static function verify_ticket( $p, $sig_secret, $sig_licence ) {
+	public static function verify_ticket( $p, $sig_secret, $sig_licence, $op = 'recipient' ) {
 		$bad = new WP_Error( 'pgv_bad_ticket', __( 'Érvénytelen vagy sérült hivatkozás. Indítsd újra a módosítást a kasszás felületen.', 'pomodoro-gift-vouchers' ) );
 		if ( '' === $p || strlen( $p ) > 4000 || ! preg_match( '/^[A-Za-z0-9_-]+$/', $p ) ) {
 			return $bad;
@@ -206,9 +305,18 @@ class PGV_REST {
 
 		$raw = base64_decode( strtr( $p, '-_', '+/' ) . str_repeat( '=', ( 4 - strlen( $p ) % 4 ) % 4 ), true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode
 		$t   = is_string( $raw ) ? json_decode( $raw, true ) : null;
-		if ( ! is_array( $t ) || 'recipient' !== ( $t['op'] ?? '' )
-			|| empty( $t['nonce'] ) || empty( $t['serial'] ) || empty( $t['unit'] ) || ! isset( $t['name'], $t['old'], $t['exp'] ) ) {
+		if ( ! is_array( $t ) || $op !== ( $t['op'] ?? '' )
+			|| empty( $t['nonce'] ) || empty( $t['serial'] ) || empty( $t['unit'] ) || ! isset( $t['old'], $t['exp'] ) ) {
 			return $bad;
+		}
+		if ( 'recipient' === $op && ! isset( $t['name'] ) ) {
+			return $bad;
+		}
+		if ( 'validity' === $op && ( ! isset( $t['until'] ) || ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $t['until'] ) ) ) {
+			return $bad;
+		}
+		if ( ! isset( $t['reason'] ) ) {
+			$t['reason'] = '';
 		}
 		$now = time();
 		if ( (int) $t['exp'] < $now ) {
@@ -226,10 +334,31 @@ class PGV_REST {
 	 * Eredmény-oldal a kis ablakban: visszaszól a vezérlőpultnak, és sikernél bezárul.
 	 */
 	private static function render_result_page( array $r, $ret ) {
-		$ok    = ! empty( $r['ok'] );
-		$order = isset( $r['order'] ) ? (string) $r['order'] : '';
-		$lines = array();
-		if ( $ok ) {
+		$ok       = ! empty( $r['ok'] );
+		$order    = isset( $r['order'] ) ? (string) $r['order'] : '';
+		$validity = 'validity' === ( $r['op'] ?? '' );
+		$lines    = array();
+		if ( $ok && $validity ) {
+			if ( ! empty( $r['unchanged'] ) ) {
+				$lines[] = __( 'A lejárat már így szerepelt — nem kellett módosítani.', 'pomodoro-gift-vouchers' );
+			} else {
+				$lines[] = sprintf( __( 'Új lejárat: %s', 'pomodoro-gift-vouchers' ), $r['until'] );
+				if ( ! empty( $r['reactivated'] ) ) {
+					$lines[] = __( 'A lejárt utalvány újra aktív (beváltható).', 'pomodoro-gift-vouchers' );
+				}
+				$lines[] = 'no_order' === $order
+					? __( 'WooCommerce: ehhez az utalványhoz nincs rendelés (importált tétel).', 'pomodoro-gift-vouchers' )
+					: __( 'WooCommerce-rendelés: jegyzet hozzáadva.', 'pomodoro-gift-vouchers' );
+				$lines[] = ! empty( $r['pdf'] )
+					? __( 'Az utalvány PDF-je újragenerálva.', 'pomodoro-gift-vouchers' )
+					: __( 'A beépített PDF ki van kapcsolva — PDF nem készült.', 'pomodoro-gift-vouchers' );
+				if ( true === ( $r['pushed'] ?? null ) ) {
+					$lines[] = __( 'A kasszás felület megkapta a változást.', 'pomodoro-gift-vouchers' );
+				} elseif ( false === ( $r['pushed'] ?? null ) ) {
+					$lines[] = __( 'A kasszás felületre küldés most nem sikerült — a bolt óránként újrapróbálja.', 'pomodoro-gift-vouchers' );
+				}
+			}
+		} elseif ( $ok ) {
 			if ( ! empty( $r['unchanged'] ) ) {
 				$lines[] = __( 'A név már így szerepelt — nem kellett módosítani.', 'pomodoro-gift-vouchers' );
 			} else {
@@ -249,7 +378,9 @@ class PGV_REST {
 		}
 
 		$msg = array(
-			'type'   => 'pgv-recipient',
+			'type'   => $validity ? 'pgv-validity' : 'pgv-recipient',
+			'until'  => isset( $r['until'] ) ? (string) $r['until'] : '',
+			'reactivated' => ! empty( $r['reactivated'] ),
 			'ok'     => $ok,
 			'nonce'  => isset( $r['nonce'] ) ? (string) $r['nonce'] : '',
 			'serial' => isset( $r['serial'] ) ? (string) $r['serial'] : '',
@@ -265,7 +396,9 @@ class PGV_REST {
 		header( 'X-Robots-Tag: noindex, nofollow' );
 		header( 'Referrer-Policy: no-referrer' );
 		status_header( 200 );
-		$title = $ok ? __( 'Megajándékozott módosítva', 'pomodoro-gift-vouchers' ) : __( 'A módosítás nem sikerült', 'pomodoro-gift-vouchers' );
+		$title = $ok
+			? ( $validity ? __( 'Érvényesség meghosszabbítva', 'pomodoro-gift-vouchers' ) : __( 'Megajándékozott módosítva', 'pomodoro-gift-vouchers' ) )
+			: __( 'A módosítás nem sikerült', 'pomodoro-gift-vouchers' );
 		echo '<!doctype html><html lang="hu"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex, nofollow">';
 		echo '<title>' . esc_html( $title ) . '</title><style>'
 			. 'body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:#efe9df;color:#221d18;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;font-size:15px;line-height:1.55}'

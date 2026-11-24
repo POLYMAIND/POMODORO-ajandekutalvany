@@ -345,6 +345,22 @@ async function setRecipientName(unit, serial, name) {
   return rows[0] || null;
 }
 
+// Az érvényesség közvetlen kitolása — CSAK a bolt nélküli (CSV-ből importált)
+// utalványnál; boltból jött utalványnál a bolt írja át, és a felküldés hozza ide
+// (lásd api/validity.js). Lejárt utalvány az új dátummal újra aktív lesz;
+// beváltott / sztornózott nem hosszabbítható.
+async function setValidUntil(unit, serial, until) {
+  const sql = db();
+  const rows = await sql`UPDATE pgv_vouchers
+    SET valid_until = ${String(until)}::date,
+        status = CASE WHEN status = 'expired' THEN 'active' ELSE status END,
+        updated_at = ${nowLocal(sql)}
+    WHERE lower(unit) = lower(${String(unit)}) AND serial = ${String(serial)}
+      AND status IN ('active', 'expired')
+    RETURNING *`;
+  return rows[0] || null;
+}
+
 async function getVoucher(unit, serial) {
   const sql = db();
   const r = await sql`SELECT * FROM pgv_vouchers
@@ -561,6 +577,17 @@ async function pendingRecipientOps() {
   return out;
 }
 
+// Függő hosszabbítások (lásd pendingRecipientOps).
+async function pendingValidityOps() {
+  await ensureConfigSchema();
+  const sql = db();
+  const rows = await sql`SELECT k, v FROM pgv_config
+    WHERE k LIKE 'validity_op:%' AND v->>'state' = 'pending'`;
+  const out = {};
+  rows.forEach(r => { out[r.k] = r.v; });
+  return out;
+}
+
 // ---- Felhasználók (többfelhasználós admin) ----
 let _usersReady = false;
 async function ensureUsersSchema() {
@@ -622,6 +649,6 @@ module.exports = {
   db, ensureSchema, upsertVouchers, upsertVoucherPdfs, getVoucherPdf, allVouchers, getVoucher,
   redeemVoucher, unredeemVoucher, renameVoucher, markReminderSent, deleteLegacyByUnit,
   ensureLogSchema, logVoucherAction, recentVoucherLog, setRecipientName,
-  ensureConfigSchema, getConfig, setConfig, pendingRecipientOps,
+  ensureConfigSchema, getConfig, setConfig, pendingRecipientOps, pendingValidityOps, setValidUntil,
   ensureUsersSchema, countUsers, getUserByEmail, getUserById, listUsers, createUser, updateUser, deleteUser,
 };

@@ -494,6 +494,86 @@ class PGV_Vouchers {
 	}
 
 	/**
+	 * Érvényesség meghosszabbítása (a kasszás vezérlőpult adatlapjáról, vendég kérésére).
+	 *
+	 * Csak aktív vagy lejárt utalvány hosszabbítható; a lejárt az új dátummal újra
+	 * aktív lesz. Sorrend, mint a névmódosításnál: WooCommerce-rendelés (jegyzet) →
+	 * utalvány-tábla → audit → felküldés a vezérlőpultra az újragenerált PDF-fel.
+	 * Ha a rendelés mentése nem sikerül, nem változik semmi.
+	 *
+	 * @param int    $id     Utalvány-azonosító.
+	 * @param string $until  Új lejárat (ÉÉÉÉ-HH-NN).
+	 * @param string $actor  Ki kezdeményezte.
+	 * @param string $reason Indoklás (a naplóba és a rendelés-jegyzetbe).
+	 * @param array  $ctx    A vezérlőpult felé visszaadott kontextus (nonce).
+	 * @return array|WP_Error {voucher, old, until, reactivated, order, unchanged}
+	 */
+	public static function extend_validity( $id, $until, $actor, $reason = '', array $ctx = array() ) {
+		global $wpdb;
+		$v = self::get( $id );
+		if ( ! $v ) {
+			return new WP_Error( 'pgv_notfound', __( 'Nincs ilyen utalvány.', 'pomodoro-gift-vouchers' ) );
+		}
+		$until = (string) $until;
+		$d     = DateTime::createFromFormat( '!Y-m-d', $until );
+		if ( ! $d || $d->format( 'Y-m-d' ) !== $until ) {
+			return new WP_Error( 'pgv_bad_date', __( 'Érvénytelen dátum.', 'pomodoro-gift-vouchers' ) );
+		}
+		$old = (string) $v['valid_until'];
+		if ( $old === $until && self::STATUS_ACTIVE === $v['status'] ) {
+			return array( 'voucher' => $v, 'old' => $old, 'until' => $until, 'reactivated' => false, 'order' => 'unchanged', 'unchanged' => true );
+		}
+		if ( ! in_array( $v['status'], array( self::STATUS_ACTIVE, self::STATUS_EXPIRED ), true ) ) {
+			return new WP_Error(
+				'pgv_not_extendable',
+				sprintf( __( 'Ez az utalvány nem hosszabbítható (állapot: %s).', 'pomodoro-gift-vouchers' ), self::status_label( $v['status'] ) )
+			);
+		}
+		if ( $until <= current_time( 'Y-m-d' ) ) {
+			return new WP_Error( 'pgv_bad_date', __( 'Az új lejáratnak a mai napnál későbbinek kell lennie.', 'pomodoro-gift-vouchers' ) );
+		}
+		if ( '' !== $old && $until <= $old ) {
+			return new WP_Error( 'pgv_bad_date', sprintf( __( 'Az új lejárat legyen későbbi a jelenleginél (%s).', 'pomodoro-gift-vouchers' ), $old ) );
+		}
+
+		$sync = PGV_Order::note_validity( $v, $old, $until, $reason, $actor );
+		if ( is_wp_error( $sync ) ) {
+			return $sync;
+		}
+
+		$reactivated = self::STATUS_EXPIRED === $v['status'];
+		$data        = array( 'valid_until' => $until, 'updated_at' => current_time( 'mysql' ) );
+		if ( $reactivated ) {
+			$data['status'] = self::STATUS_ACTIVE;
+		}
+		$wpdb->update( PGV_Install::table( 'vouchers' ), $data, array( 'id' => (int) $id ), array_fill( 0, count( $data ), '%s' ), array( '%d' ) );
+		self::audit( $id, 'validity_extended', $v['status'], $reactivated ? self::STATUS_ACTIVE : $v['status'], $actor, array(
+			'from'   => $old,
+			'to'     => $until,
+			'reason' => (string) $reason,
+			'via'    => 'cockpit',
+			'order'  => $sync,
+		) );
+
+		// A felküldés (pgv_voucher_saved → PGV_Push::on_saved) újragenerálja a PDF-et
+		// az új lejárattal, és a vezérlőpult a változást is megkapja a naplóhoz.
+		PGV_Push::set_change( $v['serial'], array_merge( $ctx, array(
+			'type'        => 'validity',
+			'old'         => $old,
+			'new'         => $until,
+			'reason'      => (string) $reason,
+			'reactivated' => $reactivated,
+			'by'          => $actor,
+			'via'         => 'cockpit',
+			'order'       => $sync,
+		) ) );
+		do_action( 'pgv_voucher_saved', $id );
+		PGV_Push::set_change( null );
+
+		return array( 'voucher' => self::get( $id ), 'old' => $old, 'until' => $until, 'reactivated' => $reactivated, 'order' => $sync, 'unchanged' => false );
+	}
+
+	/**
 	 * Beváltás — kizárólag aktív + nem lejárt utalvány.
 	 */
 	public static function redeem( $id, $actor = null, $allow_expired = false ) {

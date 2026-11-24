@@ -1498,7 +1498,7 @@ function openProfile(unit,serial){
       prow('Érték',money(v.amount))+
       prow('Belső sorszám', v.seq_no?((v.seq_year||'')+'/'+String(v.seq_no).padStart(6,'0')):'')+
       '<div class="prow"><span class="pk">Státusz</span><span class="pv">'+statusPill(v.status)+'</span></div>'+
-      prow('Érvényes',fdate(v.valid_until)+(d!=null&&v.status==='active'?(d<0?' (lejárt)':' ('+d+' nap)'):''))+
+      '<div class="prow"><span class="pk">Érvényes</span><span class="pv" id="pValid">'+esc(fdate(v.valid_until)+(d!=null&&v.status==='active'?(d<0?' (lejárt)':' ('+d+' nap)'):''))+'</span></div>'+
       '<div class="prow"><span class="pk">Megajándékozott</span><span class="pv" id="pRecName">'+esc(v.recipient_name||'—')+'</span></div>'+
       prow('Üzenet',v.message)+
       '<div class="psec">Műveletek</div>'+
@@ -1506,6 +1506,7 @@ function openProfile(unit,serial){
         '<a class="pbtn" href="/api/pdf?unit='+encodeURIComponent(v.unit)+'&serial='+encodeURIComponent(v.serial)+'" target="_blank" rel="noopener">Utalvány PDF</a>'+
         '<button class="pbtn" id="pResend">E-mail újraküldése</button>'+
         '<button class="pbtn" id="pRename">Megajándékozott módosítása</button>'+
+        (v.status==='active'||v.status==='expired'?'<button class="pbtn" id="pExtend">Érvényesség meghosszabbítása</button>':'')+
         (CFG.role==='superadmin'?'<button class="pbtn danger" id="pDel">Utalvány törlése</button>':'')+
       '</div>'+
       '<div class="pdel" id="pDelBox" hidden>'+
@@ -1544,7 +1545,29 @@ function openProfile(unit,serial){
           '<button class="btn ghost" id="pRenameSkip">Most nem</button>'+
         '</div>'+
       '</div>'+
+      '<div class="prename" id="pExtendBox" hidden>'+
+        '<label class="fl" for="pExtendDate" style="margin:0">Új lejárat <span class="t-sub">(jelenleg: '+esc(fdate(v.valid_until)||'—')+')</span></label>'+
+        '<div class="presend-row" style="flex-wrap:wrap">'+
+          '<button class="btn ghost" data-ext-m="3">+3 hó</button>'+
+          '<button class="btn ghost" data-ext-m="6">+6 hó</button>'+
+          '<button class="btn ghost" data-ext-m="12">+12 hó</button>'+
+          '<input class="fi" id="pExtendDate" type="date" style="flex:1;min-width:150px">'+
+        '</div>'+
+        '<input class="fi" id="pExtendReason" maxlength="300" autocomplete="off" placeholder="Indoklás (pl. vendég kérésére, e-mailben kérte)">'+
+        '<div class="presend-row"><button class="btn" id="pExtendGo">Hosszabbítás mentése</button></div>'+
+        '<p class="t-sub">Lejárt utalvány az új dátummal újra beváltható lesz. Új PDF készül az új lejárattal, és a WooCommerce-rendelés jegyzetet kap. A mentéshez a bolt egy kis ablakban nyílik meg, majd magától bezárul. A módosítás naplózva lesz.</p>'+
+      '</div>'+
+      '<p class="res-msg" id="pExtendMsg"></p>'+
+      '<div class="prename" id="pExtendResend" hidden>'+
+        '<p class="t-sub">Küldjük el a vendégnek az új lejáratú utalványt?</p>'+
+        '<div class="presend-row">'+
+          '<input class="fi" id="pExtendTo" type="email" placeholder="e-mail cím" value="'+esc(v.delivery_email||v.buyer_email||'')+'">'+
+          '<button class="btn" id="pExtendSend">Újraküldés</button>'+
+          '<button class="btn ghost" id="pExtendSkip">Most nem</button>'+
+        '</div>'+
+      '</div>'+
       recipientLogHtml(v)+
+      validityLogHtml(v)+
       '<div class="psec">Korábbi vásárlások — '+rel.length+' db · összesen '+money(spent)+'</div>'+
       '<div class="phist">'+hist+'</div>'+
     '</div>';
@@ -1576,6 +1599,7 @@ function openProfile(unit,serial){
   };
 
   bindRename(v);
+  bindExtend(v);
 
   // Végleges törlés — csak központi adminnak, a sorszám pontos beírásával.
   const db_=$('#pDel'), dbox=$('#pDelBox'), dmsg=$('#pDelMsg');
@@ -1604,6 +1628,14 @@ function recipientLogHtml(v){
   const rows=(DATA.log||[]).filter(x=>x.action==='recipient_change'&&String(x.unit)===String(v.unit)&&String(x.serial)===String(v.serial));
   if(!rows.length)return '';
   return '<div class="psec">Névmódosítások</div><div class="plog">'+rows.map(x=>
+    '<div class="pl"><div class="pl-note">'+esc(x.note||'')+'</div>'+
+    '<div class="t-sub">'+esc(x.created_at?fdt(x.created_at):'')+(x.user_name?' · '+esc(x.user_name):'')+'</div></div>').join('')+'</div>';
+}
+// Az érvényesség-hosszabbítások naplója az adatlapon.
+function validityLogHtml(v){
+  const rows=(DATA.log||[]).filter(x=>x.action==='validity_extend'&&String(x.unit)===String(v.unit)&&String(x.serial)===String(v.serial));
+  if(!rows.length)return '';
+  return '<div class="psec">Hosszabbítások</div><div class="plog">'+rows.map(x=>
     '<div class="pl"><div class="pl-note">'+esc(x.note||'')+'</div>'+
     '<div class="t-sub">'+esc(x.created_at?fdt(x.created_at):'')+(x.user_name?' · '+esc(x.user_name):'')+'</div></div>').join('')+'</div>';
 }
@@ -1713,7 +1745,123 @@ function bindRename(v){
     send.disabled=false; send.textContent=o;
   };
 }
-function closeProfile(){$('#profile').classList.remove('show'); if(RENAME_STOP){RENAME_STOP();RENAME_STOP=null;}}
+// „Érvényesség meghosszabbítása”: ugyanaz az út, mint a névmódosításnál — aláírt
+// jegy, a bolt egy kis ablakban azonnal elvégzi, mi pedig a felküldésig kérdezzük az
+// állapotot. Utána felajánljuk az újraküldést a „meghosszabbítottuk” levélszöveggel.
+let EXT_STOP=null;
+function ymdLocal(t){const p=n=>(n<10?'0':'')+n;return t.getFullYear()+'-'+p(t.getMonth()+1)+'-'+p(t.getDate());}
+function addMonthsYmd(ymd,n){
+  const t=new Date(ymd+'T00:00:00'), day=t.getDate();
+  t.setDate(1); t.setMonth(t.getMonth()+n);
+  t.setDate(Math.min(day,new Date(t.getFullYear(),t.getMonth()+1,0).getDate()));
+  return ymdLocal(t);
+}
+function bindExtend(v){
+  const btn=$('#pExtend'), box=$('#pExtendBox'), msg=$('#pExtendMsg'), go=$('#pExtendGo');
+  const dateI=$('#pExtendDate'), reasonI=$('#pExtendReason'), rbox=$('#pExtendResend');
+  if(!btn)return;
+  if(EXT_STOP){EXT_STOP();EXT_STOP=null;}
+  const today=ymdLocal(new Date());
+  const cur=String(v.valid_until||'').slice(0,10);
+  const base=cur&&cur>today?cur:today;   // a régi lejárattól, ha már elmúlt, a mai naptól
+  dateI.min=addMonthsYmd(today,0);
+  dateI.value=addMonthsYmd(base,3);
+  box.querySelectorAll('[data-ext-m]').forEach(b=>{ b.onclick=()=>{ dateI.value=addMonthsYmd(base,+b.dataset.extM); }; });
+  btn.onclick=()=>{box.hidden=!box.hidden; msg.textContent=''; if(!box.hidden) reasonI.focus();};
+  reasonI.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();go.click();}};
+  const say=(cls,t)=>{msg.className='res-msg'+(cls?' '+cls:''); msg.textContent=t;};
+  const reset=()=>{go.disabled=false; go.textContent='Hosszabbítás mentése'; dateI.disabled=false; reasonI.disabled=false;};
+  const finish=(j,old,until)=>{
+    if(EXT_STOP){EXT_STOP();EXT_STOP=null;}
+    const parts=['Meghosszabbítva: '+(fdate(old)||'—')+' → '+fdate(until)];
+    if(j.reactivated) parts.push('az utalvány újra aktív');
+    if(j.order==='noted') parts.push('WooCommerce-rendelés: jegyzet');
+    else if(j.order==='no_order') parts.push('nincs hozzá WooCommerce-rendelés');
+    else if(j.mode==='local') parts.push('csak a vezérlőpulton létezik, nincs bolti rendelés');
+    if(j.pdf) parts.push('PDF újragenerálva');
+    say('ok',parts.join(' · ')+' — naplózva.');
+    v.valid_until=until; if(j.reactivated) v.status='active';
+    const cell=$('#pValid'); if(cell){ const dd=daysLeft(until); cell.textContent=fdate(until)+(dd!=null?' ('+dd+' nap)':''); }
+    box.hidden=true; reset();
+    if(rbox) rbox.hidden=false;
+    refresh(true);
+  };
+  go.onclick=async()=>{
+    const until=dateI.value, reason=reasonI.value.replace(/\s+/g,' ').trim(), old=cur;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(until)){say('err','Adj meg egy dátumot.');return;}
+    if(until<=today){say('err','Az új lejáratnak a mai napnál későbbinek kell lennie.');return;}
+    if(cur&&until<=cur){say('err','Az új lejárat legyen későbbi a jelenleginél ('+fdate(cur)+').');return;}
+    if(!reason){say('err','Írd be az indoklást (a naplóba kerül).');reasonI.focus();return;}
+    go.disabled=true; dateI.disabled=true; reasonI.disabled=true; go.textContent='Mentés…'; say('','');
+    if(rbox) rbox.hidden=true;
+    // Az ablakot még a kattintásban nyitjuk meg, különben a böngésző letiltja.
+    let w=null;
+    try{ w=window.open('','pgvValidity','width=520,height=620');
+      if(w) w.document.write('<!doctype html><meta charset="utf-8"><title>Kapcsolódás…</title><p style="font:15px sans-serif;padding:24px">Kapcsolódás a bolthoz…</p>'); }catch(e){ w=null; }
+    let j={};
+    try{
+      const r=await fetch('/api/validity',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({unit:v.unit,serial:v.serial,until,reason})});
+      j=await r.json().catch(()=>({}));
+      if(!r.ok||!j.ok){ if(w)try{w.close();}catch(e){} say('err',j.error||'A hosszabbítás nem sikerült.'); reset(); return; }
+    }catch(e){ if(w)try{w.close();}catch(e2){} say('err','Hálózati hiba.'); reset(); return; }
+
+    if(j.mode==='local'){ if(w)try{w.close();}catch(e){} finish(j,old,until); return; }
+
+    if(w&&!w.closed){ w.location.href=j.applyUrl; say('','A bolt ablakában folyik a mentés…'); }
+    else{
+      msg.className='res-msg';
+      msg.innerHTML='A böngésző letiltotta a felugró ablakot. <a href="'+esc(j.applyUrl)+'" target="_blank">Kattints ide a mentéshez a boltban</a>, utána ez az ablak magától frissül.';
+    }
+
+    let stopped=false, timer=null;
+    const started=Date.now();
+    const onMsg=e=>{
+      if(e.origin!==j.shopOrigin||!e.data||e.data.type!=='pgv-validity'||e.data.nonce!==j.nonce)return;
+      if(!e.data.ok){ stop(); say('err','A bolt nem mentette: '+(e.data.error||'ismeretlen hiba')); reset(); return; }
+      if(e.data.pushed===false){ say('','A bolt elmentette, de a kasszára küldés elakadt — a bolt hamarosan újrapróbálja, addig várunk…'); }
+      poll();
+    };
+    const stop=()=>{ stopped=true; clearTimeout(timer); window.removeEventListener('message',onMsg); };
+    EXT_STOP=stop;
+    window.addEventListener('message',onMsg);
+    const poll=async()=>{
+      if(stopped)return;
+      clearTimeout(timer);
+      try{
+        const r=await fetch('/api/validity?unit='+encodeURIComponent(v.unit)+'&serial='+encodeURIComponent(v.serial)+'&nonce='+encodeURIComponent(j.nonce),{cache:'no-store'});
+        const st=await r.json().catch(()=>({}));
+        if(stopped)return;
+        if(r.ok&&st.state==='done'){ stop(); finish(st,old,until); return; }
+        if(r.status===404){ stop(); say('err','A hosszabbítást közben egy újabb váltotta fel.'); reset(); return; }
+      }catch(e){}
+      if(Date.now()-started>3*60*1000){
+        stop(); reset();
+        say('err','Nem jött visszajelzés a bolttól. Ha a bolt ablakában hibaüzenet látszik, az a teendő; ha az ablak nem nyílt meg, próbáld újra. (A bolti bővítmény legalább 2.2.0 legyen.)');
+        return;
+      }
+      timer=setTimeout(poll,1500);
+    };
+    timer=setTimeout(poll,1500);
+  };
+
+  // Felajánlott újraküldés az új lejáratú PDF-fel.
+  const send=$('#pExtendSend'), skip=$('#pExtendSkip');
+  if(skip) skip.onclick=()=>{ rbox.hidden=true; };
+  if(send) send.onclick=async()=>{
+    const to=$('#pExtendTo').value.trim();
+    send.disabled=true; const o=send.textContent; send.textContent='Küldés…';
+    try{
+      const r=await fetch('/api/resend',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({unit:v.unit,serial:v.serial,to,reason:'extend'})});
+      const j=await r.json().catch(()=>({}));
+      if(r.ok&&j.ok){ rbox.hidden=true; say('ok','Elküldve ide: '+j.to+(j.pdfAttached?' (az új lejáratú PDF mellékelve)':' — PDF nélkül, mert nincs feltöltve')); }
+      else say('err',j.error||'A küldés nem sikerült.');
+    }catch(e){ say('err','Hálózati hiba.'); }
+    send.disabled=false; send.textContent=o;
+  };
+}
+function closeProfile(){$('#profile').classList.remove('show'); if(RENAME_STOP){RENAME_STOP();RENAME_STOP=null;} if(EXT_STOP){EXT_STOP();EXT_STOP=null;}}
 $('#profile').addEventListener('click',e=>{
   if(e.target.id==='profile'){closeProfile();return;}
   const cp=e.target.closest('.copy'); if(cp){copyText(cp.dataset.copy,cp);return;}

@@ -91,6 +91,21 @@ nincs bolt és rendelés: ott a vezérlőpult maga írja át a nevet, és a nyom
 példány már azt mutatja. Az adatlap alján a **Névmódosítások** lista mutatja az eddigi
 változásokat.
 
+### Érvényesség meghosszabbítása
+
+Aktív vagy lejárt utalvány adatlapján az **Érvényesség meghosszabbítása** kitolja a lejáratot
+(+3 / +6 / +12 hónap gyorsgomb vagy tetszőleges dátum; az alap a régi lejárat, ha az már
+elmúlt, a mai nap). **Indoklás kötelező.** Beváltott / sztornózott utalványnál nincs gomb.
+
+Az út ugyanaz, mint a névmódosításé: `POST /api/validity` aláírt jegyet ad (`op: 'validity'`),
+a böngésző kis ablakban megnyitja a bolt `/pgv/v1/validity-change` címét, és a bolt egy
+kérésen belül: rendelés-jegyzet → utalvány (`valid_until`, lejárt → aktív) → audit
+(`validity_extended`) → felküldés az új PDF-fel. Az ingest naplózza (`validity_extend`, régi →
+új dátum, indoklás, ki) és lezárja a függő műveletet (`validity_op:` kulcs a `pgv_config`-ban);
+a felület `GET /api/validity?nonce=` kérdezéssel várja. Bolt nélküli (CSV-importált) utalványnál
+helyben ír. Utána felajánlja az újraküldést „meghosszabbítottuk” levélszöveggel
+(`/api/resend`, `reason: 'extend'`). **A bolti bővítmény legalább 2.2.0 legyen.**
+
 ## Belső sorszám és kód-csere
 
 Az utalványra nyomtatott kód véletlen (`CASA-7K3M9QP2`), mellette a bolt felküldi

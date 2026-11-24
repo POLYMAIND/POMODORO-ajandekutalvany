@@ -2,6 +2,7 @@ const { readBody, licenceOk } = require('../lib/shops.js');
 const { ensureSchema, upsertVouchers, upsertVoucherPdfs, renameVoucher,
         getConfig, setConfig } = require('../lib/db.js');
 const { applyIngestChanges } = require('../lib/recipient.js');
+const V = require('../lib/validity.js');
 
 // Az egység „névjegye”: a bolt minden felküldéssel elküldi a nevét és a
 // beállított utalvány-képeit (nyilvános média-URL-ek). A vezérlőpult ezekből
@@ -75,6 +76,8 @@ module.exports = async (req, res) => {
     // Az upsert UTÁN, hogy a napló sosem előzze meg a tényleges adatot.
     let changes = 0;
     try { changes = await applyIngestChanges(vouchers); } catch (e) { changes = 0; }
+    // Érvényesség-hosszabbítás: ugyanígy, a saját függő műveleteivel.
+    try { changes += await V.applyIngestChanges(vouchers); } catch (e) { /* ne buktassa el a felküldést */ }
 
     // Az egység névjegye (név + utalvány-képek). Üres felküldésnél is jön —
     // a boltban a „Kapcsolat tesztelése” gomb ezzel frissíti a képeket.
