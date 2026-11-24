@@ -1,0 +1,332 @@
+<?php
+/**
+ * Beállítások nézet.
+ *
+ * @package Pomodoro_Gift_Vouchers
+ * @var PGV_Admin $this
+ */
+
+defined( 'ABSPATH' ) || exit;
+
+$s     = PGV_Settings::all();
+// Licenccel a vezérlőpult kezeli az egység adatait → itt csak olvashatók (a mentés úgysem írná felül).
+$managed = class_exists( 'PGV_Fleet' ) && PGV_Fleet::managed();
+$ro      = $managed ? ' readonly' : '';
+?>
+<div class="wrap pgv-wrap">
+	<h1 class="pgv-title"><?php esc_html_e( 'Beállítások', 'pomodoro-gift-vouchers' ); ?></h1>
+
+	<form method="post" class="pgv-card">
+		<?php wp_nonce_field( 'pgv_settings' ); ?>
+		<input type="hidden" name="pgv_action" value="save_settings">
+
+		<h2><?php esc_html_e( 'Egység', 'pomodoro-gift-vouchers' ); ?></h2>
+		<?php if ( $managed ) : ?>
+			<p class="description">Az egység adatait (név, cég, adószám, előtag, érvényesség, aktív) a POLYMAIND vezérlőpultja kezeli — itt csak olvashatók. <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . PGV_Fleet::PAGE ) ); ?>">Licenc oldal</a></p>
+		<?php endif; ?>
+		<table class="form-table">
+			<tr>
+				<th><label for="unit_slug"><?php esc_html_e( 'Egység', 'pomodoro-gift-vouchers' ); ?></label></th>
+				<td>
+					<input type="text" name="unit_slug" id="unit_slug" pattern="[a-z0-9_-]+" value="<?php echo esc_attr( $s['unit_slug'] ); ?>"<?php echo $ro; ?>>
+					<p class="description"><?php esc_html_e( 'Egy WordPress-oldal = egy egység. Az azonosító (kisbetű, szám, kötőjel) az utalványokhoz és a sorszámokhoz kötődik — utalvány-kiadás után ne változtasd.', 'pomodoro-gift-vouchers' ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<th><label for="unit_name"><?php esc_html_e( 'Egység neve', 'pomodoro-gift-vouchers' ); ?></label></th>
+				<td><input type="text" name="unit_name" id="unit_name" class="regular-text" value="<?php echo esc_attr( $s['unit_name'] ); ?>"<?php echo $ro; ?>></td>
+			</tr>
+			<tr>
+				<th><label for="serial_prefix"><?php esc_html_e( 'Sorszám-előtag', 'pomodoro-gift-vouchers' ); ?></label></th>
+				<td>
+					<input type="text" name="serial_prefix" id="serial_prefix" value="<?php echo esc_attr( $s['serial_prefix'] ); ?>"<?php echo $ro; ?>>
+					<p class="description"><?php echo esc_html( sprintf( __( 'Pl. %s → %s-2026-000042', 'pomodoro-gift-vouchers' ), $s['serial_prefix'], $s['serial_prefix'] ) ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<th><label for="company_name"><?php esc_html_e( 'Cégnév', 'pomodoro-gift-vouchers' ); ?></label></th>
+				<td><input type="text" name="company_name" id="company_name" class="regular-text" value="<?php echo esc_attr( $s['company_name'] ); ?>"<?php echo $ro; ?>></td>
+			</tr>
+			<tr>
+				<th><label for="tax_number"><?php esc_html_e( 'Adószám', 'pomodoro-gift-vouchers' ); ?></label></th>
+				<td><input type="text" name="tax_number" id="tax_number" class="regular-text" value="<?php echo esc_attr( $s['tax_number'] ); ?>"<?php echo $ro; ?>></td>
+			</tr>
+			<tr>
+				<th><label for="validity_months"><?php esc_html_e( 'Érvényesség (hónap)', 'pomodoro-gift-vouchers' ); ?></label></th>
+				<td><input type="number" name="validity_months" id="validity_months" min="1" value="<?php echo esc_attr( $s['validity_months'] ); ?>"<?php echo $ro; ?>> <span class="description"><?php esc_html_e( 'A vásárlástól számítva.', 'pomodoro-gift-vouchers' ); ?></span></td>
+			</tr>
+			<tr>
+				<th><?php esc_html_e( 'Aktív', 'pomodoro-gift-vouchers' ); ?></th>
+				<td><label><input type="checkbox" name="active" value="1" <?php checked( $s['active'], 1 ); ?><?php disabled( $managed ); ?>> <?php esc_html_e( 'Az egység értékesít utalványt', 'pomodoro-gift-vouchers' ); ?></label></td>
+			</tr>
+			<tr>
+				<th><?php esc_html_e( 'Logó', 'pomodoro-gift-vouchers' ); ?></th>
+				<td>
+					<?php
+					$logo_id  = (int) $s['logo_attachment_id'];
+					$logo_url = $logo_id ? wp_get_attachment_image_url( $logo_id, 'medium' ) : '';
+					?>
+					<input type="hidden" name="logo_attachment_id" id="pgv_logo_id" value="<?php echo esc_attr( $logo_id ); ?>">
+					<div id="pgv-logo-preview" style="margin-bottom:8px">
+						<?php if ( $logo_url ) : ?>
+							<img src="<?php echo esc_url( $logo_url ); ?>" style="max-height:60px;height:auto;background:#f6f7f9;padding:6px;border-radius:6px">
+						<?php endif; ?>
+					</div>
+					<button type="button" class="button" id="pgv-pick-logo"><?php esc_html_e( 'Logó kiválasztása', 'pomodoro-gift-vouchers' ); ?></button>
+					<button type="button" class="button" id="pgv-remove-logo" <?php echo $logo_id ? '' : 'style="display:none"'; ?>><?php esc_html_e( 'Eltávolítás', 'pomodoro-gift-vouchers' ); ?></button>
+					<p class="description"><?php esc_html_e( 'Megjelenik az utalvány PDF-jén (a szövegoszlop tetején).', 'pomodoro-gift-vouchers' ); ?></p>
+				</td>
+			</tr>
+		</table>
+
+		<h2><?php esc_html_e( 'Kézbesítés / e-mail', 'pomodoro-gift-vouchers' ); ?></h2>
+		<table class="form-table">
+			<tr>
+				<th><label for="from_name"><?php esc_html_e( 'Feladó neve', 'pomodoro-gift-vouchers' ); ?></label></th>
+				<td><input type="text" name="from_name" id="from_name" class="regular-text" value="<?php echo esc_attr( $s['from_name'] ); ?>"></td>
+			</tr>
+			<tr>
+				<th><label for="from_email"><?php esc_html_e( 'Feladó e-mail', 'pomodoro-gift-vouchers' ); ?></label></th>
+				<td>
+					<input type="email" name="from_email" id="from_email" class="regular-text" value="<?php echo esc_attr( $s['from_email'] ); ?>">
+					<p class="description"><?php esc_html_e( 'Saját domainről, SPF/DKIM/DMARC beállításokkal a kézbesíthetőségért.', 'pomodoro-gift-vouchers' ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<th><label for="delivery_default"><?php esc_html_e( 'Alap kézbesítés', 'pomodoro-gift-vouchers' ); ?></label></th>
+				<td>
+					<select name="delivery_default" id="delivery_default">
+						<option value="recipient" <?php selected( $s['delivery_default'], 'recipient' ); ?>><?php esc_html_e( 'A megajándékozottnak', 'pomodoro-gift-vouchers' ); ?></option>
+						<option value="buyer" <?php selected( $s['delivery_default'], 'buyer' ); ?>><?php esc_html_e( 'A vásárlónak', 'pomodoro-gift-vouchers' ); ?></option>
+					</select>
+				</td>
+			</tr>
+		</table>
+
+		<h2><?php esc_html_e( 'E-mail sablon', 'pomodoro-gift-vouchers' ); ?></h2>
+		<p class="description">
+			<?php esc_html_e( 'Helykitöltők, amiket a rendszer behelyettesít:', 'pomodoro-gift-vouchers' ); ?>
+			<code>{megajandekozott}</code> <code>{uzenet}</code> <code>{osszeg}</code> <code>{sorszam}</code> <code>{ervenyesseg}</code> <code>{egyseg}</code> <code>{vasarlo}</code>
+		</p>
+		<table class="form-table">
+			<tr>
+				<th><label for="email_accent"><?php esc_html_e( 'Fejléc szín', 'pomodoro-gift-vouchers' ); ?></label></th>
+				<td><input type="color" name="email_accent" id="email_accent" value="<?php echo esc_attr( $s['email_accent'] ); ?>"> <span class="description"><?php esc_html_e( 'Az e-mail fejléc-sávjának háttérszíne.', 'pomodoro-gift-vouchers' ); ?></span></td>
+			</tr>
+			<tr>
+				<th><label for="email_heading"><?php esc_html_e( 'Cím (megajándékozotti levél)', 'pomodoro-gift-vouchers' ); ?></label></th>
+				<td><input type="text" name="email_heading" id="email_heading" class="regular-text" value="<?php echo esc_attr( $s['email_heading'] ); ?>"></td>
+			</tr>
+			<tr>
+				<th><?php esc_html_e( 'Utalványkép a levélben', 'pomodoro-gift-vouchers' ); ?></th>
+				<td><label><input type="checkbox" name="email_show_image" value="1" <?php checked( $s['email_show_image'], 1 ); ?>> <?php esc_html_e( 'A kiválasztott utalványkép jelenjen meg az e-mail törzsében is', 'pomodoro-gift-vouchers' ); ?></label></td>
+			</tr>
+			<tr>
+				<th><label for="email_subject_recipient"><?php esc_html_e( 'Tárgy — megajándékozott', 'pomodoro-gift-vouchers' ); ?></label></th>
+				<td><input type="text" name="email_subject_recipient" id="email_subject_recipient" class="large-text" value="<?php echo esc_attr( $s['email_subject_recipient'] ); ?>"></td>
+			</tr>
+			<tr>
+				<th><label for="email_intro_recipient"><?php esc_html_e( 'Szöveg — megajándékozott', 'pomodoro-gift-vouchers' ); ?></label></th>
+				<td><textarea name="email_intro_recipient" id="email_intro_recipient" class="large-text" rows="4"><?php echo esc_textarea( $s['email_intro_recipient'] ); ?></textarea>
+				<p class="description"><?php esc_html_e( 'Ez jelenik meg az összeg/sorszám fölött. Az {uzenet} a vásárló saját üzenete.', 'pomodoro-gift-vouchers' ); ?></p></td>
+			</tr>
+			<tr>
+				<th><label for="email_subject_buyer"><?php esc_html_e( 'Tárgy — vásárló', 'pomodoro-gift-vouchers' ); ?></label></th>
+				<td><input type="text" name="email_subject_buyer" id="email_subject_buyer" class="large-text" value="<?php echo esc_attr( $s['email_subject_buyer'] ); ?>"></td>
+			</tr>
+			<tr>
+				<th><label for="email_intro_buyer"><?php esc_html_e( 'Szöveg — vásárló', 'pomodoro-gift-vouchers' ); ?></label></th>
+				<td><textarea name="email_intro_buyer" id="email_intro_buyer" class="large-text" rows="3"><?php echo esc_textarea( $s['email_intro_buyer'] ); ?></textarea></td>
+			</tr>
+			<tr>
+				<th><label for="email_footer"><?php esc_html_e( 'Lábléc', 'pomodoro-gift-vouchers' ); ?></label></th>
+				<td><input type="text" name="email_footer" id="email_footer" class="large-text" value="<?php echo esc_attr( $s['email_footer'] ); ?>"></td>
+			</tr>
+			<tr>
+				<th><?php esc_html_e( 'WooCommerce rendelés-visszaigazoló', 'pomodoro-gift-vouchers' ); ?></th>
+				<td><label><input type="checkbox" name="suppress_wc_emails" value="1" <?php checked( $s['suppress_wc_emails'], 1 ); ?>> <?php esc_html_e( 'Ne küldje a WooCommerce saját vevői rendelés-visszaigazolóját, ha a rendelés csak ajándékutalványt tartalmaz (helyette a fenti utalvány-e-mail megy).', 'pomodoro-gift-vouchers' ); ?></label></td>
+			</tr>
+		</table>
+
+		<h2><?php esc_html_e( 'Marketing / céges figyelmeztetés', 'pomodoro-gift-vouchers' ); ?></h2>
+		<table class="form-table">
+			<tr>
+				<th><label for="marketing_label"><?php esc_html_e( 'Marketing felirat', 'pomodoro-gift-vouchers' ); ?></label></th>
+				<td><input type="text" name="marketing_label" id="marketing_label" class="large-text" value="<?php echo esc_attr( $s['marketing_label'] ); ?>"></td>
+			</tr>
+			<tr>
+				<th><?php esc_html_e( 'Cégnév/adószám figyelmeztetés', 'pomodoro-gift-vouchers' ); ?></th>
+				<td>
+					<label><input type="checkbox" name="corporate_warn" value="1" <?php checked( $s['corporate_warn'], 1 ); ?>> <?php esc_html_e( 'Élő figyelmeztetés a checkouton (áfás számla nem igényelhető)', 'pomodoro-gift-vouchers' ); ?></label><br>
+					<label><input type="checkbox" name="corporate_block" value="1" <?php checked( $s['corporate_block'], 1 ); ?>> <?php esc_html_e( 'Céges adat esetén a fizetés blokkolása (opcionális, szigorúbb)', 'pomodoro-gift-vouchers' ); ?></label>
+				</td>
+			</tr>
+			<tr>
+				<th><label for="preview_position"><?php esc_html_e( 'Utalvány-előnézet', 'pomodoro-gift-vouchers' ); ?></label></th>
+				<td>
+					<?php $pgv_pos = isset( $s['preview_position'] ) ? $s['preview_position'] : 'gallery'; ?>
+					<select name="preview_position" id="preview_position">
+						<option value="gallery" <?php selected( $pgv_pos, 'gallery' ); ?>><?php esc_html_e( 'A termékkép helyén (nagy)', 'pomodoro-gift-vouchers' ); ?></option>
+						<option value="fields" <?php selected( $pgv_pos, 'fields' ); ?>><?php esc_html_e( 'A személyre szabó mezők fölött (kicsi)', 'pomodoro-gift-vouchers' ); ?></option>
+						<option value="off" <?php selected( $pgv_pos, 'off' ); ?>><?php esc_html_e( 'Ne jelenjen meg', 'pomodoro-gift-vouchers' ); ?></option>
+					</select>
+					<p class="description"><?php esc_html_e( 'A vásárló élőben látja, milyen lesz a kiküldött utalvány. A termékkép helyén a legnagyobb és legszebb; ha a sablonod nem a szokásos módon jeleníti meg a galériát, válaszd a mezők fölötti helyet.', 'pomodoro-gift-vouchers' ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<th><?php esc_html_e( 'Gyorsfizetés', 'pomodoro-gift-vouchers' ); ?></th>
+				<td>
+					<label><input type="checkbox" name="hide_express_on_product" value="1" <?php checked( isset( $s['hide_express_on_product'] ) ? $s['hide_express_on_product'] : 1, 1 ); ?>> <?php esc_html_e( 'Apple Pay / Google Pay gomb elrejtése az utalvány termékoldalán', 'pomodoro-gift-vouchers' ); ?></label>
+					<p class="description"><?php esc_html_e( 'A gyorsfizetés a termékoldalról azonnal fizetésre ugrik, és nem viszi magával a személyre szabást (kép, megajándékozott, üzenet, kézbesítés). A pénztárban és a kosárban továbbra is elérhető, ott már együtt van minden adat.', 'pomodoro-gift-vouchers' ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<th><?php esc_html_e( 'Rendelés lezárása', 'pomodoro-gift-vouchers' ); ?></th>
+				<td>
+					<label><input type="checkbox" name="autocomplete_orders" value="1" <?php checked( $s['autocomplete_orders'], 1 ); ?>> <?php esc_html_e( 'Fizetés után a rendelés automatikusan „Teljesítve” állapotba kerüljön, ha csak ajándékutalványt tartalmaz', 'pomodoro-gift-vouchers' ); ?></label>
+					<p class="description"><?php esc_html_e( 'Az utalványok kibocsátása és az e-mailek kiküldése után fut le. Vegyes rendelésnél (utalvány + más termék) nem nyúl a státuszhoz, mert azt még csomagolni kell.', 'pomodoro-gift-vouchers' ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<th><label for="serial_format"><?php esc_html_e( 'Utalvány-kód', 'pomodoro-gift-vouchers' ); ?></label></th>
+				<td>
+					<?php
+					$pgv_sf  = isset( $s['serial_format'] ) ? $s['serial_format'] : 'random';
+					// A minta a telepítés SAJÁT előtagját mutatja (soha nem egy másik ügyfélét).
+					$pgv_pfx = strtoupper( (string) ( $s['serial_prefix'] ?? '' ) ) ?: 'AJ';
+					?>
+					<select name="serial_format" id="serial_format">
+						<option value="random" <?php selected( $pgv_sf, 'random' ); ?>><?php echo esc_html( sprintf( __( 'Véletlen kód (pl. %s-7K3M9QP2) — a kasszán gyorsan kereshető', 'pomodoro-gift-vouchers' ), $pgv_pfx ) ); ?></option>
+						<option value="sequential" <?php selected( $pgv_sf, 'sequential' ); ?>><?php echo esc_html( sprintf( __( 'Folytonos sorszám (pl. %s-%s-000041)', 'pomodoro-gift-vouchers' ), $pgv_pfx, gmdate( 'Y' ) ) ); ?></option>
+					</select>
+					<p class="description"><?php esc_html_e( 'A hézagmentes belső sorszám mindkét esetben megmarad (az utalvány adatlapján és az exportban látszik) — csak az utalványra nyomtatott kód változik. A már kiadott utalványok kódja nem módosul.', 'pomodoro-gift-vouchers' ); ?></p>
+				</td>
+			</tr>
+		</table>
+
+		<p>
+			<button type="submit" class="button button-primary"><?php esc_html_e( 'Mentés', 'pomodoro-gift-vouchers' ); ?></button>
+			<a class="button" href="<?php echo esc_url( wp_nonce_url( add_query_arg( array( 'action' => 'pgv_test_email' ), admin_url( 'admin-post.php' ) ), 'pgv_test_email' ) ); ?>"><?php esc_html_e( 'Teszt e-mail küldése magamnak', 'pomodoro-gift-vouchers' ); ?></a>
+			<span class="description"><?php esc_html_e( '(előbb mentsd a módosításokat)', 'pomodoro-gift-vouchers' ); ?></span>
+		</p>
+	</form>
+
+	<div class="pgv-card">
+		<h2><?php esc_html_e( 'Központi vezérlőpult (push szinkron)', 'pomodoro-gift-vouchers' ); ?></h2>
+		<p class="description">
+			<?php esc_html_e( 'Ez az egység kimenő HTTP-hívással azonnal felküldi minden kibocsátott/módosított utalványát a központi vezérlőpultba. Nem kell a tárhely biztonságához nyúlni — csak kimenő kérés indul innen.', 'pomodoro-gift-vouchers' ); ?>
+		</p>
+		<form method="post" class="pgv-card" style="box-shadow:none;border:1px solid #e6e6e6">
+			<?php wp_nonce_field( 'pgv_cockpit' ); ?>
+			<input type="hidden" name="pgv_action" value="save_cockpit">
+			<table class="form-table">
+				<tr>
+					<th><label for="cockpit_url"><?php esc_html_e( 'Vezérlőpult URL', 'pomodoro-gift-vouchers' ); ?></label></th>
+					<td>
+						<input type="url" name="cockpit_url" id="cockpit_url" class="large-text" placeholder="https://minta.hu" value="<?php echo esc_attr( isset( $s['cockpit_url'] ) ? $s['cockpit_url'] : '' ); ?>">
+						<p class="description"><?php esc_html_e( 'A vezérlőpult címe (a /api/ingest végpontot automatikusan hozzáfűzi).', 'pomodoro-gift-vouchers' ); ?></p>
+					</td>
+				</tr>
+				<tr>
+					<th><label for="cockpit_secret"><?php esc_html_e( 'Ingest titok', 'pomodoro-gift-vouchers' ); ?></label></th>
+					<td>
+						<?php
+						$pgv_has_secret = ! empty( $s['cockpit_secret'] );
+						$pgv_secret_hint = $pgv_has_secret ? ( '••••••' . substr( (string) $s['cockpit_secret'], -4 ) ) : '';
+						?>
+						<input type="password" name="cockpit_secret" id="cockpit_secret" class="large-text" autocomplete="new-password" value="" placeholder="<?php echo esc_attr( $pgv_has_secret ? $pgv_secret_hint : '' ); ?>">
+						<button type="button" class="button" onclick="var f=document.getElementById('cockpit_secret');f.type=f.type==='password'?'text':'password';">👁</button>
+						<p class="description">
+							<?php
+							if ( $pgv_has_secret ) {
+								printf(
+									/* translators: %s: maszkolt titok vége */
+									esc_html__( 'Már be van állítva (%s). Hagyd üresen, ha nem módosítod — csak új értéknél töltsd ki.', 'pomodoro-gift-vouchers' ),
+									esc_html( $pgv_secret_hint )
+								);
+							} elseif ( class_exists( 'PGV_Fleet' ) && PGV_Fleet::has_licence() ) {
+								esc_html_e( 'Nem kell kitölteni: a felküldés a licenccel hitelesít. Csak akkor adj meg titkot, ha a vezérlőpult kifejezetten azt kéri.', 'pomodoro-gift-vouchers' );
+							} else {
+								esc_html_e( 'Ugyanaz a titok, mint a vezérlőpult INGEST_SECRET környezeti változója.', 'pomodoro-gift-vouchers' );
+							}
+							?>
+						</p>
+					</td>
+				</tr>
+			</table>
+			<button type="submit" class="button button-primary"><?php esc_html_e( 'Mentés', 'pomodoro-gift-vouchers' ); ?></button>
+		</form>
+
+		<form method="post" style="margin-top:12px" onsubmit="return confirm('<?php echo esc_js( __( 'Az összes eddigi utalvány felkerül a vezérlőpultba. Folytatod?', 'pomodoro-gift-vouchers' ) ); ?>');">
+			<?php wp_nonce_field( 'pgv_sync_all' ); ?>
+			<input type="hidden" name="pgv_action" value="sync_all">
+			<button type="submit" class="button"><?php esc_html_e( 'Összes felküldése', 'pomodoro-gift-vouchers' ); ?></button>
+			<span class="description"><?php esc_html_e( 'Egyszeri, teljes szinkron — a meglévő/korábbi utalványokat is felküldi. (Előbb mentsd a fenti URL-t és titkot.)', 'pomodoro-gift-vouchers' ); ?></span>
+		</form>
+
+		<?php
+		// A felküldés állapota: ha egy utalvány nem jutott fel (pl. a vezérlőpult
+		// épp nem volt elérhető), az itt látszik és innen pótolható.
+		$pgv_last  = PGV_Push::last_result();
+		$pgv_queue = PGV_Push::queue();
+		?>
+		<div style="margin-top:14px;padding:12px 14px;border:1px solid #dcdcde;border-radius:4px;background:#fff">
+			<strong><?php esc_html_e( 'Felküldés állapota', 'pomodoro-gift-vouchers' ); ?></strong>
+			<p style="margin:6px 0">
+				<?php if ( empty( $pgv_last ) ) : ?>
+					<span class="description"><?php esc_html_e( 'Még nem történt felküldés.', 'pomodoro-gift-vouchers' ); ?></span>
+				<?php elseif ( ! empty( $pgv_last['ok'] ) ) : ?>
+					<span style="color:#008a20">●</span>
+					<?php
+					printf(
+						/* translators: %s: időpont */
+						esc_html__( 'Rendben — utoljára: %s', 'pomodoro-gift-vouchers' ),
+						esc_html( wp_date( 'Y. m. d. H:i', (int) $pgv_last['time'] ) )
+					);
+					?>
+				<?php else : ?>
+					<span style="color:#d63638">●</span>
+					<?php
+					printf(
+						/* translators: 1: időpont, 2: hibaüzenet */
+						esc_html__( 'Hiba — utoljára: %1$s · %2$s', 'pomodoro-gift-vouchers' ),
+						esc_html( wp_date( 'Y. m. d. H:i', (int) $pgv_last['time'] ) ),
+						esc_html( (string) $pgv_last['error'] )
+					);
+					?>
+				<?php endif; ?>
+			</p>
+			<?php if ( $pgv_queue ) : ?>
+				<p style="margin:6px 0;color:#d63638">
+					<?php
+					printf(
+						/* translators: %d: darabszám */
+						esc_html( _n( '%d utalvány vár felküldésre.', '%d utalvány vár felküldésre.', count( $pgv_queue ), 'pomodoro-gift-vouchers' ) ),
+						count( $pgv_queue )
+					);
+					?>
+					<?php esc_html_e( 'Óránként magától újrapróbálkozik.', 'pomodoro-gift-vouchers' ); ?>
+				</p>
+			<?php endif; ?>
+			<form method="post" style="display:inline">
+				<?php wp_nonce_field( 'pgv_push_test' ); ?>
+				<input type="hidden" name="pgv_action" value="push_test">
+				<button type="submit" class="button"><?php esc_html_e( 'Kapcsolat tesztelése', 'pomodoro-gift-vouchers' ); ?></button>
+			</form>
+			<?php if ( $pgv_queue ) : ?>
+				<form method="post" style="display:inline;margin-left:6px">
+					<?php wp_nonce_field( 'pgv_push_retry' ); ?>
+					<input type="hidden" name="pgv_action" value="push_retry">
+					<button type="submit" class="button button-primary"><?php esc_html_e( 'Felküldés újra most', 'pomodoro-gift-vouchers' ); ?></button>
+				</form>
+			<?php endif; ?>
+		</div>
+
+		<form method="post" style="margin-top:12px" onsubmit="return confirm('<?php echo esc_js( __( 'Minden kiadott utalvány PDF-je újra elkészül és felkerül a vezérlőpultra. Sok utalványnál ez percekig tarthat. Folytatod?', 'pomodoro-gift-vouchers' ) ); ?>');">
+			<?php wp_nonce_field( 'pgv_refresh_all_pdfs' ); ?>
+			<input type="hidden" name="pgv_action" value="refresh_all_pdfs">
+			<button type="submit" class="button"><?php esc_html_e( 'PDF-ek frissítése', 'pomodoro-gift-vouchers' ); ?></button>
+			<span class="description"><?php esc_html_e( 'A vezérlőpult a kiküldéskori PDF-et őrzi. Ha az utalvány kinézete változott (pl. mostantól látszanak az emojik), ezzel készül el mindegyik újra. A kódok nem változnak, e-mail nem megy ki.', 'pomodoro-gift-vouchers' ); ?></span>
+		</form>
+	</div>
+</div>

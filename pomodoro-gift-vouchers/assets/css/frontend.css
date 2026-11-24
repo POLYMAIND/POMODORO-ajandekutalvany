@@ -1,0 +1,318 @@
+/* A megjelenést alapvetően a téma adja; itt csak a személyre szabó mezők
+   használható elrendezése és a figyelmeztetés stílusa van. */
+
+.pgv-fields {
+	margin: 1em 0 1.5em;
+}
+
+.pgv-field {
+	margin-bottom: 1em;
+}
+
+.pgv-label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 0.35em;
+}
+
+.pgv-opt {
+	font-weight: 400;
+	opacity: 0.6;
+	font-size: 0.9em;
+}
+
+.pgv-input {
+	width: 100%;
+	max-width: 480px;
+}
+
+/* Képválasztó */
+.pgv-images {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+.pgv-image-choice {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	width: 96px;
+	cursor: pointer;
+	border: 2px solid transparent;
+	border-radius: 8px;
+	padding: 4px;
+	transition: border-color 0.15s ease;
+}
+
+.pgv-image-choice input {
+	position: absolute;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.pgv-image-choice:has( input:checked ) {
+	border-color: #ff6347; /* tomato akcentus */
+}
+
+.pgv-image-thumb img {
+	width: 84px;
+	height: 84px;
+	object-fit: cover;
+	border-radius: 6px;
+	display: block;
+}
+
+.pgv-image-name {
+	font-size: 0.82em;
+	text-align: center;
+	margin-top: 4px;
+}
+
+.pgv-radio {
+	display: block;
+	margin: 0.25em 0;
+}
+
+/* Figyelmeztetés */
+.pgv-corp-warn {
+	margin-top: 0.75em;
+	padding: 0.75em 1em;
+	border-left: 4px solid #ff6347;
+	background: #fff4f1;
+	color: #7a2e1d;
+	border-radius: 4px;
+	font-size: 0.92em;
+}
+
+/* ------------------------------------------------------------------
+   Élő előnézet a termékoldalon — a kiküldendő PDF-kártya mása.
+   A JS a .pgv-card font-size-át a kártya szélességének 1%-ára állítja,
+   így minden belső méret em-ben adható meg: 1em = a kártya szélességének
+   1%-a. A PDF milliméterei ugyanígy váltódnak át (mm / 210 * 100).
+   ------------------------------------------------------------------ */
+.pgv-preview {
+	margin: 0 0 1.5em;
+}
+
+.pgv-card {
+	position: relative;
+	display: flex;
+	aspect-ratio: 210 / 148;
+	overflow: hidden;
+	border-radius: 8px;
+	background: #fff;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, .12), 0 6px 18px rgba(0, 0, 0, .08);
+	font-size: 4px; /* tartalék, amíg a JS be nem állítja a valódit */
+	/* A PDF-be Liberation Sans van ágyazva (Arial/Helvetica-kompatibilis
+	   méretekkel), így az előnézet ugyanúgy tördel és néz ki. */
+	font-family: "Liberation Sans", Helvetica, Arial, sans-serif;
+	line-height: 1.2;
+	color: #212121;
+	-webkit-user-select: none;
+	user-select: none;
+}
+
+/* Bal fél: teljes felületű, középre vágott kép (a PDF-ben is így van). */
+.pgv-card-img {
+	flex: 0 0 50%;
+	background: #f0efed;
+	overflow: hidden;
+}
+
+/* A kártya a galéria helyén a WooCommerce galéria-osztályait viseli, ezért a
+   sablon kép-szabályai (jellemzően `div.images img { height: auto }`) ránk is
+   vonatkoznának, és a kép nem töltené ki a felét. A PDF viszont teljes
+   magasságra vágja középre — itt ugyanazt kell látni, ezért írjuk felül. */
+.pgv-card-img img {
+	width: 100% !important;
+	height: 100% !important;
+	min-height: 100% !important;
+	max-width: none !important;
+	max-height: none !important;
+	object-fit: cover;
+	object-position: center;
+	display: block;
+	margin: 0 !important;
+	padding: 0 !important;
+	border: 0 !important;
+	border-radius: 0 !important;
+	box-shadow: none !important;
+}
+
+/* Jobb fél: szövegoszlop. Belső margó = a PDF 10 mm-e (4,76em), felül 16 mm. */
+.pgv-card-body {
+	flex: 1 1 50%;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	padding: 7.62em 4.76em 6.2em;
+	min-width: 0;
+}
+
+/* A logó doboza a PDF-ben fix 52 × 30 mm, a kép bal-felülre igazítva.
+   (A sablon kép-szabályait itt is felül kell írni — lásd fent.) */
+.pgv-card-logo {
+	width: 24.76em !important;
+	height: 14.29em !important;
+	max-width: none !important;
+	max-height: none !important;
+	object-fit: contain;
+	object-position: left top;
+	margin: 0 0 6.67em !important;
+	padding: 0 !important;
+	display: block;
+	border: 0 !important;
+	border-radius: 0 !important;
+	box-shadow: none !important;
+}
+
+.pgv-card-unit {
+	color: #e65744;
+	font-weight: 700;
+	font-size: 2.02em;
+	margin-bottom: 2.1em;
+}
+
+.pgv-card-heading {
+	font-weight: 700;
+	font-size: 3.19em;
+	letter-spacing: .01em;
+	white-space: nowrap;
+}
+
+.pgv-card-amount {
+	font-weight: 700;
+	font-size: 4.7em;
+	margin-top: .5em;
+	white-space: nowrap;
+}
+
+.pgv-card-greeting {
+	font-size: 2.02em;
+	color: #333;
+	margin-top: 2.4em;
+}
+
+.pgv-card-message {
+	font-size: 1.76em;
+	line-height: 1.49;
+	color: #595959;
+	margin-top: 1.1em;
+	white-space: pre-line;
+}
+
+/* A lábléc a PDF-ben fix pozíció az alján. */
+.pgv-card-foot {
+	margin-top: auto;
+	display: block;
+	padding-top: 2em;
+}
+
+.pgv-card-serial {
+	display: block;
+	font-weight: 700;
+	font-size: 2.02em;
+	color: #9a9a9a;
+}
+
+.pgv-card-valid {
+	display: block;
+	font-size: 1.51em;
+	color: #9a9a9a;
+	margin-top: .85em;
+}
+
+/* Vízjel — hogy az előnézet ne legyen összetéveszthető a valódi utalvánnyal. */
+.pgv-card-mark {
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 50%; /* csak a világos, szöveges félen — a sötét fotón nem látszana */
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transform: rotate(-28deg);
+	font-size: 7.5em;
+	font-weight: 800;
+	letter-spacing: .2em;
+	white-space: nowrap;
+	color: rgba(0, 0, 0, .07);
+	pointer-events: none;
+	overflow: hidden;
+}
+
+.pgv-preview-note {
+	margin: .5em 0 0;
+	font-size: .82em;
+	opacity: .7;
+}
+
+.pgv-preview-warn {
+	margin: .5em 0 0;
+	font-size: .85em;
+	color: #7a2e1d;
+}
+
+/* --- A termékkép helyén --- */
+/* A kártya pontosan a galéria-oszlopba fekszik, tehát akkora lesz, mint az
+   alap termékkép. A 46vw csak biztonsági fék: ha a sablon nem ad szélességet
+   a galéria-oszlopnak, a kártya akkor sem nyúlhat végig az oldalon. Mobilon
+   (egyoszlopos elrendezés) nincs fék, ott a teljes szélesség a helyes. */
+.pgv-preview-gallery {
+	margin-bottom: 1.5em;
+	max-width: 100%;
+}
+
+@media (min-width: 782px) {
+	.pgv-preview-gallery {
+		max-width: min( 100%, 46vw );
+	}
+}
+
+.pgv-preview--gallery {
+	margin: 0;
+}
+
+.pgv-preview--gallery .pgv-card {
+	border-radius: 10px;
+}
+
+.pgv-preview--gallery .pgv-preview-note {
+	text-align: center;
+}
+
+/* --- A mezők fölött (kicsi): ott a kártya „letapad” gépelés közben --- */
+@media (min-width: 782px) {
+	.pgv-preview--fields {
+		position: sticky;
+		top: 12px;
+		z-index: 2;
+	}
+}
+
+@media print {
+	.pgv-preview { display: none; }
+}
+
+/* ------------------------------------------------------------------
+   Gyorsfizetés (Apple Pay / Google Pay) elrejtése az utalvány
+   termékoldalán. Ahol a fizetési bővítménynek van saját szűrője, ott a
+   PHP oldalon kapcsoljuk ki; ez a szabály azoknak szól, ahol nincs.
+   Csak a TERMÉKOLDALON rejtünk — a kosárban és a pénztárban a gomb
+   maradjon, ott már együtt van az utalvány minden adata.
+   ------------------------------------------------------------------ */
+body.pgv-voucher-product .wc-stripe-payment-request-wrapper,
+body.pgv-voucher-product #wc-stripe-payment-request-wrapper,
+body.pgv-voucher-product .wc-stripe-payment-request-button-separator,
+body.pgv-voucher-product #wc-stripe-payment-request-button-separator,
+body.pgv-voucher-product #wcpay-payment-request-wrapper,
+body.pgv-voucher-product .wcpay-payment-request-wrapper,
+body.pgv-voucher-product #wcpay-payment-request-button-separator,
+body.pgv-voucher-product .wcpay-express-checkout-wrapper,
+body.pgv-voucher-product .wc-block-components-express-payment--checkout,
+body.pgv-voucher-product .ppcp-messages + .ppcp-button-container,
+body.pgv-voucher-product #ppc-button-ppcp-gateway {
+	display: none !important;
+}

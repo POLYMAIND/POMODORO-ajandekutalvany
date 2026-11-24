@@ -1,0 +1,176 @@
+# Ajándékutalvány — kasszás vezérlőpult (cockpit)
+
+> **Ügyfelenként külön telepítés:** ugyanaz a kód, ügyfelenként külön Vercel-projekt (Root
+> directory: `cockpit`, ugyanerről az ágról) + saját Neon-adatbázis + saját domain
+> (pl. `zenobia.ajandekutalvany.polyapp.hu`). Egy push minden ügyfél kasszáját frissíti.
+> Új ügyfél beüzemelése: `cockpit/UJ-UGYFEL.md`.
+
+Statikus UI (`index.html`) + Vercel serverless API (`api/*.js`), ami szerveroldalon
+összegzi a 4 bolt adatait (a WordPress plugin `pgv/v1` API-járól). Nincs saját
+adatbázis: közel valós idejű pollinggal frissül. Egységes kassza a `/api/redeem`-en.
+
+## Kassza – beváltás
+
+Két fül:
+
+- **Beváltás** — élő kereső (név / e-mail / sorszám) → adatlap → egy kattintásos beváltás.
+- **Beváltott utalványok** — csak a felhasznált utalványok, a **beváltás dátuma** szerint
+  szűrve (Ma / Tegnap / 7 nap / Ez a hónap / Összes, vagy egyedi időszak), darabszám- és
+  összeg-összesítővel (egységenkénti bontással is). Ez a nap végi kasszazáráshoz kell —
+  nem kell hozzá exportálni.
+
+A lista **keresője** a vásárló nevére, sorszámra, e-mailre, telefonra, valamint a
+műveletet végző kezelő **nevére és belépési e-mail-címére** szűr (beváltó és
+visszaállító egyaránt) — a kezelőből ezért a nevet és az e-mailt is eltároljuk.
+A nagy összesítő marad az időszak teljes összege (ez a kasszazárás száma) — a
+kereséshez tartozó darabszám/összeg a lista fejlécében jelenik meg.
+
+**Téves beváltás visszaállítása:** a beváltott sor végén (és a keresőből nyíló adatlapon)
+a *Visszaállítás* gomb aktívra állítja vissza az utalványt (`POST /api/unredeem`).
+Jogosultság: aki az egységet láthatja (kasszás is) — naplózott, de nem külön
+engedélyhez kötött.
+
+**Visszaállított (téves) beváltások** — külön táblázat ugyanezen a fülön, ugyanarra az
+időszakra: mikor, melyik egység, sorszám, érték, ki állította vissza, mi volt az
+**eredeti beváltás** (időpont + ki váltotta be), és mi a tétel **jelenlegi állapota**.
+A kártya akkor is látszik, ha nem volt visszaállítás. Ha volt, az összesítőben is
+megjelenik egy kiemelt „Visszaállítva: N db · X Ft” érték — a visszaállított tétel
+ugyanis kikerül a beváltott listából, e nélkül a napi összeg némán csökkenne.
+
+Minden beváltás és visszaállítás bekerül a `pgv_voucher_log` táblába (ki, mikor,
+mennyit; visszaállításnál a felülírt `prev_redeemed_at` / `prev_redeemed_by` is).
+A `/api/data` innen csak az `unredeem` sorokat adja vissza (365 nap), hogy a 8
+másodperces poll könnyű maradjon — a beváltás-sorok auditra a táblában maradnak.
+
+A kasszán történt beváltást a bolt plugin push-a nem írhatja vissza „aktív”-ra
+(`redeemed_via = 'cockpit'` őrfeltétel az upsertben), különben egy `sync_all` csendben
+eltüntetné a napi beváltásokat.
+
+## Utalvány-adatlap műveletei
+
+A vásárlás/lejárat/kassza listákból megnyíló mini adatlapon:
+
+- **Utalvány PDF** (`GET /api/pdf?unit=&serial=`) — a bolt pluginja által feltöltött
+  PDF megnyitása. Ha nincs feltöltve, a válasz megmondja, hogy a boltban az
+  „Összes felküldése” pótolja.
+- **E-mail újraküldése** (`POST /api/resend`) — az utalvány kiküldése újra, a
+  tárolt PDF-fel csatolva, Brevón át. Alapból a kézbesítési/vevő címre megy, de
+  a mezőben átírható. Bekerül a naplóba (`resend`).
+
+Mindkettő csak bejelentkezve, és csak arra az egységre, amit a felhasználó láthat.
+
+### Megajándékozott módosítása
+
+Az adatlapon a **Megajándékozott módosítása** átírja a nevet, újragenerálja a PDF-et,
+és utána felajánlja az újraküldést a megajándékozottnak (`/api/resend`, `reason: 'rename'`
+— külön levélszöveg: „a nevet javítottuk”). A név a **WooCommerce-rendelésben is**
+átíródik, azonnal — várólista nélkül.
+
+Hogyan, ha a vezérlőpult szervere nem éri el a boltot? A tárhely bot-védelme a szerver
+bejövő kérését elfogja, a kolléga **böngészőjét** viszont kiszolgálja. Ezért:
+
+1. `POST /api/recipient {unit, serial, name}` — a vezérlőpult **aláírt, egyszer
+   használható, 15 percig érvényes jegyet** ad (HMAC az `INGEST_SECRET`-tel és/vagy a
+   `VOUCHER_LICENCE_SHA256`-tal — a bolt azt ellenőrzi, amelyik nála be van állítva).
+2. A böngésző egy kis ablakban megnyitja a bolt `?rest_route=/pgv/v1/recipient-change`
+   címét (bővítmény **2.1.0+**). A bolt egyetlen kérésen belül: átírja a rendelés-tételt
+   (`_pgv_recipient` + a látható „Megajándékozott” sor; több utalványos tételnél
+   sorszámra szóló külön sor) és rendelés-jegyzetet ír → átírja az utalványt → audit
+   (`recipient_changed`) → felküldi ide az **újragenerált PDF-fel** és a `change`
+   mezővel. Ha a rendelés mentése nem sikerül, semmi nem változik.
+3. Az ingest naplóz (`pgv_voucher_log`, `recipient_change`: ki, mikor, régi → új név,
+   WooCommerce-szinkron, PDF), és lezárja a függő műveletet. Az adatlap közben
+   `GET /api/recipient?unit=&serial=&nonce=`-vel kérdezi az állapotot (a bolt ablaka
+   `postMessage`-dzsel is visszaszól), és csak a bolt felküldése után írja ki, hogy kész
+   — így a két rendszerben sosem lehet eltérő a név.
+
+Ha a felküldés épp elakad, a bolt óránként újrapróbálja; a művelet akkor zárul le,
+amikor az új név megérkezik. A WP adminban szerkesztett név is bekerül a naplóba
+(„Bolt (WP admin): …”). A csak a vezérlőpulton létező (CSV-ből importált) utalványnál
+nincs bolt és rendelés: ott a vezérlőpult maga írja át a nevet, és a nyomtatható
+példány már azt mutatja. Az adatlap alján a **Névmódosítások** lista mutatja az eddigi
+változásokat.
+
+### Érvényesség meghosszabbítása
+
+Aktív vagy lejárt utalvány adatlapján az **Érvényesség meghosszabbítása** kitolja a lejáratot
+(+3 / +6 / +12 hónap gyorsgomb vagy tetszőleges dátum; az alap a régi lejárat, ha az már
+elmúlt, a mai nap). **Indoklás kötelező.** Beváltott / sztornózott utalványnál nincs gomb.
+
+Az út ugyanaz, mint a névmódosításé: `POST /api/validity` aláírt jegyet ad (`op: 'validity'`),
+a böngésző kis ablakban megnyitja a bolt `/pgv/v1/validity-change` címét, és a bolt egy
+kérésen belül: rendelés-jegyzet → utalvány (`valid_until`, lejárt → aktív) → audit
+(`validity_extended`) → felküldés az új PDF-fel. Az ingest naplózza (`validity_extend`, régi →
+új dátum, indoklás, ki) és lezárja a függő műveletet (`validity_op:` kulcs a `pgv_config`-ban);
+a felület `GET /api/validity?nonce=` kérdezéssel várja. Bolt nélküli (CSV-importált) utalványnál
+helyben ír. Utána felajánlja az újraküldést „meghosszabbítottuk” levélszöveggel
+(`/api/resend`, `reason: 'extend'`). **A bolti bővítmény legalább 2.2.0 legyen.**
+
+## Belső sorszám és kód-csere
+
+Az utalványra nyomtatott kód véletlen (`CASA-7K3M9QP2`), mellette a bolt felküldi
+a **hézagmentes belső sorszámot** is (`seq_no` / `seq_year`) — látszik az utalvány
+adatlapján és külön oszlopként (`belső sorszám`) az exportban.
+
+Ha a boltban új kódot generálnak egy utalványhoz, a push `previous_serial`
+mezővel érkezik, és az ingest a **meglévő sort nevezi át** — nem hoz létre
+másodikat. A beváltás állapota, a PDF és a naplóbejegyzések együtt mozognak
+az új kóddal; foglalt kódra vagy már átnevezett sorra a művelet nem csinál semmit.
+
+## Import / export
+
+**Hiányzó dátumok levezetése** (`lib/dates.js`): a régi rendszerből importált
+tételeknél gyakran nincs vásárlás-dátum és érvényesség-kezdet, de az érvényesség
+VÉGE mindig megvan. Mivel az érvényesség a vásárlástól számított 12 hónap, a
+hiányzó dátumok visszaszámolhatók. Ezért:
+- az **érvényesség kezdete** = a vásárlás napja (ha az sincs: érvényesség vége −12 hó),
+- az **időszak-szűrés** is erre a levezetett vásárlási napra megy, különben a
+  dátum nélküli tételek némán kimaradnának a kimutatásból;
+- a **„vásárlás időpontja” oszlopba viszont nem írunk kitalált értéket** — az
+  marad üres, ha a forrás nem tartalmazta.
+
+Az **export** egységre, **státuszra** és időszakra (vásárlás dátuma) szűrhető; a
+státusz bekerül a fájlnévbe is (`casa-redeemed-utalvanyok-2026-08-27.csv`), hogy a
+letöltött fájlokat meg lehessen különböztetni. A **Vásárlások** lista tetején
+ugyanez a státusz-szűrő elérhető, a szűrt darabszámmal és összeggel.
+
+Az import **CSV** és **Excel (.xlsx / .xlsm)** fájlt is fogad. Az Excelnél a fájl
+első munkalapját olvassuk (a munkafüzet szerinti elsőt, nem a ZIP sorrendjét); a
+valódi dátum-cellák dátummá alakulnak, a hiányzó cellák nem csúsztatják el az
+oszlopokat. A feldolgozás függőség nélküli (`lib/xlsx.js`, a Node beépített
+zlib-jével). A régi, bináris **Excel 97-2003 (.xls)** nem olvasható — arra a
+felület azt kéri, hogy mentsd `.xlsx`-ként vagy CSV-ként. Fájlméret-korlát 3,5 MB
+(a serverless kérés-törzs miatt).
+
+Az import **sorszám szerint azonosít** (`unit` + `utalvány kódja` az elsődleges kulcs),
+ezért ugyanaz a tétel nem duplikálódik: a meglévő sor **felülíródik** a fájl adataival,
+csak a valóban új sorszámok kerülnek be újként. A visszajelzés külön írja ki, mennyi
+volt új és mennyi frissült. Sorszám nélküli sor kimarad (a „kihagyva” számban látszik).
+
+Két dolgot az import nem írhat felül:
+- a **vezérlőpulton beváltott** utalvány állapotát (`redeemed_via = 'cockpit'`),
+- egy **élő, boltból push-olt** utalvány `is_legacy` jelzését — így az „Import
+  visszavonása” (ami az egység legacy sorait törli) nem viheti el őket.
+
+Ugyanaz a fájl **másik egységbe** importálva külön tételeket hoz létre (az egység a
+kulcs része) — ez szándékos, de figyelni kell rá.
+
+## Környezeti változók (Vercel → Settings → Environment Variables)
+- `BRAND_NAME` — az ügyfél neve a fejlécben és a lapcímben (üresen: „Ajándékutalvány”).
+  A meglévő Pomo d'Oro telepítésnél: `Pomo d'Oro`.
+- `BRAND_LOGO_URL` — (nem kötelező) https-logó a név helyett. `BRAND_COLOR` — (nem kötelező) `#rrggbb` kiemelő szín.
+- `EXPORT_PREFIX` — (nem kötelező) az „összes egység” export fájlnév-előtagja (alap: `pomodoro`).
+- `VOUCHER_LICENCE_SHA256` — a POLYMAIND-licenc sha256-hash-e: ezzel a bolt titok nélkül, a licencével
+  küldheti fel az utalványokat (bővítmény 2.0+). Az `INGEST_SECRET` továbbra is működik.
+- `APP_PASSWORD` — belépési jelszó a vezérlőpulthoz.
+- `AUTH_SECRET` — hosszú véletlen string a süti-aláíráshoz.
+- `SHOPS` — a boltok JSON tömbje (új ügyfélnél elég a `slug`, `name`, `prefix`; az `url`/`apiKey` nem kötelező):
+  ```json
+  [
+    {"slug":"casa","name":"Casa Pomo d'Oro","prefix":"CASA","url":"https://casa.pomodorobudapest.com","apiKey":"pk_..."},
+    {"slug":"osteria","name":"Osteria Pomo d'Oro","prefix":"OST","url":"https://...","apiKey":"pk_..."}
+  ]
+  ```
+  Az `apiKey` a plugin Beállítások oldalán generált CRM API-kulcs.
+
+Root directory a Vercel projektben: `cockpit`.

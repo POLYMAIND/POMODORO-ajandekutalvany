@@ -1,0 +1,42 @@
+# Változásnapló
+
+A POLYMAIND vezérlőpultja kiadáskor innen olvassa ki, mi változott: a verzióhoz tartozó
+`## x.y.z` szakasz kerül a WordPress frissítési ablakába. Új verziónál a `Version:` fejléccel
+és a `PGV_VERSION` konstanssal együtt ide is írj egy szakaszt.
+
+## 2.2.0
+- Érvényesség meghosszabbítása a kasszás felület adatlapjáról (pl. vendég kérésére): az új lejárat azonnal átíródik, a lejárt utalvány újra aktív lesz, a PDF újragenerálódik az új dátummal és felkerül a kasszára, a WooCommerce-rendelés jegyzetet kap, a módosítás (régi → új dátum, indoklás, ki) az utalvány naplójába kerül.
+
+## 2.1.1
+- A wp-admin Kassza oldalán az összeg rendesen jelenik meg (10 000 Ft, nem „10&nbsp;000 Ft”).
+
+## 2.1.0
+- Megajándékozott módosítása a kasszás felület adatlapjáról: a név azonnal átíródik az utalványon és a WooCommerce-rendelésben is (tétel-adat + rendelés-jegyzet), a PDF újragenerálódik és felkerül a kasszára, a módosítás az utalvány naplójába kerül.
+- A WP adminban szerkesztett megajándékozott-név is átkerül a WooCommerce-rendelésbe — eddig csak az utalványon változott, és a rendelés a régi nevet mutatta.
+
+## 2.0.7
+- Az új verzió magától megjelenik, amint megnyitod a wp-admin kezdőlapját, a Bővítmények vagy a Frissítések oldalt (legfeljebb 15 perces késéssel) — nem kell hozzá a „Szinkronizálás most” gomb.
+
+## 2.0.6
+- A vásárló neve magyar sorrendben (vezetéknév, keresztnév) szerepel a levelek tárgyában és szövegében, az utalványon és a kasszában — eddig „Béla Nagy” lett „Nagy Béla” helyett.
+
+## 2.0.5
+- Ha a bővítmény kézzel (ZIP-pel) frissült, a WordPress nem ajánl fel többé egy régebbi verziót „frissítésként” — így véletlenül sem lehet visszafelé frissíteni.
+
+## 2.0.4
+- Új kiadás után a bővítmény egy órán belül magától felajánlja a frissítést (eddig akár 12 órát is várni kellett).
+- A „Szinkronizálás most” gomb a frissítést is azonnal behozza.
+- Ez a változásnapló bekerült a csomagba.
+
+## 2.0.3
+- A termékoldali utalvány-előnézet helyes összeget mutat akkor is, ha a bolt tizedesekkel írja ki az árat (10 000,00 Ft → nem 1 000 000 Ft).
+
+## 2.0.2
+- Licenccel a felküldéshez nem kell titkot megadni — a beállítások súgója ezt mondja.
+
+## 2.0.1
+- A mintasorszámok és példák a saját előtagot használják, nincs bennük valós egységnév.
+
+## 2.0.0
+- Licenc és központi vezérlőpult: arculat, egységadatok és frissítés a POLYMAIND vezérlőpultjából.
+- Fehér címkés kassza: a felküldés a licenccel hitelesít.

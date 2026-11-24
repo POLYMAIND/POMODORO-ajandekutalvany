@@ -1,0 +1,1902 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Utalvány vezérlőpult</title>
+<style>
+:root{
+  --ground:#efe9df;--surface:#fff;--surface-2:#faf7f1;--surface-3:#f2ede4;
+  --ink:#221d18;--ink-soft:#6d6357;--ink-faint:#9a9084;
+  --line:#e4dccd;--line-soft:#eee8dc;
+  --accent:#e2552b;--accent-ink:#fff;--accent-soft:#fbe9e1;
+  --gold:#b4892f;--good:#2f855a;--good-soft:#e2f1e8;
+  --warn:#b9791a;--warn-soft:#f8ecd3;--crit:#b42318;--crit-soft:#fbe4e1;
+  --shadow:0 1px 2px rgba(40,30,18,.05),0 8px 24px -12px rgba(40,30,18,.18);
+  --radius:14px;--font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --brand:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+:root[data-theme="dark"]{
+  --ground:#15110d;--surface:#1e1812;--surface-2:#241d16;--surface-3:#2b2319;
+  --ink:#f3ede3;--ink-soft:#ab9f8e;--ink-faint:#7c7161;--line:#332a1f;--line-soft:#2a2219;
+  --accent:#f26a41;--accent-ink:#1a120c;--accent-soft:#3a2217;--gold:#d7a951;
+  --good:#57b483;--good-soft:#182a20;--warn:#d7a24a;--warn-soft:#31260f;--crit:#e2685c;--crit-soft:#331815;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px -14px rgba(0,0,0,.6);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --ground:#15110d;--surface:#1e1812;--surface-2:#241d16;--surface-3:#2b2319;
+  --ink:#f3ede3;--ink-soft:#ab9f8e;--ink-faint:#7c7161;--line:#332a1f;--line-soft:#2a2219;
+  --accent:#f26a41;--accent-ink:#1a120c;--accent-soft:#3a2217;--gold:#d7a951;
+  --good:#57b483;--good-soft:#182a20;--warn:#d7a24a;--warn-soft:#31260f;--crit:#e2685c;--crit-soft:#331815;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px -14px rgba(0,0,0,.6);
+}}
+*{box-sizing:border-box}html,body{margin:0}
+body{font-family:var(--font);background:var(--ground);color:var(--ink);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+h1,h2,h3{margin:0;font-weight:650;letter-spacing:-.01em}
+button{font-family:inherit}
+.tnum{font-variant-numeric:tabular-nums}.mono{font-family:var(--mono)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+
+/* Login */
+#login{position:fixed;inset:0;background:var(--ground);display:none;place-items:center;z-index:100;padding:20px}
+#login.show{display:grid}
+.login-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:32px;width:100%;max-width:380px;text-align:center}
+.login-card .bname{font-family:var(--brand);font-size:24px;font-weight:600}
+.login-card .bsub{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:22px}
+.login-card input{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--ink);font-size:15px;margin-bottom:12px}
+.login-card button{width:100%;padding:12px;border:none;border-radius:10px;background:var(--accent);color:var(--accent-ink);font-weight:650;font-size:15px;cursor:pointer}
+.login-err{color:var(--crit);font-size:13px;font-weight:600;min-height:18px;margin-bottom:8px}
+
+/* App */
+#app{display:none;grid-template-columns:236px 1fr;min-height:100vh}
+#app.show{display:grid}
+.sidebar{background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;gap:4px;padding:20px 14px;position:sticky;top:0;height:100vh}
+.brand{padding:4px 8px 18px}
+.brand-name{font-family:var(--brand);font-size:18px;font-weight:600;line-height:1.1}
+.brand-sub{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-top:3px}
+.nav-label{font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-faint);padding:14px 10px 6px}
+.nav{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:10px;color:var(--ink-soft);cursor:pointer;border:none;background:none;width:100%;text-align:left;font-size:14.5px;font-weight:500}
+.nav:hover{background:var(--surface-3);color:var(--ink)}
+.nav.active{background:var(--accent);color:var(--accent-ink);font-weight:600}
+.nav .count{margin-left:auto;font-size:11px;background:var(--crit);color:#fff;border-radius:20px;padding:1px 7px}
+.nav.active .count{background:rgba(255,255,255,.25)}
+.nav-ic{width:17px;height:17px;flex:none;opacity:.8}
+.side-foot{margin-top:auto;padding-top:12px;border-top:1px solid var(--line-soft);font-size:12px;color:var(--ink-faint)}
+.logout{margin-top:8px;font-size:12.5px;color:var(--accent);background:none;border:none;cursor:pointer;font-weight:600;padding:0}
+
+.main{min-width:0;display:flex;flex-direction:column}
+.topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--ground) 85%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:12px 24px}
+.page-title{font-size:19px;font-weight:650}
+.unit-switch{display:flex;gap:4px;background:var(--surface-3);padding:4px;border-radius:11px}
+.unit-btn{border:none;background:none;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:550;color:var(--ink-soft);display:flex;align-items:center;gap:7px}
+.unit-btn.active{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.unit-dot{width:8px;height:8px;border-radius:50%;flex:none}
+.period{display:flex;align-items:center;gap:6px}
+.period-lbl{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-faint)}
+.period-dash{color:var(--ink-faint)}
+.period input[type=date]{border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);padding:5px 8px;font-size:12.5px;font-family:inherit}
+.period .pclr{border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:17px;line-height:1;padding:0 2px}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+.sync{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-soft)}
+.sync .dot{width:8px;height:8px;border-radius:50%;background:var(--good)}
+.sync.stale .dot{background:var(--warn)}.sync.err .dot{background:var(--crit)}
+.sync .dot.live{animation:pulse 1.6s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.icon-btn{width:34px;height:34px;border-radius:9px;border:1px solid var(--line);background:var(--surface);cursor:pointer;color:var(--ink-soft);display:grid;place-items:center}
+.content{padding:22px 28px 60px;max-width:none;width:100%}
+.section{display:none}.section.show{display:block}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.grid{display:grid;gap:16px}.kpis{grid-template-columns:repeat(4,1fr)}
+.kpi{padding:16px 18px;display:flex;flex-direction:column;gap:6px}
+.kpi-label{font-size:12px;color:var(--ink-soft)}
+.kpi-val{font-size:26px;font-weight:680;letter-spacing:-.02em}
+.row{display:grid;gap:16px;grid-template-columns:1.55fr 1fr;margin-top:16px}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line-soft)}
+.card-head h3{font-size:14.5px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;padding:10px 18px;border-bottom:1px solid var(--line-soft);background:var(--surface-2)}
+td{padding:11px 18px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+tr:last-child td{border-bottom:none}tbody tr:hover{background:var(--surface-2)}
+.t-strong{font-weight:600}.t-sub{color:var(--ink-faint);font-size:12px}
+.t-est{color:var(--ink-soft,var(--ink-faint));cursor:help}
+.etab{border:none;background:none;color:var(--ink-soft);font-size:13.5px;font-weight:600;padding:8px 15px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+.etab.active{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.tab-count{background:var(--ink-faint);color:var(--surface);border-radius:20px;font-size:11px;font-weight:700;padding:1px 7px}
+.etab.active .tab-count{background:var(--crit);color:#fff}
+.tab-count[hidden]{display:none}
+.epane{display:none}.epane.show{display:block}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.p-active,.p-paid,.p-completed,.p-processing{background:var(--good-soft);color:var(--good)}
+.p-redeemed{background:var(--surface-3);color:var(--ink-soft)}
+.p-pending,.p-on-hold,.p-expsoon{background:var(--warn-soft);color:var(--warn)}
+.p-expired,.p-cancelled,.p-failed,.p-refunded{background:var(--crit-soft);color:var(--crit)}
+.uchip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:550}
+.exp-item{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line-soft)}
+.exp-item:last-child{border-bottom:none}
+.exp-serial{font-family:var(--mono);font-size:12.5px;font-weight:600}
+.exp-sub{font-size:12px;color:var(--ink-faint)}
+.days{margin-left:auto}
+.empty{padding:40px 24px;text-align:center;color:var(--ink-soft)}
+.empty h3{font-size:16px;margin-bottom:8px}
+.empty code{background:var(--surface-3);padding:2px 7px;border-radius:6px;font-size:12.5px}
+.section-intro{color:var(--ink-soft);font-size:13.5px;margin:-2px 0 18px;max-width:70ch}
+.errbar{background:var(--crit-soft);color:var(--crit);border-radius:10px;padding:9px 14px;font-size:12.5px;margin-bottom:14px}
+
+/* Cashier */
+.cashier{max-width:640px}
+.search-box{display:flex;gap:10px;margin:8px 0 4px}
+.search-box input{flex:1;font-size:20px;padding:13px 16px;letter-spacing:.04em;font-family:var(--mono);border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--ink)}
+.btn{border:none;border-radius:9px;padding:11px 18px;font-size:14px;font-weight:650;cursor:pointer;background:var(--accent);color:var(--accent-ink)}
+.result{margin-top:18px;padding:20px 22px}.result.hidden{display:none}
+.res-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 24px;margin:6px 0 18px}
+.res-k{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint);display:block;margin-bottom:2px}
+.res-v{font-size:17px;font-weight:600}
+.res-msg{margin-top:12px;font-weight:600}.res-msg.ok{color:var(--good)}.res-msg.err{color:var(--crit)}
+/* Users */
+.urow{display:grid;gap:16px;grid-template-columns:360px 1fr;align-items:start}
+.fl{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint);margin:12px 0 5px}
+.fi{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);color:var(--ink);font-size:14px}
+.chkgrid{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
+.chk{display:flex;align-items:center;gap:6px;font-size:13px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);cursor:pointer}
+.chk input{margin:0}
+.btn.ghost{background:var(--surface-3);color:var(--ink-soft)}
+.uerr{color:var(--crit);font-size:12.5px;font-weight:600;min-height:16px;margin-top:8px}
+.role-tag{font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:20px;background:var(--surface-3);color:var(--ink-soft)}
+.tact{color:var(--accent);background:none;border:none;cursor:pointer;font-weight:600;font-size:12.5px;padding:0 6px 0 0}
+.tact.danger{color:var(--crit)}
+@media(max-width:960px){.urow{grid-template-columns:1fr}}
+/* Profil modal */
+.exp-item{cursor:pointer}
+.exp-item:hover{background:var(--surface-2)}
+tbody tr.clickable{cursor:pointer}
+#profile{position:fixed;inset:0;z-index:200;display:none;align-items:flex-start;justify-content:center;padding:40px 16px;background:rgba(20,15,8,.45);overflow-y:auto}
+#profile.show{display:flex}
+.pcard{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:100%;max-width:560px}
+.pcard-head{display:flex;align-items:flex-start;gap:12px;padding:20px 22px;border-bottom:1px solid var(--line-soft)}
+.pcard-head .pname{font-size:18px;font-weight:680}
+.pcard-head .psub{font-size:12.5px;color:var(--ink-faint);margin-top:2px}
+.pclose{margin-left:auto;background:none;border:none;font-size:22px;line-height:1;color:var(--ink-faint);cursor:pointer}
+.pbody{padding:18px 22px}
+.psec{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);margin:16px 0 8px}
+.psec:first-child{margin-top:0}
+.prow{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line-soft);font-size:14px}
+.prow:last-child{border-bottom:none}
+.prow .pk{color:var(--ink-soft);width:120px;flex:none;font-size:12.5px}
+.prow .pv{font-weight:550;word-break:break-word}
+.copy{margin-left:auto;border:1px solid var(--line);background:var(--surface-2);color:var(--ink-soft);border-radius:7px;padding:3px 9px;font-size:12px;cursor:pointer;flex:none}
+.copy:hover{color:var(--ink)}
+.copy.done{color:var(--good);border-color:var(--good)}
+.phist{font-size:13px}
+.phist .ph{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line-soft)}
+.phist .ph:last-child{border-bottom:none}
+.phist .ph.cur{background:var(--accent-soft);margin:0 -10px;padding:8px 10px;border-radius:8px}
+/* Kassza: fülek + beváltott (felhasznált) utalványok nézet */
+.ctabs{display:inline-flex;gap:4px;padding:4px;background:var(--surface-3);border-radius:11px;margin-bottom:16px}
+.ctab{border:none;background:none;color:var(--ink-soft);font-size:13.5px;font-weight:600;padding:8px 15px;border-radius:8px;cursor:pointer}
+.ctab.active{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.cpane{display:none}.cpane.show{display:block}
+.rday{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chipbtn{border:1px solid var(--line);background:var(--surface-2);color:var(--ink-soft);border-radius:20px;padding:5px 12px;font-size:12.5px;font-weight:600;cursor:pointer}
+.chipbtn:hover{color:var(--ink)}
+.chipbtn.active{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.rrange{display:flex;align-items:center;gap:8px;margin-left:auto}
+.rrange .fi{width:auto;padding:7px 10px}
+.red-sum{display:flex;gap:30px;flex-wrap:wrap;margin-top:15px;padding-top:14px;border-top:1px solid var(--line-soft)}
+.red-sum .rs{display:flex;flex-direction:column;gap:3px}
+.red-sum .rs-k{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-faint)}
+.red-sum .rs-v{font-size:23px;font-weight:680;letter-spacing:-.02em}
+.red-sum .rs.sub .rs-v{font-size:15px;font-weight:600}
+.red-sum .rs.warn .rs-k{color:var(--crit)}
+.red-sum .rs.warn .rs-v{color:var(--crit);font-size:15px;font-weight:600}
+#redLogTable th,#redLogTable td,#delLogTable th,#delLogTable td{white-space:nowrap}
+.pbtn.danger,.btn.danger{border-color:var(--crit);color:var(--crit);background:transparent}
+.pbtn.danger:hover,.btn.danger:hover{background:var(--crit);color:#fff;border-color:var(--crit)}
+.pdel{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.pdel[hidden]{display:none}
+.pdel .pdel-row{display:flex;gap:8px}
+.retime{display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap}
+.retime .fi{width:auto;padding:5px 8px;font-size:12.5px}
+.retime .btn{padding:6px 12px;font-size:12.5px}
+.retime .rt-msg{color:var(--crit);font-size:12px}
+.rsearch{margin-top:12px}
+.rsearch .fi{max-width:420px}
+#redTable th,#redTable td{white-space:nowrap}
+.log-item{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 18px;border-bottom:1px solid var(--line-soft);font-size:13px}
+.log-item:last-child{border-bottom:none}
+@media(max-width:960px){.rrange{margin-left:0}}
+/* Lista-fejléc jobb oldali szűrőkkel */
+.listbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.listbar-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.listbar-right .fi{width:auto;padding:7px 10px}
+/* Adatlap műveletek */
+.pacts{display:flex;gap:8px;flex-wrap:wrap}
+.pbtn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface-2);
+  color:var(--ink);border-radius:9px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none}
+.pbtn:hover{background:var(--surface-3)}
+.presend{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+/* A [hidden]-t a saját display szabályunk felülírná — ezt tegyük helyre. */
+.presend[hidden]{display:none}
+.presend-row{display:flex;gap:8px}
+.presend-row .fi{flex:1}
+/* Megajándékozott módosítása */
+.prename{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.prename[hidden]{display:none}
+.prename .t-sub{margin:0}
+.plog{font-size:13px}
+.plog .pl{padding:7px 0;border-bottom:1px solid var(--line-soft)}
+.plog .pl:last-child{border-bottom:none}
+.plog .pl-note{font-weight:550;word-break:break-word}
+/* Kassza élő találatok + emlékeztető */
+.cash-hit{display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid var(--line-soft);cursor:pointer}
+.cash-hit:hover{background:var(--surface-2)}.cash-hit:last-child{border-bottom:none}
+.rem-btn{border:1px solid var(--line);background:var(--surface-2);color:var(--accent);border-radius:7px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
+.rem-btn:hover{background:var(--accent-soft)}
+.rem-done{font-size:11.5px;color:var(--good);font-weight:600;white-space:nowrap}
+.menu-btn{display:none}
+@media(max-width:960px){
+  #app.show{grid-template-columns:1fr}
+  .sidebar{position:fixed;left:-260px;transition:.2s;z-index:50}.sidebar.open{left:0}
+  .kpis{grid-template-columns:repeat(2,1fr)}.row{grid-template-columns:1fr}.menu-btn{display:grid}
+  .sidebar.open{box-shadow:0 0 0 100vmax rgba(20,16,10,.35)}
+}
+/* A rács- és kártyaelemek ne nyújtsák szét a lapot a bennük lévő táblázattal. */
+.grid>*,.row>*,.card,.section{min-width:0}
+/* ——— Telefon ——— */
+@media(max-width:640px){
+  .topbar{flex-wrap:wrap;gap:8px 10px;padding:10px 14px}
+  .page-title{font-size:17px;flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .top-right{gap:8px}
+  #syncTxt{display:none}
+  .unit-switch{order:3}
+  .period{order:4;flex:1 1 100%;gap:6px}
+  .period-lbl{display:none}
+  .period input[type=date]{flex:1;min-width:0;padding:7px 8px}
+  .content{padding:14px 14px 48px}
+  .grid{gap:10px}.row{gap:12px;margin-top:12px}
+  .kpi{padding:13px 14px}.kpi-val{font-size:22px}
+  .card-head{padding:12px 14px;flex-wrap:wrap;gap:6px}
+  /* Táblázatok → kártyasorok: minden sor egy blokk, cellánként „címke — érték”. */
+  .card table thead{display:none}
+  .card table,.card table tbody,.card table tr,.card table td{display:block;width:100%}
+  .card table tr{padding:12px 14px;border-bottom:1px solid var(--line-soft)}
+  .card table tr:last-child{border-bottom:none}
+  .card table td{padding:3px 0;border:none;font-size:13.5px}
+  .card table td::before{content:attr(data-label);flex:none;text-align:left;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;padding-top:2px}
+  .card table td:not([data-label])::before,.card table td[data-label=""]::before{display:none}
+  .card table td[colspan]{display:block;text-align:left}
+  .card table td[colspan]::before{display:none}
+  .card table td:empty{display:none}
+  .card table td>br{display:none}
+  .card table tr.clickable{cursor:pointer}
+  .card table td{display:block;text-align:right}
+  .card table td::before{float:left;margin-right:14px}
+  /* A vásárlás-listákon telefonon a lényeg marad; a többi a sorra koppintva, az adatlapon. */
+  #dashTable td[data-label="Egység"],#purchasesTable td[data-label="Egység"],
+  #dashTable td[data-label="E-mail"],#purchasesTable td[data-label="E-mail"]{display:none}
+  /* Adatlap: a címke fent, az érték alatta teljes szélességben — nem törik szét az e-mail-cím. */
+  .prow{flex-wrap:wrap;gap:2px 10px;padding:8px 0}
+  .prow .pk{width:100%;font-size:11.5px}
+  .prow .pv{flex:1;min-width:0;overflow-wrap:anywhere;word-break:normal}
+}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <form class="login-card" id="loginForm">
+    <div class="bname" data-brand>&nbsp;</div>
+    <div class="bsub">Utalvány vezérlőpult</div>
+    <div class="login-err" id="loginErr"></div>
+    <input type="email" id="loginEmail" placeholder="E-mail" autocomplete="username">
+    <input type="password" id="loginPass" placeholder="Jelszó" autocomplete="current-password">
+    <button type="submit">Belépés</button>
+    <div style="font-size:12px;color:var(--ink-faint);margin-top:12px">Központi admin: hagyd üresen az e-mailt, és add meg a mesterjelszót.</div>
+  </form>
+</div>
+
+<div id="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-name" data-brand>&nbsp;</div>
+      <div class="brand-sub">Utalvány vezérlőpult</div>
+    </div>
+    <div class="nav-label">Áttekintés</div>
+    <button class="nav active" data-sec="dash"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>Áttekintés</button>
+    <button class="nav" data-sec="purchases"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>Vásárlások</button>
+    <button class="nav" data-sec="expiry"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Lejáratok<span class="count" id="expCount" style="display:none">0</span></button>
+    <div class="nav-label">Kezelés</div>
+    <button class="nav" data-sec="cashier"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg>Kassza – beváltás</button>
+    <button class="nav" data-sec="io" id="navIO" style="display:none"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>Import / export</button>
+    <button class="nav" data-sec="users" id="navUsers" style="display:none"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Felhasználók</button>
+    <button class="nav" data-sec="email" id="navEmail" style="display:none"><svg class="nav-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>E-mail beállítások</button>
+    <div class="side-foot">
+      <div id="whoami" style="color:var(--ink-soft);font-weight:600;margin-bottom:2px"></div>
+      <div id="connInfo">Nincs bolt bekötve</div>
+      <button class="logout" id="logoutBtn">Kilépés</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="icon-btn menu-btn" id="menuBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+      <div class="page-title" id="pageTitle">Áttekintés</div>
+      <div class="unit-switch" id="unitSwitch"></div>
+      <div class="period" id="period">
+        <span class="period-lbl">Időszak</span>
+        <input type="date" id="pFrom" aria-label="Tól">
+        <span class="period-dash">–</span>
+        <input type="date" id="pTo" aria-label="Ig">
+        <button class="pclr" id="pClear" title="Szűrő törlése" style="display:none">×</button>
+      </div>
+      <div class="top-right">
+        <div class="sync" id="sync"><span class="dot live"></span><span id="syncTxt">Szinkron…</span></div>
+        <button class="icon-btn" id="themeBtn" aria-label="Téma"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+      </div>
+    </header>
+    <div class="content">
+      <div id="errbar"></div>
+
+      <section class="section show" id="sec-dash">
+        <div id="dashEmpty"></div>
+        <div id="dashBody" style="display:none">
+          <div class="grid kpis" id="kpis"></div>
+          <div class="row">
+            <div class="card">
+              <div class="card-head"><h3>Legutóbbi vásárlások</h3></div>
+              <div style="overflow-x:auto"><table id="dashTable"></table></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h3>Hamarosan lejár</h3></div>
+              <div id="dashExpiry"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="sec-purchases">
+        <div class="listbar">
+          <p class="section-intro" style="margin:0">Minden egység vásárlása egy helyen. A lista magától frissül, ahogy új fizetés érkezik.</p>
+          <div class="listbar-right">
+            <span class="t-sub" id="purCount"></span>
+            <select class="fi" id="purStatus" aria-label="Státusz szűrő">
+              <option value="">Összes állapot</option>
+              <option value="active">Aktív</option>
+              <option value="redeemed">Beváltva</option>
+              <option value="expired">Lejárt</option>
+              <option value="cancelled">Sztornó</option>
+              <option value="pending">Függőben</option>
+            </select>
+          </div>
+        </div>
+        <div class="card"><div style="overflow-x:auto"><table id="purchasesTable"></table></div></div>
+      </section>
+
+      <section class="section" id="sec-expiry">
+        <div class="ctabs">
+          <button class="etab active" data-etab="soon">Közelgő lejáratok</button>
+          <button class="etab" data-etab="gone">Lejárt utalványok<span class="tab-count" id="expiredCount" hidden></span></button>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+          <p class="section-intro" style="margin:0" id="expIntro">A még érvényes utalványok, sürgősség szerint.</p>
+          <input id="expSearch" class="fi" placeholder="Keresés: név, sorszám, e-mail…" autocomplete="off" style="margin-left:auto;max-width:340px">
+        </div>
+        <div class="epane show" id="epane-soon"><div class="card" id="expiryCard"></div></div>
+        <div class="epane" id="epane-gone"><div class="card" id="expiredList"></div></div>
+      </section>
+
+      <section class="section" id="sec-cashier">
+        <div class="ctabs">
+          <button class="ctab active" data-ctab="redeem">Beváltás</button>
+          <button class="ctab" data-ctab="done">Beváltott utalványok</button>
+        </div>
+
+        <div class="cpane show" id="cpane-redeem">
+          <p class="section-intro">Kezdd el beírni a nevet, e-mailt vagy a sorszámot — a találatok írás közben frissülnek. Kattints a megfelelőre a beváltáshoz.</p>
+          <div class="cashier">
+            <div class="card" style="padding:18px 20px">
+              <div class="search-box">
+                <input id="cashInput" placeholder="pl. Kovács Anna, anna@…, vagy MINTA-7K3M9QP2" autocomplete="off">
+              </div>
+            </div>
+            <div class="card" id="cashListCard" style="display:none;margin-top:12px"><div id="cashList"></div></div>
+            <div class="card result hidden" id="cashResult" style="margin-top:12px"></div>
+          </div>
+        </div>
+
+        <div class="cpane" id="cpane-done">
+          <p class="section-intro">Csak a felhasznált (beváltott) utalványok — a nap végi önellenőrzéshez. Az összesítő a kiválasztott időszakra és a fent kiválasztott egységre vonatkozik. Téves beváltás a sor végén visszaállítható.</p>
+          <div class="card" style="padding:15px 18px 17px">
+            <div class="rday">
+              <div class="chips" id="redQuick">
+                <button type="button" class="chipbtn active" data-rq="today">Ma</button>
+                <button type="button" class="chipbtn" data-rq="yesterday">Tegnap</button>
+                <button type="button" class="chipbtn" data-rq="7">Utolsó 7 nap</button>
+                <button type="button" class="chipbtn" data-rq="month">Ez a hónap</button>
+                <button type="button" class="chipbtn" data-rq="all">Összes</button>
+              </div>
+              <div class="rrange">
+                <input class="fi" type="date" id="redFrom" aria-label="Beváltás dátuma – tól">
+                <span class="period-dash">–</span>
+                <input class="fi" type="date" id="redTo" aria-label="Beváltás dátuma – ig">
+              </div>
+            </div>
+            <div class="rsearch"><input class="fi" id="redSearch" placeholder="Keresés: vásárló, sorszám, e-mail, telefon, kezelő…" autocomplete="off"></div>
+            <div class="red-sum" id="redSum"></div>
+          </div>
+          <div class="card" style="margin-top:12px">
+            <div class="card-head"><h3>Beváltott utalványok</h3><span class="t-sub" id="redPeriod"></span></div>
+            <div style="overflow-x:auto"><table id="redTable"></table></div>
+          </div>
+          <div class="card" id="redLogCard" style="margin-top:12px">
+            <div class="card-head"><h3>Utólagos javítások a beváltásokon</h3><span class="t-sub" id="redLogPeriod"></span></div>
+            <div style="overflow-x:auto"><table id="redLogTable"></table></div>
+          </div>
+          <div class="card" id="delLogCard" style="margin-top:12px;display:none">
+            <div class="card-head"><h3>Törölt utalványok</h3><span class="t-sub" id="delLogPeriod"></span></div>
+            <div style="overflow-x:auto"><table id="delLogTable"></table></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="sec-io">
+        <p class="section-intro">Korábbi utalványok importálása CSV-ből (egységhez kötve), és az adatok exportja ugyanebben a formátumban. Az importált tételek „korábbi” (legacy) jelölést kapnak.</p>
+        <div class="urow">
+          <div class="card" style="padding:18px 20px">
+            <h3 style="font-size:14.5px;margin-bottom:6px">Import</h3>
+            <p class="t-sub" style="margin:0 0 8px">Tölts fel <b>CSV</b> vagy <b>Excel (.xlsx)</b> fájlt — az „utalvány kódja” oszlop kötelező, a fájl első munkalapját olvassuk. Ugyanaz a sorszám nem duplikálódik: a meglévő tétel <b>felülíródik</b> a fájl adataival.</p>
+            <label class="fl">Melyik egységbe?</label>
+            <select class="fi" id="ioImpUnit"></select>
+            <label class="fl">CSV fájl</label>
+            <input class="fi" id="ioFile" type="file" accept=".csv,.xlsx,.xlsm,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
+            <div class="uerr" id="ioMsg"></div>
+            <div style="display:flex;gap:8px;margin-top:12px">
+              <button type="button" class="btn" id="ioImport">Importálás</button>
+              <button type="button" class="btn ghost" id="ioUndo">Import visszavonása</button>
+            </div>
+            <p class="t-sub" style="margin:8px 0 0">A visszavonás a fent kiválasztott egység összes importált (korábbi) utalványát törli. Az élő, boltból szinkronizált utalványokat nem érinti.</p>
+          </div>
+          <div class="card" style="padding:18px 20px">
+            <h3 style="font-size:14.5px;margin-bottom:6px">Export</h3>
+            <p class="t-sub" style="margin:0 0 8px">Letöltés a kanonikus CSV-formátumban (a jogosultságodnak megfelelő egységekre).</p>
+            <label class="fl">Egység</label>
+            <select class="fi" id="ioExpUnit"></select>
+            <label class="fl">Státusz</label>
+            <select class="fi" id="ioExpStatus">
+              <option value="">Összes állapot</option>
+              <option value="active">Fizetve (aktív)</option>
+              <option value="redeemed">Felhasználva</option>
+              <option value="expired">Lejárt</option>
+              <option value="cancelled">Sztornó</option>
+              <option value="pending">Fizetésre vár</option>
+            </select>
+            <label class="fl">Időszak (opcionális, vásárlás dátuma)</label>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input class="fi" type="date" id="ioExpFrom" aria-label="Tól" style="flex:1">
+              <span class="period-dash">–</span>
+              <input class="fi" type="date" id="ioExpTo" aria-label="Ig" style="flex:1">
+            </div>
+            <div class="uerr" id="ioExpMsg"></div>
+            <button type="button" class="btn" id="ioExport" style="margin-top:12px">Export CSV letöltése</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="sec-users">
+        <p class="section-intro">Vedd fel a kezelőket, állítsd be a szerepüket és melyik egység(ek)re lássanak rá. Egy egység-kezelő / kasszás csak a saját egysége utalványait látja és váltja be.</p>
+        <div class="urow">
+          <div class="card" style="padding:18px 20px">
+            <h3 style="font-size:14.5px;margin-bottom:12px" id="userFormTitle">Új felhasználó</h3>
+            <form id="userForm">
+              <input type="hidden" id="uId">
+              <label class="fl">Név</label>
+              <input class="fi" id="uName" placeholder="Pl. Kiss Anna" autocomplete="off">
+              <label class="fl">E-mail (belépéshez)</label>
+              <input class="fi" id="uEmail" type="email" placeholder="anna@pelda.hu" autocomplete="off">
+              <p class="t-sub" id="uEmailHint" style="margin:5px 0 0;display:none">Módosítás után a felhasználó már az új címmel lép be. A jelszava marad.</p>
+              <label class="fl" id="uPassLabel">Jelszó</label>
+              <input class="fi" id="uPass" type="text" placeholder="Kezdő jelszó" autocomplete="new-password">
+              <label class="fl">Szerep</label>
+              <select class="fi" id="uRole"></select>
+              <div id="uUnitsWrap">
+                <label class="fl">Egységek (amit láthat/bevált)</label>
+                <div id="uUnits" class="chkgrid"></div>
+              </div>
+              <div class="uerr" id="uErr"></div>
+              <div style="display:flex;gap:8px;margin-top:14px">
+                <button type="submit" class="btn" id="uSave">Hozzáadás</button>
+                <button type="button" class="btn ghost" id="uCancel" style="display:none">Mégse</button>
+              </div>
+            </form>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>Felhasználók</h3></div>
+            <div style="overflow-x:auto"><table id="usersTable"></table></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="sec-email">
+        <p class="section-intro">A lejárati (és egyéb) rendszerüzenetek Brevón keresztül mennek ki. Add meg a Brevo API kulcsot, és egységenként a feladó e-mail címet. Csak központi admin láthatja.</p>
+        <div class="urow">
+          <div class="card" style="padding:18px 20px">
+            <h3 style="font-size:14.5px;margin-bottom:6px">E-mail bekötés</h3>
+            <label class="fl">Brevo API kulcs</label>
+            <input class="fi" id="emKey" type="password" autocomplete="off" placeholder="xkeysib-…">
+            <p class="t-sub" id="emKeyState" style="margin:6px 0 0"></p>
+            <div class="uerr" id="emMsg"></div>
+            <div style="display:flex;gap:8px;margin-top:14px">
+              <button type="button" class="btn" id="emSave">Mentés</button>
+              <button type="button" class="btn ghost" id="emClearKey">Kulcs törlése</button>
+            </div>
+            <h3 style="font-size:14.5px;margin:20px 0 6px">Teszt e-mail</h3>
+            <label class="fl">Egység</label>
+            <select class="fi" id="emTestUnit"></select>
+            <label class="fl">Címzett</label>
+            <input class="fi" id="emTestTo" type="email" placeholder="teszt@pelda.hu">
+            <div class="uerr" id="emTestMsg"></div>
+            <button type="button" class="btn ghost" id="emTest" style="margin-top:12px">Teszt küldése</button>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>Feladó e-mail egységenként</h3></div>
+            <div style="overflow-x:auto"><table id="emFromTable"></table></div>
+          </div>
+        </div>
+        <div class="card" style="padding:18px 20px;margin-top:16px">
+          <h3 style="font-size:14.5px;margin-bottom:6px">Emlékeztető levél szövege</h3>
+          <p class="t-sub" style="margin:0 0 10px">Helykitöltők: <code>{nev}</code> <code>{egyseg}</code> <code>{sorszam}</code> <code>{osszeg}</code> <code>{ervenyesseg}</code> <code>{napok}</code> <code>{uzenet}</code>. Az utalvány adatait (érték, sorszám, érvényesség) a rendszer külön, kiemelt dobozként is hozzáteszi a levélhez.</p>
+          <label class="fl">Tárgy</label>
+          <input class="fi" id="emSubject" type="text">
+          <label class="fl">Levél törzse</label>
+          <textarea class="fi" id="emBody" rows="8" style="font-family:inherit"></textarea>
+          <div class="uerr" id="emTplMsg"></div>
+          <button type="button" class="btn" id="emTplSave" style="margin-top:12px">Szöveg mentése</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div id="profile" aria-hidden="true">
+  <div class="pcard" id="pcard"></div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const nf=n=>Number(n||0).toLocaleString('hu-HU');
+const money=n=>nf(n)+' Ft';
+let CFG={authed:false,configured:false,shops:[],role:null,name:'',units:[],canManageUsers:false};
+const ROLE_LABELS={superadmin:'Központi admin',unit_manager:'Egység-kezelő',cashier:'Kasszás'};
+let DATA={orders:[],vouchers:[],errors:[]};
+let currentUnit='all';
+// Egységszínek: a meglévő (Pomo d'Oro) egységek megszokott színe marad, a többi a palettából, sorrendben.
+const UNIT_COLORS={casa:'#c0392b',osteria:'#1f7a4d',pizzabar:'#c98a1e',trattoria:'#7d3350'};
+const UNIT_PALETTE=['#c0392b','#1f7a4d','#c98a1e','#7d3350','#2f5d8a','#6b4fa0','#b4892f','#3f7f7a'];
+function unitColor(s){if(UNIT_COLORS[s])return UNIT_COLORS[s];const i=(CFG.shops||[]).findIndex(x=>x.slug===s);return i>=0?UNIT_PALETTE[i%UNIT_PALETTE.length]:'#b4892f';}
+function shopName(slug){const s=CFG.shops.find(x=>x.slug===slug);return s?s.name:slug;}
+function brandName(){return (CFG.brand&&CFG.brand.name)||'Ajándékutalvány';}
+function shortName(slug){const n=shopName(slug),b=' '+brandName();return (n.endsWith(b)&&n.length>b.length)?n.slice(0,-b.length):n;}
+// A márka (fehér címkés telepítés): név a fejlécben és a lapcímben, opcionális logó és kiemelő szín.
+function applyBrand(){
+  const b=CFG.brand||{};
+  document.title=brandName()+' · Utalvány vezérlőpult';
+  document.querySelectorAll('[data-brand]').forEach(el=>{
+    el.textContent='';
+    if(b.logo_url){const im=document.createElement('img');im.src=b.logo_url;im.alt=brandName();im.style.cssText='max-height:34px;max-width:160px;display:block';el.appendChild(im);}
+    else el.textContent=brandName();
+  });
+  if(b.color)document.documentElement.style.setProperty('--accent',b.color);
+}
+
+// ---- auth / boot ----
+async function boot(){
+  CFG=await fetch('/api/config').then(r=>r.json()).catch(()=>CFG);
+  applyBrand();
+  if(!CFG.authed){ $('#login').classList.add('show'); $('#app').classList.remove('show'); return; }
+  $('#login').classList.remove('show'); $('#app').classList.add('show');
+  buildUnitSwitch();
+  $('#navUsers').style.display = CFG.canManageUsers ? '' : 'none';
+  $('#navEmail').style.display = CFG.canManageUsers ? '' : 'none';
+  $('#navIO').style.display = (CFG.role==='superadmin'||CFG.role==='unit_manager') ? '' : 'none';
+  const _rl = CFG.role ? (ROLE_LABELS[CFG.role]||CFG.role) : '';
+  $('#whoami').textContent = (CFG.name && CFG.name!==_rl) ? (CFG.name+' · '+_rl) : (CFG.name||_rl);
+  $('#connInfo').textContent = !CFG.configured ? 'Nincs egység'
+    : (CFG.role==='superadmin' ? (CFG.shops.length+' egység bekötve')
+      : ('Kezelt egység: '+CFG.shops.map(s=>shortName(s.slug)).join(', ')));
+  await refresh();
+  startPolling();
+}
+$('#loginForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  $('#loginErr').textContent='';
+  const r=await fetch('/api/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:$('#loginEmail').value.trim(),password:$('#loginPass').value})});
+  const j=await r.json().catch(()=>({}));
+  if(r.ok){ $('#loginPass').value=''; boot(); return; }
+  // Üzemzavarnál a jelszó a helyén marad — nem a felhasználó tévedett.
+  $('#loginErr').textContent = j.error || 'Hibás e-mail vagy jelszó.';
+  if(r.status!==503) $('#loginPass').value='';
+});
+$('#logoutBtn').onclick=async()=>{ await fetch('/api/logout',{method:'POST'}); location.reload(); };
+
+// ---- polling ----
+let pollTimer=null,lastTs=0;
+function startPolling(){
+  if(pollTimer)clearInterval(pollTimer);
+  pollTimer=setInterval(()=>{ if(!document.hidden) refresh(); },8000);
+}
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) refresh(); });
+// Az ismert állapot azonosítóját visszaküldjük: ha semmi nem változott, a
+// szerver nem küldi újra a teljes listát (~1 MB), csak pár bájtot. Enélkül egy
+// egész napra nyitva hagyott fül elviszi a hónapra szánt adatforgalmat.
+let DATAV='';
+let auth401=0;
+async function refresh(force){
+  try{
+    const r=await fetch('/api/data'+(!force&&DATAV?('?v='+encodeURIComponent(DATAV)):''));
+    // 503: az adatbázis akadozik — nem vagyunk kijelentkezve, csak várni kell.
+    if(r.status===503){ setSync('wait'); return; }
+    // 401: csak több egymást követő elutasítás után tekintjük valódi kijelentkezésnek,
+    // különben egyetlen megbicsakló kérés is a belépőre dobná a kasszást.
+    if(r.status===401){ if(++auth401>=3){ location.reload(); } else { setSync('err'); } return; }
+    auth401=0;
+    const j=await r.json();
+    if(j.v) DATAV=j.v;
+    if(j.unchanged){ lastTs=j.ts||Date.now(); setSync('ok'); return; }
+    DATA=j; lastTs=j.ts||Date.now();
+    setSync('ok');
+    renderAll();
+  }catch(e){ setSync('err'); }
+}
+function setSync(state){
+  const el=$('#sync'); el.className='sync'+(state==='ok'?'':' err');
+  $('#syncTxt').textContent = state==='err' ? 'Kapcsolat hiba'
+    : state==='wait' ? 'Az adatbázis nem elérhető – újrapróbálom'
+    : 'Élő – frissítve most';
+}
+
+// ---- unit switch ----
+function buildUnitSwitch(){
+  const us=$('#unitSwitch');
+  const slugs=CFG.shops.map(s=>s.slug);
+  const opts = slugs.length>1 ? ['all',...slugs] : slugs;
+  if(!opts.includes(currentUnit)) currentUnit=opts[0]||'all';
+  us.innerHTML='';
+  opts.forEach(u=>{
+    const b=document.createElement('button');
+    b.className='unit-btn'+(u===currentUnit?' active':'');
+    b.innerHTML=(u==='all'?'':'<span class="unit-dot" style="background:'+unitColor(u)+'"></span>')+(u==='all'?'Összes':shortName(u));
+    b.onclick=()=>{currentUnit=u;document.querySelectorAll('.unit-btn').forEach(x=>x.classList.toggle('active',x===b));renderAll();};
+    us.appendChild(b);
+  });
+  us.style.display = opts.length ? '' : 'none';
+}
+let PERIOD={from:'',to:''};
+function inPeriod(x){
+  const d=pday(x);
+  if(PERIOD.from && (!d || d<PERIOD.from)) return false;
+  if(PERIOD.to && (!d || d>PERIOD.to)) return false;
+  return true;
+}
+function filt(list){return list.filter(r=>(currentUnit==='all'||r.unit===currentUnit)&&inPeriod(r));}
+function onPeriodChange(){
+  PERIOD.from=$('#pFrom').value||''; PERIOD.to=$('#pTo').value||'';
+  $('#pClear').style.display=(PERIOD.from||PERIOD.to)?'':'none';
+  renderAll();
+}
+$('#pFrom').addEventListener('change',onPeriodChange);
+$('#pTo').addEventListener('change',onPeriodChange);
+$('#pClear').onclick=()=>{$('#pFrom').value='';$('#pTo').value='';onPeriodChange();};
+
+// ---- render ----
+function statusPill(s){
+  const label={active:'Aktív',redeemed:'Beváltva',pending:'Függőben',expired:'Lejárt',cancelled:'Sztornó',
+    completed:'Teljesítve',processing:'Feldolgozás',paid:'Fizetve','on-hold':'Tartva',failed:'Sikertelen',refunded:'Visszatérítve'}[s]||s;
+  return '<span class="pill p-'+s+'">'+label+'</span>';
+}
+function uchip(u){return '<span class="uchip"><span class="unit-dot" style="background:'+unitColor(u)+'"></span>'+shortName(u)+'</span>';}
+function fdate(d){ if(!d)return''; const t=new Date(d.replace(' ','T')); return isNaN(t)?d:t.toLocaleDateString('hu-HU'); }
+// A vásárlás napja: a pontos időpont, ha megvan; különben a szerver által az
+// érvényességből visszaszámolt nap (a régi importoknál gyakran csak ez van).
+function pday(x){ return String(x.purchase_day||x.created_at||'').slice(0,10); }
+function psort(x){ return pday(x)||''; }
+// Dátumcella: a levezetett nap ~ jellel és halványan, hogy látszódjon a különbség.
+function dateCell(x){
+  if(x.created_at) return fdate(x.created_at)+'<div class="t-sub">'+ftime(x.created_at)+'</div>';
+  const d=pday(x);
+  if(!d) return '<span class="t-sub">—</span>';
+  return '<span class="t-est" title="Levezetett dátum: az érvényesség végéből visszaszámolva (a régi importban nem volt időpont).">~ '+fdate(d)+'</span><div class="t-sub">becsült</div>';
+}
+function ftime(d){ if(!d)return''; const t=new Date(d.replace(' ','T')); return isNaN(t)?'':t.toLocaleTimeString('hu-HU',{hour:'2-digit',minute:'2-digit'}); }
+function daysLeft(vu){ if(!vu)return null; const t=new Date(vu+'T00:00:00'); return Math.ceil((t-new Date().setHours(0,0,0,0))/86400000); }
+
+function renderAll(){
+  $('#errbar').innerHTML = (DATA.errors&&DATA.errors.length)?('<div class="errbar">Néhány bolt nem elérhető: '+DATA.errors.join(' · ')+'</div>'):'';
+  if(!CFG.configured){ renderEmpty(); return; }
+  $('#dashEmpty').style.display='none'; $('#dashBody').style.display='';
+  renderKpis(); renderPurchases(); renderExpiry(); renderRedeemed();
+}
+function renderEmpty(){
+  $('#dashBody').style.display='none';
+  $('#dashEmpty').style.display='';
+  $('#dashEmpty').innerHTML='<div class="card empty"><h3>Nincs még bolt bekötve</h3><p>Add meg a boltok elérését a Vercel <code>SHOPS</code> környezeti változójában, majd frissíts. Ezután itt jelennek meg valós időben a vásárlások.</p></div>';
+}
+function renderKpis(){
+  const v=filt(DATA.vouchers);
+  const revenue=v.reduce((s,x)=>s+(+x.amount||0),0);
+  const active=v.filter(x=>x.status==='active').length;
+  const soon=v.filter(x=>{const d=daysLeft(x.valid_until);return x.status==='active'&&d!==null&&d>=0&&d<=14;}).length;
+  const k=[['Eladott utalvány',v.length],['Érték összesen',money(revenue)],['Aktív utalvány',active],['14 napon belül lejár',soon]];
+  $('#kpis').innerHTML=k.map(x=>'<div class="card kpi"><div class="kpi-label">'+x[0]+'</div><div class="kpi-val">'+x[1]+'</div></div>').join('');
+}
+function purchaseRow(x){
+  const buyer = x.buyer_name || x.giver_name || '—';
+  return '<tr class="clickable" data-serial="'+esc(x.serial)+'" data-unit="'+esc(x.unit)+'"><td class="tnum">'+dateCell(x)+'</td>'+
+    '<td>'+uchip(x.unit)+'</td><td class="mono t-sub">'+(x.serial||'')+'</td>'+
+    '<td class="t-strong">'+buyer+'</td>'+
+    '<td class="t-sub">'+(x.buyer_email||'')+'</td>'+
+    '<td class="t-strong tnum">'+money(x.amount)+'</td>'+
+    '<td class="tnum">'+(x.valid_until?fdate(x.valid_until):'—')+'</td>'+
+    '<td>'+statusPill(x.status)+'</td></tr>';
+}
+let PURSTATUS='';
+function renderPurchases(){
+  const head='<thead><tr><th>Dátum</th><th>Egység</th><th>Sorszám</th><th>Vásárló</th><th>E-mail</th><th>Érték</th><th>Lejárat</th><th>Státusz</th></tr></thead>';
+  const all=filt(DATA.vouchers).slice().sort((a,b)=>psort(b).localeCompare(psort(a)));
+  // Az áttekintő „Legutóbbi vásárlások” doboza mindig a teljes listát mutatja.
+  $('#dashTable').innerHTML=head+'<tbody>'+(all.length?all.slice(0,6).map(purchaseRow).join(''):'<tr><td colspan="8" class="t-sub" style="padding:18px">Még nincs adat.</td></tr>')+'</tbody>';
+
+  const v=PURSTATUS?all.filter(x=>x.status===PURSTATUS):all;
+  const empty=PURSTATUS?'Ebben az állapotban nincs utalvány a kiválasztott egységre/időszakra.':'Még nincs adat.';
+  const rows=v.length?v.map(purchaseRow).join(''):'<tr><td colspan="8" class="t-sub" style="padding:22px">'+empty+'</td></tr>';
+  $('#purchasesTable').innerHTML=head+'<tbody>'+rows+'</tbody>';
+  $('#purCount').textContent=v.length?(nf(v.length)+' tétel'+(PURSTATUS?(' · '+money(v.reduce((s,x)=>s+(+x.amount||0),0))):'')):'';
+}
+$('#purStatus').addEventListener('change',e=>{PURSTATUS=e.target.value;renderPurchases();});
+function daysPill(d){
+  if(d<0)return '<span class="pill p-expired">lejárt</span>';
+  if(d<=14)return '<span class="pill p-expsoon">'+d+' nap</span>';
+  return '<span class="pill p-redeemed">'+d+' nap</span>';
+}
+function expRow(x){
+  const d=daysLeft(x.valid_until);
+  const email=x.buyer_email||x.delivery_email||'';
+  let rem;
+  if(x.reminder_sent_at){
+    rem='<span class="rem-done" title="Utolsó emlékeztető">✓ '+esc(fdate(x.reminder_sent_at))+'</span>'+
+      (email?'<button class="rem-btn" data-remind="'+esc(x.serial)+'" data-unit="'+esc(x.unit)+'" data-force="1">Újra</button>':'');
+  } else if(email) rem='<button class="rem-btn" data-remind="'+esc(x.serial)+'" data-unit="'+esc(x.unit)+'">E-mail</button>';
+  else rem='<span class="t-sub" title="Nincs e-mail cím">nincs e-mail</span>';
+  return '<div class="exp-item" data-serial="'+esc(x.serial)+'" data-unit="'+esc(x.unit)+'"><div><div class="exp-serial">'+esc(x.serial)+'</div><div class="exp-sub">'+esc(shortName(x.unit))+' · '+esc(x.buyer_name||x.giver_name||'—')+' · lejár: '+fdate(x.valid_until)+'</div></div><div class="days" style="display:flex;align-items:center;gap:10px">'+rem+(d===null?'':daysPill(d))+'</div></div>';
+}
+async function sendReminder(unit,serial,btn){
+  const force=!!(btn&&btn.dataset&&btn.dataset.force);
+  if(force && !confirm('Már küldtünk emlékeztetőt erre. Küldesz újat?')) return;
+  btn.disabled=true; const o=btn.textContent; btn.textContent='Küldés…';
+  try{
+    const r=await fetch('/api/reminder',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({unit,serial,force})});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok&&j.ok){
+      if(!j.sent && j.email){ window.location='mailto:'+encodeURIComponent(j.email)+'?subject='+encodeURIComponent(j.subject||'')+'&body='+encodeURIComponent(j.text||''); }
+      setTimeout(refresh,400);
+    } else { alert(j.error||'Nem sikerült elküldeni.'); btn.disabled=false; btn.textContent=o; }
+  }catch(e){ alert('Hiba: '+(e.message||e)); btn.disabled=false; btn.textContent=o; }
+}
+let EXPQ='', EXPTAB='soon';
+function expMatch(x,q){
+  if(!q) return true;
+  const nz=s=>String(s||'').toLowerCase();
+  return nz(x.serial).includes(q)||nz(x.buyer_name).includes(q)||nz(x.giver_name).includes(q)||
+    nz(x.recipient_name).includes(q)||nz(x.buyer_email).includes(q)||nz(x.delivery_email).includes(q)||nz(x.buyer_phone).includes(q);
+}
+function renderExpiry(){
+  // Az „expired” státuszú (importált) tételek is ide tartoznak — nélkülük egy
+  // lejártként feltöltött utalvány sehol nem jelenne meg a lejáratok között.
+  const all=filt(DATA.vouchers).filter(x=>(x.status==='active'||x.status==='expired')&&x.valid_until)
+    .map(x=>({x,d:daysLeft(x.valid_until)})).sort((a,b)=>a.d-b.d);
+  // A menü jelvénye teendőt jelez, nem tényt: amiről már ment értesítő, azzal
+  // nincs több dolgunk, ezért nem számoljuk bele. (A „14 napon belül lejár”
+  // mutató az áttekintőn továbbra is a teljes darabszámot mutatja.)
+  const soon=all.filter(e=>e.d>=0&&e.d<=14&&!e.x.reminder_sent_at).length;
+  const c=$('#expCount');
+  if(soon>0){ c.style.display=''; c.textContent=soon; c.title=soon+' utalvány jár le 14 napon belül, és még nem ment róla értesítő'; }
+  else c.style.display='none';
+  const near=all.filter(e=>e.d>=0).slice(0,5);
+  $('#dashExpiry').innerHTML=near.length?near.map(e=>expRow(e.x)).join(''):'<div class="exp-item"><span class="t-sub">Nincs közelgő lejárat.</span></div>';
+  // A Lejáratok nézet két fülre bomlik: a napi munkában a közelgő lejáratok
+  // számítanak, a már lejártak viszont ne vesszenek el — átválthatóan.
+  const v=EXPQ?all.filter(e=>expMatch(e.x,EXPQ)):all;
+  const soonList=v.filter(e=>e.d>=0);
+  // A legutóbb lejárt kerüljön elöl.
+  const goneList=v.filter(e=>e.d<0).sort((a,b)=>b.d-a.d);
+
+  $('#expiryCard').innerHTML=soonList.length?soonList.map(e=>expRow(e.x)).join('')
+    :'<div class="empty"><p>'+(EXPQ?'Nincs találat erre a keresésre a közelgők között.':'Nincs lejárat előtt álló utalvány.')+'</p></div>';
+  $('#expiredList').innerHTML=goneList.length?goneList.map(e=>expRow(e.x)).join('')
+    :'<div class="empty"><p>'+(EXPQ?'Nincs találat erre a keresésre a lejártak között.':'Nincs lejárt utalvány.')+'</p></div>';
+
+  const cnt=$('#expiredCount');
+  cnt.textContent=nf(goneList.length);
+  cnt.hidden=!goneList.length;
+  const sum=goneList.reduce((a,e)=>a+(+e.x.amount||0),0);
+  $('#expIntro').textContent = EXPTAB==='gone'
+    ? ('A már lejárt utalványok, a legutóbb lejárttal elöl.'+(goneList.length?' Összesen '+money(sum)+'.':''))
+    : 'A még érvényes utalványok, sürgősség szerint.';
+}
+$('#expSearch').addEventListener('input',e=>{EXPQ=e.target.value.trim().toLowerCase();renderExpiry();});
+document.querySelectorAll('.etab').forEach(t=>t.onclick=()=>{
+  EXPTAB=t.dataset.etab;
+  document.querySelectorAll('.etab').forEach(x=>x.classList.toggle('active',x===t));
+  document.querySelectorAll('.epane').forEach(p=>p.classList.toggle('show',p.id==='epane-'+EXPTAB));
+  renderExpiry();
+});
+
+// ---- cashier (élő kereső) ----
+function cashRow(v){
+  // Az utalványon az ajándékozó és a megajándékozott neve szerepel, a vásárlóé
+  // nem — a kasszás ezekkel tud egyeztetni, ezért ezeket mutatjuk elöl.
+  const who=v.giver_name||v.buyer_name||'—';
+  const to=v.recipient_name?' → '+esc(v.recipient_name):'';
+  // A státusz önmagában megtévesztő: egy lejárt utalvány is „Aktív” marad, amíg
+  // valaki be nem váltja. A kasszás már a találati listában lássa, hogy lejárt.
+  const dl=daysLeft(v.valid_until);
+  const late=v.status==='active'&&dl!==null&&dl<0?'<span class="pill p-expired">lejárt</span>':'';
+  return '<div class="cash-hit" data-serial="'+esc(v.serial)+'" data-unit="'+esc(v.unit)+'">'+
+    '<div style="min-width:0"><div class="mono" style="font-weight:600">'+esc(v.serial)+'</div>'+
+    '<div class="t-sub">'+esc(shortName(v.unit))+' · '+esc(who)+to+'</div></div>'+
+    '<div style="margin-left:auto;display:flex;align-items:center;gap:10px"><span class="tnum t-strong">'+money(v.amount)+'</span>'+late+statusPill(v.status)+'</div></div>';
+}
+function searchCashier(q){
+  q=(q||'').trim().toLowerCase();
+  const listCard=$('#cashListCard'), list=$('#cashList');
+  $('#cashResult').classList.add('hidden');
+  if(q.length<2){ listCard.style.display='none'; list.innerHTML=''; return; }
+  const nz=s=>String(s||'').toLowerCase();
+  let matches=DATA.vouchers.filter(v=>
+    nz(v.serial).includes(q)||nz(v.buyer_name).includes(q)||nz(v.giver_name).includes(q)||
+    nz(v.recipient_name).includes(q)||nz(v.buyer_email).includes(q)||nz(v.buyer_phone).includes(q));
+  if(currentUnit!=='all') matches=matches.filter(v=>v.unit===currentUnit);
+  matches.sort((a,b)=>((a.status==='active'?0:1)-(b.status==='active'?0:1))||psort(b).localeCompare(psort(a)));
+  const total=matches.length; matches=matches.slice(0,30);
+  listCard.style.display='';
+  list.innerHTML=(matches.length?matches.map(cashRow).join(''):'<div class="empty" style="padding:18px">Nincs találat.</div>')+
+    (total>matches.length?'<div class="t-sub" style="padding:10px 16px">+ '+(total-matches.length)+' további találat — pontosíts a keresésen.</div>':'');
+}
+// `exp`: a szerver válasza, ha lejártra hivatkozva utasította el a beváltást
+// ({valid_until}). Ilyenkor rajzoljuk a felülbíráló gombot.
+function showVoucherDetail(unit,serial,exp){
+  const v=DATA.vouchers.find(x=>String(x.unit)===String(unit)&&String(x.serial)===String(serial));
+  const box=$('#cashResult');
+  if(!v){ box.classList.add('hidden'); return; }
+  const d=daysLeft(v.valid_until);
+  // A lejáratról a SZERVER dönt, nem ez a lista: a listában lévő érvényességi
+  // dátum származtatott is lehet (hiányzó adatból visszaszámolt), és a böngésző
+  // naptára sem feltétlenül a szerveré. Aktív utalványnál tehát a szokásos
+  // gombot rajzoljuk; ha a szerver lejártra hivatkozva elutasítja, ez a doboz
+  // újrarajzolódik a felülbíráló gombbal — már a szerver dátumával.
+  // A `expired` státuszú utalványnál viszont nincs mit kipróbálni: az tény.
+  const expired = v.status==='expired' || !!exp;
+  const redeemable = v.status==='active' && !exp;
+  const expValid = (exp&&exp.valid_until)||v.valid_until;
+  box.classList.remove('hidden');
+  box.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center"><div class="mono" style="font-size:16px;font-weight:700">'+esc(v.serial)+'</div>'+statusPill(v.status)+'</div>'+
+    '<div class="res-grid"><div><span class="res-k">Egység</span><span class="res-v">'+esc(shortName(v.unit))+'</span></div>'+
+    '<div><span class="res-k">Érték</span><span class="res-v">'+money(v.amount)+'</span></div>'+
+    '<div><span class="res-k">Ajándékozó</span><span class="res-v">'+esc(v.giver_name||v.buyer_name||'—')+'</span></div>'+
+    '<div><span class="res-k">Megajándékozott</span><span class="res-v">'+esc(v.recipient_name||'—')+'</span></div>'+
+    (v.buyer_name&&v.buyer_name!==v.giver_name?'<div><span class="res-k">Vásárló</span><span class="res-v">'+esc(v.buyer_name)+'</span></div>':'')+
+    '<div><span class="res-k">Érvényes</span><span class="res-v">'+fdate(v.valid_until)+(d!=null&&v.status==='active'?(d<0?' (lejárt)':' ('+d+' nap)'):'')+'</span></div>'+
+    (v.status==='redeemed'?'<div><span class="res-k">Beváltva</span><span class="res-v">'+(v.redeemed_at?fdate(v.redeemed_at)+' '+ftime(v.redeemed_at):'—')+(v.redeemed_by?' · '+esc(v.redeemed_by):'')+'</span></div>':'')+
+    '</div>'+
+    (redeemable?'<button class="btn" id="redeemBtn">Beváltás</button><p class="res-msg" id="redeemMsg"></p>'
+      :(v.status==='redeemed'
+        ? '<p class="res-msg">Ezt az utalványt már felhasználták.</p><button class="btn ghost" id="unredeemBtn">Téves beváltás — visszaállítás aktívra</button><p class="res-msg" id="redeemMsg"></p>'
+        : expired
+          ? '<p class="res-msg err">Ez az utalvány <b>lejárt</b> (érvényes volt: '+fdate(expValid)+'). Beváltható, de a kasszazárásban és a naplóban külön jelenik meg.</p>'+
+            '<button class="btn" id="redeemBtn" data-force="1">Beváltás lejárt utalvánnyal</button><p class="res-msg" id="redeemMsg"></p>'
+          : '<p class="res-msg err">Nem beváltható ('+statusPill(v.status)+').</p>'));
+  box.scrollIntoView({block:'nearest'});
+  const ub=$('#unredeemBtn');
+  if(ub) ub.onclick=async()=>{
+    const ok=await unredeem(v.unit,v.serial,ub);
+    if(ok) showVoucherDetail(v.unit,v.serial);
+  };
+  const rb=$('#redeemBtn');
+  if(rb) rb.onclick=async()=>{
+    // A lejárt utalványt csak kifejezett rákérdezés után váltjuk be — ugyanaz a
+    // minta, mint az emlékeztető ismételt kiküldésénél.
+    const force=!!(rb.dataset&&rb.dataset.force);
+    if(force&&!confirm('Ez az utalvány lejárt (érvényes volt: '+fdate(expValid)+'). Biztosan beváltod?')) return;
+    rb.disabled=true; const msg=$('#redeemMsg');
+    try{
+      const r=await fetch('/api/redeem',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({serial:v.serial,unit:v.unit,force})});
+      const j=await r.json();
+      if(r.ok&&j.ok){ msg.className='res-msg ok'; msg.textContent=j.expired?'Beváltva (lejárt utalvány) – naplózva.':'Beváltva – naplózva.'; rb.remove(); v.status='redeemed'; setTimeout(refresh,600); }
+      // A szerver mondta ki, hogy lejárt: újrarajzoljuk a dobozt a felülbíráló
+      // gombbal, immár a szervertől kapott érvényességi dátummal.
+      else if(j.expired&&!force){ showVoucherDetail(v.unit,v.serial,{valid_until:j.valid_until}); }
+      else { msg.className='res-msg err'; msg.textContent=j.error||'Beváltás sikertelen.'; rb.disabled=false; }
+    }catch(e){ msg.className='res-msg err'; msg.textContent='Hálózati hiba.'; rb.disabled=false; }
+  };
+}
+$('#cashInput').addEventListener('input',e=>searchCashier(e.target.value));
+$('#cashList').addEventListener('click',e=>{const it=e.target.closest('.cash-hit'); if(it) showVoucherDetail(it.dataset.unit,it.dataset.serial);});
+
+// ---- kassza: beváltott (felhasznált) utalványok + visszaállítás ----
+// A napi önellenőrzéshez: csak a beváltottak, beváltás dátuma szerint szűrve, összegezve.
+let RED={mode:'today',from:'',to:''};
+function ymdLocal(d){return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10);}
+function redRange(){
+  const now=new Date();
+  if(RED.mode==='custom') return {from:RED.from,to:RED.to};
+  if(RED.mode==='today'){const t=ymdLocal(now);return{from:t,to:t};}
+  if(RED.mode==='yesterday'){const d=new Date(now);d.setDate(d.getDate()-1);const t=ymdLocal(d);return{from:t,to:t};}
+  if(RED.mode==='7'){const d=new Date(now);d.setDate(d.getDate()-6);return{from:ymdLocal(d),to:ymdLocal(now)};}
+  if(RED.mode==='month'){return{from:ymdLocal(new Date(now.getFullYear(),now.getMonth(),1)),to:ymdLocal(now)};}
+  return {from:'',to:''}; // összes
+}
+function inRedRange(ts,r){
+  const d=String(ts||'').slice(0,10);
+  if(!d) return !r.from&&!r.to;   // dátum nélküli (importált) beváltás csak az „Összes”-ben
+  if(r.from&&d<r.from) return false;
+  if(r.to&&d>r.to) return false;
+  return true;
+}
+// A keresés a listát szűri; a nagy összesítő marad az időszak (kasszazárás) összege.
+let REDQ='';
+const nz=s=>String(s||'').toLowerCase();
+// A kereső a vásárló adatai mellett a MŰVELETET VÉGZŐ nevére és belépési
+// e-mail-címére is illeszkedik (beváltó, visszaállító).
+function redMatch(v,q){ return expMatch(v,q)||nz(v.redeemed_by).includes(q)||nz(v.redeemed_by_email).includes(q); }
+function logMatch(x,q){
+  const v=findVoucher(x.unit,x.serial);
+  return nz(x.serial).includes(q)||nz(x.user_name).includes(q)||nz(x.user_email).includes(q)||
+    nz(x.prev_redeemed_by).includes(q)||nz(x.prev_redeemed_by_email).includes(q)||(v?redMatch(v,q):false);
+}
+// „Név” + alatta a belépési e-mail (ha van és nem ugyanaz, mint a név).
+function actorCell(name,email){
+  if(!name&&!email) return '—';
+  const n=name||email;
+  return esc(n)+((email&&email!==n)?'<div class="t-sub">'+esc(email)+'</div>':'');
+}
+function redPeriodLabel(r){
+  if(!r.from&&!r.to) return 'Teljes időszak';
+  if(r.from&&r.from===r.to) return fdate(r.from);
+  return (r.from?fdate(r.from):'…')+' – '+(r.to?fdate(r.to):'…');
+}
+// A beváltás idejét admin és egység-kezelő javíthatja (pl. ha csak másnap rögzítették).
+function canRetime(){ return CFG.role==='superadmin'||CFG.role==='unit_manager'; }
+// Soron látható jelölés: a beváltás napja későbbi az érvényesség végénél.
+// Kiegészítés, nem bizonyíték — a hiteles nyom a napló `redeem_expired` sora
+// (az összesítő abból számol). Ez a jelölés viszont a bolti kasszán beváltott,
+// felküldött utalványokat is megmutatja, amikhez nincs vezérlőpulti naplósor.
+function redeemedAfterExpiry(v){
+  if(!v.redeemed_at||!v.valid_until) return false;
+  return String(v.redeemed_at).slice(0,10) > String(v.valid_until).slice(0,10);
+}
+function redRow(v){
+  const giver=v.giver_name||v.buyer_name||'—';
+  const when=v.redeemed_at
+    ? fdate(v.redeemed_at)+'<div class="t-sub">'+ftime(v.redeemed_at)+
+      (canRetime()?' <button class="tact" data-retime="'+esc(v.serial)+'" data-unit="'+esc(v.unit)+'" title="A beváltás idejének javítása">módosít</button>':'')+'</div>'
+    : '<span class="t-sub">nincs adat</span>';
+  return '<tr class="clickable" data-serial="'+esc(v.serial)+'" data-unit="'+esc(v.unit)+'">'+
+    '<td class="tnum">'+when+'</td>'+
+    '<td>'+uchip(v.unit)+'</td>'+
+    '<td class="mono t-sub">'+esc(v.serial)+(redeemedAfterExpiry(v)?' <span class="pill p-expired">lejárt</span>':'')+'</td>'+
+    '<td class="t-strong">'+esc(giver)+(v.buyer_name&&v.buyer_name!==giver?'<div class="t-sub">vásárló: '+esc(v.buyer_name)+'</div>':'')+'</td>'+
+    '<td class="t-strong">'+esc(v.recipient_name||'—')+'</td>'+
+    '<td>'+actorCell(v.redeemed_by,v.redeemed_by_email)+'</td>'+
+    '<td class="t-strong tnum">'+money(v.amount)+'</td>'+
+    '<td style="text-align:right;white-space:nowrap"><button class="tact danger" data-unredeem="'+esc(v.serial)+'" data-unit="'+esc(v.unit)+'">Visszaállítás</button></td></tr>';
+}
+function renderRedeemed(){
+  if(!$('#redTable')) return;
+  const r=redRange();
+  let all=DATA.vouchers.filter(v=>v.status==='redeemed'&&inRedRange(v.redeemed_at,r));
+  if(currentUnit!=='all') all=all.filter(v=>v.unit===currentUnit);
+  all.sort((a,b)=>String(b.redeemed_at||'').localeCompare(String(a.redeemed_at||'')));
+  const total=all.reduce((s,x)=>s+(+x.amount||0),0);
+
+  // Az összesítő az egész időszakra vonatkozik (ez a kasszazárás száma), a keresés csak a listát szűri.
+  let sum='<div class="rs"><span class="rs-k">Beváltott utalvány</span><span class="rs-v">'+nf(all.length)+' db</span></div>'+
+    '<div class="rs"><span class="rs-k">Összesen</span><span class="rs-v">'+money(total)+'</span></div>';
+  if(currentUnit==='all'&&CFG.shops.length>1){
+    CFG.shops.forEach(sh=>{
+      const u=all.filter(x=>x.unit===sh.slug);
+      if(!u.length) return;
+      sum+='<div class="rs sub"><span class="rs-k">'+esc(shortName(sh.slug))+'</span><span class="rs-v">'+
+        money(u.reduce((a,x)=>a+(+x.amount||0),0))+' <span class="t-sub">('+u.length+' db)</span></span></div>';
+    });
+  }
+  // Ha volt visszaállítás az időszakban, az összesítőben is látszik — a nap végi
+  // egyeztetésnél ez magyarázza, ha kevesebb a beváltás, mint amire számítasz.
+  let undone=(DATA.log||[]).filter(x=>x.action==='unredeem'&&inRedRange(x.created_at,r));
+  if(currentUnit!=='all') undone=undone.filter(x=>x.unit===currentUnit);
+  if(undone.length){
+    sum+='<div class="rs warn"><span class="rs-k">Visszaállítva</span><span class="rs-v">'+
+      undone.length+' db · '+money(undone.reduce((a,x)=>a+(+x.amount||0),0))+'</span></div>';
+  }
+  // Lejárt utalvánnyal elfogadott beváltások — ez könyvelési döntés, ezért a
+  // kasszazárás összesítőjében külön is látszik, hány volt és mennyiért.
+  // A szám forrása a NAPLÓ (`redeem_expired`), nem a soron látható jelölés:
+  // a napló akkor is pontos marad, ha valaki utólag javítja a beváltás idejét.
+  let late=(DATA.log||[]).filter(x=>x.action==='redeem_expired'&&inRedRange(x.created_at,r));
+  if(currentUnit!=='all') late=late.filter(x=>x.unit===currentUnit);
+  if(late.length){
+    sum+='<div class="rs warn"><span class="rs-k">Lejárt utalvány beváltva</span><span class="rs-v">'+
+      late.length+' db · '+money(late.reduce((a,x)=>a+(+x.amount||0),0))+'</span></div>';
+  }
+  $('#redSum').innerHTML=sum;
+
+  const list=REDQ?all.filter(v=>redMatch(v,REDQ)):all;
+  $('#redPeriod').textContent=redPeriodLabel(r)+
+    (REDQ?' · '+list.length+' találat · '+money(list.reduce((s,x)=>s+(+x.amount||0),0)):'');
+
+  const head='<thead><tr><th>Beváltva</th><th>Egység</th><th>Sorszám</th><th>Ajándékozó</th><th>Megajándékozott</th><th>Beváltotta</th><th>Érték</th><th></th></tr></thead>';
+  const empty=REDQ
+    ? 'Nincs találat erre a keresésre ebben az időszakban — próbáld az „Összes” gombbal.'
+    : 'Ebben az időszakban nincs beváltott utalvány.';
+  const rows=list.length?list.map(redRow).join('')
+    :'<tr><td colspan="8" class="t-sub" style="padding:22px">'+empty+'</td></tr>';
+  $('#redTable').innerHTML=head+'<tbody>'+rows+'</tbody>';
+
+  renderRedeemLog(r);
+}
+// Visszaállított (téves) beváltások — a beváltásból visszavett tétel eltűnik a fenti
+// listából, ezért itt marad nyoma: mi volt az eredeti beváltás, ki vette vissza és mikor.
+function renderRedeemLog(r){
+  // Visszaállítás és időpont-javítás egy helyen: mindkettő utólag változtat a
+  // napi összesítőn, ezért mindkettőnek látszania kell.
+  let log=(DATA.log||[]).filter(x=>(x.action==='unredeem'||x.action==='retime')&&inRedRange(x.created_at,r));
+  if(currentUnit!=='all') log=log.filter(x=>x.unit===currentUnit);
+  if(REDQ) log=log.filter(x=>logMatch(x,REDQ));
+  log.sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||'')));
+  const sum=log.reduce((a,x)=>a+(+x.amount||0),0);
+  $('#redLogPeriod').textContent=log.length?(log.length+' db · '+money(sum)):'';
+  const head='<thead><tr><th>Mikor</th><th>Művelet</th><th>Egység</th><th>Sorszám</th><th>Vásárló</th><th>Érték</th>'+
+    '<th>Ki</th><th>Eredeti beváltás</th><th>Jelenlegi állapot</th></tr></thead>';
+  const rows=log.length?log.map(x=>{
+    const v=findVoucher(x.unit,x.serial);
+    const who=v?(v.buyer_name||v.giver_name||v.recipient_name||'—'):'—';
+    const contact=v?(v.buyer_email||v.delivery_email||v.buyer_phone||''):'';
+    const origWho=[x.prev_redeemed_by,x.prev_redeemed_by_email].filter((z,i,a)=>z&&a.indexOf(z)===i).join(' · ');
+    const orig=x.prev_redeemed_at
+      ? fdate(x.prev_redeemed_at)+' '+ftime(x.prev_redeemed_at)+(origWho?'<div class="t-sub">'+esc(origWho)+'</div>':'')
+      : '<span class="t-sub">nincs adat</span>';
+    // Csak akkor kattintható, ha az utalvány tényleg a betöltött adatok közt van.
+    const attrs=v?' class="clickable" title="Kattints az adatlapért" data-serial="'+esc(x.serial)+'" data-unit="'+esc(x.unit)+'"':'';
+    const act=x.action==='retime'
+      ? '<span class="pill p-processing">idő javítva</span>'+(x.note?'<div class="t-sub">'+esc(x.note)+'</div>':'')
+      : '<span class="pill p-expsoon">visszaállítva</span>';
+    return '<tr'+attrs+'>'+
+      '<td class="tnum">'+fdate(x.created_at)+'<div class="t-sub">'+ftime(x.created_at)+'</div></td>'+
+      '<td>'+act+'</td>'+
+      '<td>'+uchip(x.unit)+'</td>'+
+      '<td class="mono t-sub">'+esc(x.serial)+'</td>'+
+      '<td class="t-strong">'+esc(who)+(contact?'<div class="t-sub">'+esc(contact)+'</div>':'')+'</td>'+
+      '<td class="t-strong tnum">'+money(x.amount)+'</td>'+
+      '<td>'+actorCell(x.user_name,x.user_email)+'</td>'+
+      '<td class="tnum">'+orig+'</td>'+
+      '<td>'+(v?statusPill(v.status):'<span class="t-sub">—</span>')+'</td></tr>';
+  }).join('')
+   :'<tr><td colspan="9" class="t-sub" style="padding:22px">'+
+     (REDQ?'Nincs találat erre a keresésre.':'Ebben az időszakban nem volt utólagos javítás.')+'</td></tr>';
+  $('#redLogTable').innerHTML=head+'<tbody>'+rows+'</tbody>';
+  renderDeleteLog(r);
+}
+// Véglegesen törölt utalványok. A sor eltűnt az adatbázisból, ezért itt csak az
+// marad, amit a törlés pillanatában elmentettünk — enélkül nyomtalan lenne.
+function renderDeleteLog(r){
+  const card=$('#delLogCard'); if(!card) return;
+  if(CFG.role!=='superadmin'){ card.style.display='none'; return; }
+  // A feloldott törléseket nem soroljuk fel újra — a sor visszakerülhet a listába.
+  const undone=new Set((DATA.log||[]).filter(x=>x.action==='undelete').map(x=>x.unit+'|'+x.serial));
+  let log=(DATA.log||[]).filter(x=>x.action==='delete'&&!undone.has(x.unit+'|'+x.serial)&&inRedRange(x.created_at,r));
+  if(currentUnit!=='all') log=log.filter(x=>x.unit===currentUnit);
+  if(REDQ) log=log.filter(x=>logMatch(x,REDQ)||String(x.note||'').toLowerCase().includes(REDQ));
+  card.style.display=log.length?'':'none';
+  if(!log.length) return;
+  log.sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||'')));
+  $('#delLogPeriod').textContent=log.length+' db · '+money(log.reduce((a,x)=>a+(+x.amount||0),0));
+  const head='<thead><tr><th>Törölve</th><th>Egység</th><th>Sorszám</th><th>Adatai a törlés előtt</th><th>Érték</th><th>Törölte</th><th></th></tr></thead>';
+  $('#delLogTable').innerHTML=head+'<tbody>'+log.map(x=>
+    '<tr>'+
+    '<td class="tnum">'+fdate(x.created_at)+'<div class="t-sub">'+ftime(x.created_at)+'</div></td>'+
+    '<td>'+uchip(x.unit)+'</td>'+
+    '<td class="mono t-sub">'+esc(x.serial)+'</td>'+
+    '<td class="t-sub">'+esc(x.note||'—')+'</td>'+
+    '<td class="t-strong tnum">'+money(x.amount)+'</td>'+
+    '<td>'+actorCell(x.user_name,x.user_email)+'</td>'+
+    '<td style="text-align:right;white-space:nowrap"><button class="tact" data-undel="'+esc(x.serial)+'" data-unit="'+esc(x.unit)+'" title="A tiltás feloldása — a bolt következő szinkronja visszahozhatja">Visszaengedés</button></td>'+
+    '</tr>').join('')+'</tbody>';
+}
+// A törlés feloldása. Magát az utalványt nem itt hozzuk vissza: a tiltás
+// megszűnik, és a bolt következő szinkronja (vagy egy import) tölti be újra.
+$('#delLogTable').addEventListener('click',async e=>{
+  const b=e.target.closest('[data-undel]'); if(!b) return;
+  if(!confirm('Feloldod a törlést? Az utalvány nem jelenik meg azonnal — a bolt következő szinkronja vagy egy újbóli import hozza vissza.')) return;
+  b.disabled=true; const o=b.textContent; b.textContent='…';
+  try{
+    const r=await fetch('/api/delete',{method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({action:'undelete',unit:b.dataset.unit,serial:b.dataset.undel})});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok&&j.ok){ refresh(true); } else { alert(j.error||'Nem sikerült feloldani.'); b.disabled=false; b.textContent=o; }
+  }catch(err){ alert('Hálózati hiba.'); b.disabled=false; b.textContent=o; }
+});
+$('#redLogTable').addEventListener('click',e=>{
+  const tr=e.target.closest('tr[data-serial]');
+  if(tr&&tr.dataset.serial) openProfile(tr.dataset.unit,tr.dataset.serial);
+});
+async function unredeem(unit,serial,btn){
+  const v=findVoucher(unit,serial);
+  if(!confirm('Visszaállítod aktívra ezt az utalványt?\n\n'+serial+(v?(' · '+money(v.amount)):'')+'\n\nA visszaállítás naplózódik.')) return;
+  const o=btn.textContent; btn.disabled=true; btn.textContent='Visszaállítás…';
+  try{
+    const rs=await fetch('/api/unredeem',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({serial,unit})});
+    const j=await rs.json().catch(()=>({}));
+    if(rs.ok&&j.ok){
+      if(v){v.status='active';v.redeemed_at=null;v.redeemed_by=null;}
+      renderAll(); refresh();
+      return true;
+    }
+    alert(j.error||'A visszaállítás nem sikerült.');
+  }catch(e){ alert('Hiba: '+(e.message||e)); }
+  btn.disabled=false; btn.textContent=o;
+  return false;
+}
+$('#redTable').addEventListener('click',e=>{
+  const ub=e.target.closest('[data-unredeem]');
+  if(ub){ unredeem(ub.dataset.unit,ub.dataset.unredeem,ub); return; }
+  const rt=e.target.closest('[data-retime]');
+  if(rt){ e.stopPropagation(); openRetime(rt); return; }
+  const tr=e.target.closest('tr[data-serial]');
+  if(tr&&tr.dataset.serial) openProfile(tr.dataset.unit,tr.dataset.serial);
+});
+// A beváltás idejének javítása helyben, a sor dátum-cellájában.
+function openRetime(btn){
+  const cell=btn.closest('td'); if(!cell||cell.querySelector('.retime')) return;
+  const unit=btn.dataset.unit, serial=btn.dataset.retime;
+  const v=DATA.vouchers.find(x=>x.unit===unit&&x.serial===serial);
+  const cur=String((v&&v.redeemed_at)||'').replace(' ','T').slice(0,16);
+  const box=document.createElement('div');
+  box.className='retime';
+  box.innerHTML='<input class="fi" type="datetime-local" value="'+esc(cur)+'">'+
+    '<button class="btn">Mentés</button><button class="tact">Mégse</button><span class="rt-msg"></span>';
+  cell.appendChild(box);
+  const inp=box.querySelector('input'), save=box.querySelector('.btn'), cancel=box.querySelector('.tact'), msg=box.querySelector('.rt-msg');
+  box.addEventListener('click',ev=>ev.stopPropagation());
+  cancel.onclick=()=>box.remove();
+  inp.focus();
+  save.onclick=async()=>{
+    if(!inp.value){ msg.textContent='Adj meg időpontot.'; return; }
+    save.disabled=true; const o=save.textContent; save.textContent='Mentés…'; msg.textContent='';
+    try{
+      const r=await fetch('/api/redeemtime',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({unit,serial,at:inp.value})});
+      const j=await r.json().catch(()=>({}));
+      if(r.ok&&j.ok){ box.remove(); refresh(true); }
+      else { msg.textContent=j.error||'Nem sikerült.'; save.disabled=false; save.textContent=o; }
+    }catch(err){ msg.textContent='Hálózati hiba.'; save.disabled=false; save.textContent=o; }
+  };
+}
+document.querySelectorAll('#sec-cashier .ctab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('#sec-cashier .ctab').forEach(x=>x.classList.toggle('active',x===t));
+  document.querySelectorAll('#sec-cashier .cpane').forEach(p=>p.classList.toggle('show',p.id==='cpane-'+t.dataset.ctab));
+  if(t.dataset.ctab==='done') renderRedeemed(); else $('#cashInput').focus();
+});
+document.querySelectorAll('#redQuick .chipbtn').forEach(b=>b.onclick=()=>{
+  RED.mode=b.dataset.rq;
+  document.querySelectorAll('#redQuick .chipbtn').forEach(x=>x.classList.toggle('active',x===b));
+  const r=redRange(); $('#redFrom').value=r.from; $('#redTo').value=r.to;
+  renderRedeemed();
+});
+$('#redSearch').addEventListener('input',e=>{REDQ=e.target.value.trim().toLowerCase();renderRedeemed();});
+['#redFrom','#redTo'].forEach(sel=>$(sel).addEventListener('change',()=>{
+  RED.mode='custom'; RED.from=$('#redFrom').value; RED.to=$('#redTo').value;
+  document.querySelectorAll('#redQuick .chipbtn').forEach(x=>x.classList.remove('active'));
+  renderRedeemed();
+}));
+(function initRedDates(){const r=redRange();$('#redFrom').value=r.from;$('#redTo').value=r.to;})();
+
+// ---- nav / ui ----
+const titles={dash:'Áttekintés',purchases:'Vásárlások',expiry:'Lejáratok',cashier:'Kassza – beváltás',users:'Felhasználók',io:'Import / export'};
+document.querySelectorAll('.nav').forEach(n=>n.onclick=()=>{
+  document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x===n));
+  document.querySelectorAll('.section').forEach(s=>s.classList.toggle('show',s.id==='sec-'+n.dataset.sec));
+  $('#pageTitle').textContent=titles[n.dataset.sec];
+  $('#sidebar').classList.remove('open');
+  // A fejléc időszak-szűrője a kezelő-nézeteken nem releváns.
+  $('#period').style.display=(['cashier','io','users','email'].includes(n.dataset.sec))?'none':'';
+  if(n.dataset.sec==='users') loadUsers();
+  if(n.dataset.sec==='io') initIO();
+  if(n.dataset.sec==='email') loadEmailSettings();
+});
+
+// ---- import / export ----
+function fileToBase64(file){
+  return file.arrayBuffer().then(ab=>{
+    const bytes=new Uint8Array(ab);
+    let bin='';
+    for(let i=0;i<bytes.length;i+=0x8000) bin+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000));
+    return btoa(bin);
+  });
+}
+function initIO(){
+  const imp=$('#ioImpUnit'), exp=$('#ioExpUnit');
+  if(!imp||!exp) return;
+  imp.innerHTML=CFG.shops.map(s=>'<option value="'+s.slug+'">'+shortName(s.slug)+'</option>').join('')||'<option value="">Nincs egység</option>';
+  const expOpts=(CFG.shops.length>1?['<option value="">Összes egység</option>']:[])
+    .concat(CFG.shops.map(s=>'<option value="'+s.slug+'">'+shortName(s.slug)+'</option>'));
+  exp.innerHTML=expOpts.join('');
+  $('#ioMsg').textContent='';
+}
+$('#ioExport').onclick=async()=>{
+  const msg=$('#ioExpMsg'); msg.className='uerr'; msg.textContent='';
+  const u=$('#ioExpUnit').value, from=$('#ioExpFrom').value, to=$('#ioExpTo').value, st=$('#ioExpStatus').value;
+  const q=[];
+  if(u)q.push('unit='+encodeURIComponent(u));
+  if(st)q.push('status='+encodeURIComponent(st));
+  if(from)q.push('from='+encodeURIComponent(from));
+  if(to)q.push('to='+encodeURIComponent(to));
+  const url='/api/export'+(q.length?('?'+q.join('&')):'');
+  const btn=$('#ioExport'); btn.disabled=true; const o=btn.textContent; btn.textContent='Letöltés…';
+  try{
+    const r=await fetch(url);
+    if(!r.ok){ const j=await r.json().catch(()=>({})); msg.textContent=j.error||'Nincs letölthető adat.'; return; }
+    const blob=await r.blob();
+    let fn='export.csv';
+    const cd=r.headers.get('content-disposition')||'';
+    const m=cd.match(/filename="?([^"]+)"?/); if(m) fn=m[1];
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fn;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  }catch(e){ msg.textContent='Hiba: '+(e.message||e); }
+  finally{ btn.disabled=false; btn.textContent=o; }
+};
+$('#ioImport').onclick=async()=>{
+  const msg=$('#ioMsg'); msg.className='uerr'; msg.textContent='';
+  const unit=$('#ioImpUnit').value;
+  const file=$('#ioFile').files&&$('#ioFile').files[0];
+  if(!unit){ msg.textContent='Válassz egységet.'; return; }
+  if(!file){ msg.textContent='Válassz CSV vagy Excel (.xlsx) fájlt.'; return; }
+  if(file.size>3.5*1024*1024){ msg.textContent='A fájl túl nagy (max. 3,5 MB). Bontsd több részre, vagy mentsd CSV-be.'; return; }
+  const btn=$('#ioImport'); btn.disabled=true; btn.textContent='Importálás…';
+  try{
+    // A CSV szövegként megy (ahogy eddig), az Excel-fájl bájtjai base64-ben.
+    const isText=/\.(csv|txt)$/i.test(file.name);
+    const payload={unit};
+    if(isText) payload.csv=await file.text();
+    else { payload.file=await fileToBase64(file); payload.filename=file.name; }
+    const r=await fetch('/api/import',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok&&j.ok){
+      msg.style.color='var(--good)';
+      // Az azonos sorszámú tétel nem duplikálódik: felülíródik. Ezért külön írjuk ki,
+      // mennyi volt tényleg új és mennyi frissült.
+      const parts=[];
+      if(j.added!=null){ parts.push(j.added+' új'); if(j.updated) parts.push(j.updated+' frissítve (már megvolt)'); }
+      if(j.blocked) parts.push(j.blocked+' korábban törölt, kihagyva');
+      else parts.push(j.imported+' utalvány importálva');
+      if(j.skipped) parts.push(j.skipped+' kihagyva (üres kód)');
+      msg.textContent='Kész: '+parts.join(' · ')+'.';
+      $('#ioFile').value=''; refresh();
+    }else{ msg.style.color=''; msg.textContent=j.error||'Az import nem sikerült.'; }
+  }catch(e){ msg.textContent='Hiba: '+(e.message||e); }
+  finally{ btn.disabled=false; btn.textContent='Importálás'; }
+};
+$('#ioUndo').onclick=async()=>{
+  const msg=$('#ioMsg'); msg.className='uerr'; msg.textContent='';
+  const unit=$('#ioImpUnit').value;
+  if(!unit){ msg.textContent='Válassz egységet.'; return; }
+  const label=$('#ioImpUnit').options[$('#ioImpUnit').selectedIndex].text;
+  if(!confirm('Biztosan törlöd a(z) '+label+' ÖSSZES importált (korábbi) utalványát? Ez nem vonható vissza.')) return;
+  const btn=$('#ioUndo'); btn.disabled=true; btn.textContent='Törlés…';
+  try{
+    const r=await fetch('/api/import',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({unit,mode:'undo'})});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok&&j.ok){ msg.style.color='var(--good)'; msg.textContent='Visszavonva: '+j.deleted+' importált utalvány törölve.'; refresh(); }
+    else { msg.style.color=''; msg.textContent=j.error||'A visszavonás nem sikerült.'; }
+  }catch(e){ msg.textContent='Hiba: '+(e.message||e); }
+  finally{ btn.disabled=false; btn.textContent='Import visszavonása'; }
+};
+// ---- users (superadmin) ----
+let USERS=[], UUNITS=[];
+function roleLabel(r){return ROLE_LABELS[r]||r;}
+async function loadUsers(){
+  if(!CFG.canManageUsers) return;
+  try{
+    const j=await fetch('/api/users').then(r=>r.json());
+    USERS=j.users||[]; UUNITS=j.units||[];
+    fillRoleSelect(); renderUnitChecks([]); renderUsersTable();
+  }catch(e){ $('#uErr').textContent='Nem sikerült betölteni a felhasználókat.'; }
+}
+function fillRoleSelect(){
+  const sel=$('#uRole');
+  sel.innerHTML=['superadmin','unit_manager','cashier'].map(r=>'<option value="'+r+'">'+roleLabel(r)+'</option>').join('');
+  sel.onchange=()=>{ $('#uUnitsWrap').style.display = sel.value==='superadmin'?'none':''; };
+}
+function renderUnitChecks(sel){
+  const set=new Set(sel||[]);
+  $('#uUnits').innerHTML=UUNITS.map(u=>'<label class="chk"><input type="checkbox" value="'+u.slug+'"'+(set.has(u.slug)?' checked':'')+'>'+shortName(u.slug)+'</label>').join('')||'<span class="t-sub">Nincs egység a SHOPS-ban.</span>';
+}
+function selectedUnits(){return [...document.querySelectorAll('#uUnits input:checked')].map(i=>i.value);}
+function renderUsersTable(){
+  const head='<thead><tr><th>Név</th><th>E-mail</th><th>Szerep</th><th>Egységek</th><th>Állapot</th><th></th></tr></thead>';
+  const rows=USERS.length?USERS.map(u=>{
+    const units=u.role==='superadmin'?'<span class="t-sub">összes</span>':((u.units||[]).map(shortName).join(', ')||'—');
+    return '<tr><td class="t-strong">'+(u.name||'—')+'</td><td class="t-sub">'+u.email+'</td>'+
+      '<td><span class="role-tag">'+roleLabel(u.role)+'</span></td><td class="t-sub">'+units+'</td>'+
+      '<td>'+(u.disabled?'<span class="pill p-expired">letiltva</span>':'<span class="pill p-active">aktív</span>')+'</td>'+
+      '<td style="white-space:nowrap;text-align:right"><button class="tact" data-edit="'+u.id+'">Szerkeszt</button>'+
+      '<button class="tact" data-toggle="'+u.id+'">'+(u.disabled?'Enged':'Tilt')+'</button>'+
+      '<button class="tact danger" data-del="'+u.id+'">Töröl</button></td></tr>';
+  }).join(''):'<tr><td colspan="6" class="t-sub" style="padding:20px">Még nincs felhasználó. Vedd fel az elsőt balra.</td></tr>';
+  $('#usersTable').innerHTML=head+'<tbody>'+rows+'</tbody>';
+  document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editUser(+b.dataset.edit));
+  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>delUser(+b.dataset.del));
+  document.querySelectorAll('[data-toggle]').forEach(b=>b.onclick=()=>toggleUser(+b.dataset.toggle));
+}
+function resetUserForm(){
+  $('#uId').value=''; $('#uName').value=''; $('#uEmail').value=''; $('#uPass').value='';
+  $('#uEmail').disabled=false; $('#uEmailHint').style.display='none';
+  $('#uRole').value='cashier'; $('#uRole').onchange();
+  renderUnitChecks([]); $('#uErr').textContent='';
+  $('#userFormTitle').textContent='Új felhasználó'; $('#uSave').textContent='Hozzáadás';
+  $('#uPassLabel').textContent='Jelszó'; $('#uCancel').style.display='none';
+}
+function editUser(id){
+  const u=USERS.find(x=>x.id===id); if(!u)return;
+  $('#uId').value=u.id; $('#uName').value=u.name||''; $('#uEmail').value=u.email; $('#uEmail').disabled=false;
+  $('#uEmailHint').style.display='';
+  $('#uPass').value=''; $('#uRole').value=u.role; $('#uRole').onchange(); renderUnitChecks(u.units||[]);
+  $('#userFormTitle').textContent='Felhasználó szerkesztése'; $('#uSave').textContent='Mentés';
+  $('#uPassLabel').textContent='Új jelszó (üres = marad)'; $('#uCancel').style.display=''; $('#uErr').textContent='';
+  document.querySelector('.nav[data-sec="users"]').scrollIntoView({block:'nearest'});
+}
+$('#uCancel').onclick=resetUserForm;
+$('#userForm').addEventListener('submit',async e=>{
+  e.preventDefault(); $('#uErr').textContent='';
+  const id=$('#uId').value, role=$('#uRole').value;
+  const email=$('#uEmail').value.trim();
+  const payload={action:id?'update':'create',name:$('#uName').value.trim(),role,units:selectedUnits(),email};
+  if(id) payload.id=+id;
+  const pw=$('#uPass').value; if(pw) payload.password=pw;
+  if(!email){ $('#uErr').textContent='Adj meg e-mail címet.'; return; }
+  if(!id && !pw){ $('#uErr').textContent='Adj meg kezdő jelszót.'; return; }
+  const r=await fetch('/api/users',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
+  const j=await r.json().catch(()=>({}));
+  if(r.ok&&j.ok){ resetUserForm(); loadUsers(); } else $('#uErr').textContent=j.error||'Nem sikerült menteni.';
+});
+async function delUser(id){
+  const u=USERS.find(x=>x.id===id); if(!u)return;
+  if(!confirm('Biztosan törlöd? ('+(u.name||u.email)+')'))return;
+  const r=await fetch('/api/users',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'delete',id})});
+  if(r.ok) loadUsers();
+}
+async function toggleUser(id){
+  const u=USERS.find(x=>x.id===id); if(!u)return;
+  const r=await fetch('/api/users',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'update',id,disabled:!u.disabled})});
+  if(r.ok) loadUsers();
+}
+
+// ---- e-mail beállítások (superadmin) ----
+let EMUNITS=[];
+async function loadEmailSettings(){
+  if(!CFG.canManageUsers) return;
+  $('#emMsg').textContent=''; $('#emTestMsg').textContent='';
+  try{
+    const j=await fetch('/api/settings').then(r=>r.json());
+    EMUNITS=j.units||[];
+    $('#emKey').value='';
+    $('#emKeyState').textContent=j.apiKeySet?('Beállítva: '+j.apiKeyHint+' (hagyd üresen, ha marad)'):'Nincs beállítva.';
+    $('#emKeyState').style.color=j.apiKeySet?'var(--good)':'var(--ink-faint)';
+    $('#emTestUnit').innerHTML=EMUNITS.map(u=>'<option value="'+u.slug+'">'+shortName(u.slug)+'</option>').join('');
+    const rem=j.reminder||{}; $('#emSubject').value=rem.subject||''; $('#emBody').value=rem.body||'';
+    const from=j.from||{};
+    const head='<thead><tr><th>Egység</th><th>Feladó e-mail</th><th>Feladó név</th></tr></thead>';
+    const rows=EMUNITS.map(u=>{
+      const f=from[u.slug]||{};
+      return '<tr><td class="t-strong">'+esc(shortName(u.slug))+'</td>'+
+        '<td><input class="fi em-email" data-slug="'+esc(u.slug)+'" type="email" value="'+esc(f.email||'')+'" placeholder="pl. utalvany@'+esc(u.slug)+'.hu"></td>'+
+        '<td><input class="fi em-name" data-slug="'+esc(u.slug)+'" type="text" value="'+esc(f.name||'')+'" placeholder="pl. '+esc(shortName(u.slug))+' '+esc(brandName())+'"></td></tr>';
+    }).join('');
+    $('#emFromTable').innerHTML=head+'<tbody>'+rows+'</tbody>';
+  }catch(e){ $('#emMsg').textContent='Nem sikerült betölteni a beállításokat.'; }
+}
+function emGatherFrom(){
+  const from={};
+  document.querySelectorAll('#emFromTable .em-email').forEach(inp=>{
+    const slug=inp.dataset.slug;
+    const name=document.querySelector('#emFromTable .em-name[data-slug="'+slug+'"]');
+    from[slug]={email:inp.value.trim(), name:name?name.value.trim():''};
+  });
+  return from;
+}
+function emPayload(extra){
+  const p={from:emGatherFrom()};
+  const k=$('#emKey').value.trim(); if(k) p.apiKey=k;
+  return Object.assign(p, extra||{});
+}
+$('#emSave').onclick=async()=>{
+  const msg=$('#emMsg'); msg.className='uerr'; msg.textContent='';
+  const btn=$('#emSave'); btn.disabled=true; const o=btn.textContent; btn.textContent='Mentés…';
+  try{
+    const r=await fetch('/api/settings',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(emPayload())});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok&&j.ok){ msg.style.color='var(--good)'; msg.textContent='Mentve.'; loadEmailSettings(); }
+    else{ msg.style.color=''; msg.textContent=j.error||'Nem sikerült menteni.'; }
+  }catch(e){ msg.textContent='Hiba: '+(e.message||e); }
+  finally{ btn.disabled=false; btn.textContent=o; }
+};
+$('#emTplSave').onclick=async()=>{
+  const msg=$('#emTplMsg'); msg.className='uerr'; msg.textContent='';
+  const btn=$('#emTplSave'); btn.disabled=true; const o=btn.textContent; btn.textContent='Mentés…';
+  try{
+    const r=await fetch('/api/settings',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({reminder:{subject:$('#emSubject').value,body:$('#emBody').value}})});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok&&j.ok){ msg.style.color='var(--good)'; msg.textContent='Szöveg mentve.'; }
+    else{ msg.style.color=''; msg.textContent=j.error||'Nem sikerült menteni.'; }
+  }catch(e){ msg.textContent='Hiba: '+(e.message||e); }
+  finally{ btn.disabled=false; btn.textContent=o; }
+};
+$('#emClearKey').onclick=async()=>{
+  if(!confirm('Törlöd a Brevo API kulcsot? Ezután nem megy automatikus e-mail.')) return;
+  const r=await fetch('/api/settings',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(emPayload({clearApiKey:true}))});
+  if(r.ok) loadEmailSettings();
+};
+$('#emTest').onclick=async()=>{
+  const msg=$('#emTestMsg'); msg.className='uerr'; msg.textContent='';
+  const unit=$('#emTestUnit').value, to=$('#emTestTo').value.trim();
+  if(!to){ msg.textContent='Adj meg címzettet.'; return; }
+  const btn=$('#emTest'); btn.disabled=true; const o=btn.textContent; btn.textContent='Küldés…';
+  try{
+    const r=await fetch('/api/settings',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(emPayload({test:{unit,to}}))});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok&&j.ok&&j.test&&j.test.ok){ msg.style.color='var(--good)'; msg.textContent='Teszt e-mail elküldve ide: '+to; }
+    else{ msg.style.color=''; msg.textContent=(j.test&&j.test.error)?('Teszt hiba: '+j.test.error):(j.error||'A teszt nem sikerült.'); }
+  }catch(e){ msg.textContent='Hiba: '+(e.message||e); }
+  finally{ btn.disabled=false; btn.textContent=o; }
+};
+
+// ---- profil (mini adatlap) ----
+function findVoucher(unit,serial){return DATA.vouchers.find(v=>String(v.unit)===String(unit)&&String(v.serial)===String(serial));}
+function copyText(text,btn){
+  const ok=()=>{btn.classList.add('done');const o=btn.textContent;btn.textContent='Másolva';setTimeout(()=>{btn.classList.remove('done');btn.textContent=o;},1400);};
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(ok).catch(()=>{});}
+  else{const t=document.createElement('textarea');t.value=text;document.body.appendChild(t);t.select();try{document.execCommand('copy');ok();}catch(e){}t.remove();}
+}
+function prow(k,v,copy){
+  if(!v)return '';
+  return '<div class="prow"><span class="pk">'+k+'</span><span class="pv">'+esc(v)+'</span>'+(copy?'<button class="copy" data-copy="'+esc(v)+'">Másolás</button>':'')+'</div>';
+}
+function openProfile(unit,serial){
+  const v=findVoucher(unit,serial); if(!v)return;
+  const email=v.buyer_email||v.delivery_email||'';
+  const rel=email?DATA.vouchers.filter(x=>String(x.buyer_email||x.delivery_email||'').toLowerCase()===email.toLowerCase()):[v];
+  rel.sort((a,b)=>psort(b).localeCompare(psort(a)));
+  const spent=rel.reduce((s,x)=>s+(+x.amount||0),0);
+  const addr=[v.postcode,v.city,v.street,(v.country&&v.country!=='Magyarország'&&v.country!=='HU'?v.country:'')].filter(Boolean).join(' ');
+  const d=daysLeft(v.valid_until);
+  const buyer=v.buyer_name||v.giver_name||'—';
+  const hist=rel.map(x=>{
+    const cur=(String(x.serial)===String(v.serial)&&String(x.unit)===String(v.unit));
+    return '<div class="ph'+(cur?' cur':'')+'" data-serial="'+esc(x.serial)+'" data-unit="'+esc(x.unit)+'" style="cursor:pointer">'+
+      '<div><div class="mono" style="font-weight:600">'+esc(x.serial)+'</div><div class="t-sub">'+shortName(x.unit)+' · '+(x.created_at?fdate(x.created_at):(pday(x)?'~ '+fdate(pday(x)):'—'))+'</div></div>'+
+      '<div class="tnum" style="margin-left:auto;font-weight:600">'+money(x.amount)+'</div>'+statusPill(x.status)+'</div>';
+  }).join('');
+  $('#pcard').innerHTML=
+    '<div class="pcard-head"><div><div class="pname">'+esc(buyer)+'</div><div class="psub">'+esc(shortName(v.unit))+' · '+esc(v.serial)+'</div></div><button class="pclose" id="pclose" aria-label="Bezárás">×</button></div>'+
+    '<div class="pbody">'+
+      '<div class="psec">Kapcsolat</div>'+
+      prow('E-mail',email,true)+
+      prow('Telefon',v.buyer_phone,true)+
+      prow('Cím',addr,!!addr)+
+      '<div class="psec">Utalvány</div>'+
+      prow('Érték',money(v.amount))+
+      prow('Belső sorszám', v.seq_no?((v.seq_year||'')+'/'+String(v.seq_no).padStart(6,'0')):'')+
+      '<div class="prow"><span class="pk">Státusz</span><span class="pv">'+statusPill(v.status)+'</span></div>'+
+      '<div class="prow"><span class="pk">Érvényes</span><span class="pv" id="pValid">'+esc(fdate(v.valid_until)+(d!=null&&v.status==='active'?(d<0?' (lejárt)':' ('+d+' nap)'):''))+'</span></div>'+
+      '<div class="prow"><span class="pk">Megajándékozott</span><span class="pv" id="pRecName">'+esc(v.recipient_name||'—')+'</span></div>'+
+      prow('Üzenet',v.message)+
+      '<div class="psec">Műveletek</div>'+
+      '<div class="pacts">'+
+        '<a class="pbtn" href="/api/pdf?unit='+encodeURIComponent(v.unit)+'&serial='+encodeURIComponent(v.serial)+'" target="_blank" rel="noopener">Utalvány PDF</a>'+
+        '<button class="pbtn" id="pResend">E-mail újraküldése</button>'+
+        '<button class="pbtn" id="pRename">Megajándékozott módosítása</button>'+
+        (v.status==='active'||v.status==='expired'?'<button class="pbtn" id="pExtend">Érvényesség meghosszabbítása</button>':'')+
+        (CFG.role==='superadmin'?'<button class="pbtn danger" id="pDel">Utalvány törlése</button>':'')+
+      '</div>'+
+      '<div class="pdel" id="pDelBox" hidden>'+
+        '<p class="t-sub">A törlés végleges: az utalvány és a hozzá tartozó PDF eltűnik, a beváltó felületen sem lesz megtalálható. A művelet a naplóba kerül. Megerősítéshez írd be a sorszámot:</p>'+
+        '<div class="pdel-row">'+
+          '<input class="fi" id="pDelConfirm" placeholder="'+esc(v.serial)+'" autocomplete="off">'+
+          '<button class="btn danger" id="pDelGo">Végleges törlés</button>'+
+        '</div>'+
+      '</div>'+
+      '<p class="res-msg" id="pDelMsg"></p>'+
+      '<div class="presend" id="pResendBox" hidden>'+
+        '<select class="fi" id="pResendReason">'+
+          '<option value="resend">Újraküldés — a kód változatlan</option>'+
+          '<option value="newcode">Új kód készült — a régi már nem érvényes</option>'+
+        '</select>'+
+        '<div class="presend-row">'+
+          '<input class="fi" id="pResendTo" type="email" placeholder="e-mail cím" value="'+esc(email)+'">'+
+          '<button class="btn" id="pResendGo">Küldés</button>'+
+        '</div>'+
+      '</div>'+
+      '<p class="res-msg" id="pResendMsg"></p>'+
+      '<div class="prename" id="pRenameBox" hidden>'+
+        '<label class="fl" for="pRenameName" style="margin:0">A megajándékozott új neve</label>'+
+        '<div class="presend-row">'+
+          '<input class="fi" id="pRenameName" maxlength="120" autocomplete="off" value="'+esc(v.recipient_name||'')+'">'+
+          '<button class="btn" id="pRenameGo">Mentés</button>'+
+        '</div>'+
+        '<p class="t-sub">A név a WooCommerce-rendelésben is azonnal átíródik, és új PDF készül. A mentéshez a bolt egy kis ablakban nyílik meg, majd magától bezárul. A módosítás naplózva lesz.</p>'+
+      '</div>'+
+      '<p class="res-msg" id="pRenameMsg"></p>'+
+      '<div class="prename" id="pRenameResend" hidden>'+
+        '<p class="t-sub">Küldjük el újra a frissített utalványt a megajándékozottnak?</p>'+
+        '<div class="presend-row">'+
+          '<input class="fi" id="pRenameTo" type="email" placeholder="e-mail cím" value="'+esc(v.delivery_email||v.buyer_email||'')+'">'+
+          '<button class="btn" id="pRenameSend">Újraküldés</button>'+
+          '<button class="btn ghost" id="pRenameSkip">Most nem</button>'+
+        '</div>'+
+      '</div>'+
+      '<div class="prename" id="pExtendBox" hidden>'+
+        '<label class="fl" for="pExtendDate" style="margin:0">Új lejárat <span class="t-sub">(jelenleg: '+esc(fdate(v.valid_until)||'—')+')</span></label>'+
+        '<div class="presend-row" style="flex-wrap:wrap">'+
+          '<button class="btn ghost" data-ext-m="3">+3 hó</button>'+
+          '<button class="btn ghost" data-ext-m="6">+6 hó</button>'+
+          '<button class="btn ghost" data-ext-m="12">+12 hó</button>'+
+          '<input class="fi" id="pExtendDate" type="date" style="flex:1;min-width:150px">'+
+        '</div>'+
+        '<input class="fi" id="pExtendReason" maxlength="300" autocomplete="off" placeholder="Indoklás (pl. vendég kérésére, e-mailben kérte)">'+
+        '<div class="presend-row"><button class="btn" id="pExtendGo">Hosszabbítás mentése</button></div>'+
+        '<p class="t-sub">Lejárt utalvány az új dátummal újra beváltható lesz. Új PDF készül az új lejárattal, és a WooCommerce-rendelés jegyzetet kap. A mentéshez a bolt egy kis ablakban nyílik meg, majd magától bezárul. A módosítás naplózva lesz.</p>'+
+      '</div>'+
+      '<p class="res-msg" id="pExtendMsg"></p>'+
+      '<div class="prename" id="pExtendResend" hidden>'+
+        '<p class="t-sub">Küldjük el a vendégnek az új lejáratú utalványt?</p>'+
+        '<div class="presend-row">'+
+          '<input class="fi" id="pExtendTo" type="email" placeholder="e-mail cím" value="'+esc(v.delivery_email||v.buyer_email||'')+'">'+
+          '<button class="btn" id="pExtendSend">Újraküldés</button>'+
+          '<button class="btn ghost" id="pExtendSkip">Most nem</button>'+
+        '</div>'+
+      '</div>'+
+      recipientLogHtml(v)+
+      validityLogHtml(v)+
+      '<div class="psec">Korábbi vásárlások — '+rel.length+' db · összesen '+money(spent)+'</div>'+
+      '<div class="phist">'+hist+'</div>'+
+    '</div>';
+  $('#profile').classList.add('show');
+  $('#pclose').onclick=closeProfile;
+
+  // Az utalvány újraküldése e-mailben (a tárolt PDF-fel).
+  const rb=$('#pResend'), box=$('#pResendBox'), msg=$('#pResendMsg');
+  if(rb) rb.onclick=()=>{
+    box.hidden=!box.hidden;
+    msg.textContent='';
+    if(!box.hidden) $('#pResendTo').focus();
+  };
+  const go=$('#pResendGo');
+  if(go) go.onclick=async()=>{
+    const to=$('#pResendTo').value.trim();
+    go.disabled=true; const o=go.textContent; go.textContent='Küldés…'; msg.className='res-msg'; msg.textContent='';
+    try{
+      const r=await fetch('/api/resend',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({unit:v.unit,serial:v.serial,to,reason:$('#pResendReason').value})});
+      const j=await r.json().catch(()=>({}));
+      if(r.ok&&j.ok){
+        msg.className='res-msg ok';
+        msg.textContent='Elküldve ide: '+j.to+(j.pdfAttached?' (PDF mellékelve)':' — PDF nélkül, mert nincs feltöltve');
+        box.hidden=true;
+      } else { msg.className='res-msg err'; msg.textContent=j.error||'A küldés nem sikerült.'; }
+    }catch(e){ msg.className='res-msg err'; msg.textContent='Hálózati hiba.'; }
+    go.disabled=false; go.textContent=o;
+  };
+
+  bindRename(v);
+  bindExtend(v);
+
+  // Végleges törlés — csak központi adminnak, a sorszám pontos beírásával.
+  const db_=$('#pDel'), dbox=$('#pDelBox'), dmsg=$('#pDelMsg');
+  if(db_) db_.onclick=()=>{
+    dbox.hidden=!dbox.hidden; dmsg.textContent='';
+    if(!dbox.hidden) $('#pDelConfirm').focus();
+  };
+  const dgo=$('#pDelGo');
+  if(dgo) dgo.onclick=async()=>{
+    const confirmTxt=$('#pDelConfirm').value.trim();
+    if(confirmTxt.toUpperCase()!==String(v.serial).toUpperCase()){
+      dmsg.className='res-msg err'; dmsg.textContent='A sorszám nem egyezik — írd be pontosan: '+v.serial; return;
+    }
+    dgo.disabled=true; const o=dgo.textContent; dgo.textContent='Törlés…'; dmsg.className='res-msg'; dmsg.textContent='';
+    try{
+      const r=await fetch('/api/delete',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({unit:v.unit,serial:v.serial,confirm:confirmTxt})});
+      const j=await r.json().catch(()=>({}));
+      if(r.ok&&j.ok){ closeProfile(); refresh(true); }
+      else { dmsg.className='res-msg err'; dmsg.textContent=j.error||'A törlés nem sikerült.'; dgo.disabled=false; dgo.textContent=o; }
+    }catch(e){ dmsg.className='res-msg err'; dmsg.textContent='Hálózati hiba.'; dgo.disabled=false; dgo.textContent=o; }
+  };
+}
+// A megajándékozott névváltozásainak naplója az adatlapon.
+function recipientLogHtml(v){
+  const rows=(DATA.log||[]).filter(x=>x.action==='recipient_change'&&String(x.unit)===String(v.unit)&&String(x.serial)===String(v.serial));
+  if(!rows.length)return '';
+  return '<div class="psec">Névmódosítások</div><div class="plog">'+rows.map(x=>
+    '<div class="pl"><div class="pl-note">'+esc(x.note||'')+'</div>'+
+    '<div class="t-sub">'+esc(x.created_at?fdt(x.created_at):'')+(x.user_name?' · '+esc(x.user_name):'')+'</div></div>').join('')+'</div>';
+}
+// Az érvényesség-hosszabbítások naplója az adatlapon.
+function validityLogHtml(v){
+  const rows=(DATA.log||[]).filter(x=>x.action==='validity_extend'&&String(x.unit)===String(v.unit)&&String(x.serial)===String(v.serial));
+  if(!rows.length)return '';
+  return '<div class="psec">Hosszabbítások</div><div class="plog">'+rows.map(x=>
+    '<div class="pl"><div class="pl-note">'+esc(x.note||'')+'</div>'+
+    '<div class="t-sub">'+esc(x.created_at?fdt(x.created_at):'')+(x.user_name?' · '+esc(x.user_name):'')+'</div></div>').join('')+'</div>';
+}
+function fdt(s){const t=String(s||'');return t.length>10?fdate(t.slice(0,10))+' '+t.slice(11,16):fdate(t);}
+
+// „Megajándékozott módosítása”: a vezérlőpult aláírt jegyet ad, a bolt egy kis
+// ablakban azonnal átírja a WooCommerce-rendelést és az utalványt, újragenerálja a
+// PDF-et és felküldi ide. Mi addig kérdezzük az állapotot, amíg a felküldés meg nem
+// érkezik — így itt csak az jelenik meg, amit a bolt ténylegesen elmentett.
+let RENAME_STOP=null;
+function bindRename(v){
+  const btn=$('#pRename'), box=$('#pRenameBox'), msg=$('#pRenameMsg'), go=$('#pRenameGo'), inp=$('#pRenameName');
+  const rbox=$('#pRenameResend');
+  if(!btn)return;
+  if(RENAME_STOP){RENAME_STOP();RENAME_STOP=null;}
+  btn.onclick=()=>{box.hidden=!box.hidden; msg.textContent=''; if(!box.hidden){inp.focus();inp.select();}};
+  inp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();go.click();}};
+  const say=(cls,t)=>{msg.className='res-msg'+(cls?' '+cls:''); msg.textContent=t;};
+  const reset=()=>{go.disabled=false; go.textContent='Mentés'; inp.disabled=false;};
+  const finish=(j,old,name)=>{
+    if(RENAME_STOP){RENAME_STOP();RENAME_STOP=null;}
+    const parts=['Mentve: „'+(old||'—')+'” → „'+name+'”'];
+    if(j.order==='updated'||j.order==='updated_per_serial') parts.push('WooCommerce-rendelés frissítve');
+    else if(j.order==='no_order') parts.push('nincs hozzá WooCommerce-rendelés');
+    else if(j.mode==='local') parts.push('csak a vezérlőpulton létezik, nincs bolti rendelés');
+    if(j.pdf) parts.push('PDF újragenerálva');
+    say('ok',parts.join(' · ')+' — naplózva.');
+    const cell=$('#pRecName'); if(cell) cell.textContent=name;
+    v.recipient_name=name;
+    box.hidden=true; reset();
+    if(rbox){ rbox.hidden=false; }
+    refresh(true);
+  };
+  go.onclick=async()=>{
+    const name=inp.value.replace(/\s+/g,' ').trim();
+    const old=v.recipient_name||'';
+    if(!name){say('err','Add meg az új nevet.');return;}
+    if(name===old){say('err','Ez a név már így szerepel.');return;}
+    go.disabled=true; inp.disabled=true; go.textContent='Mentés…'; say('','');
+    if(rbox) rbox.hidden=true;
+    // Az ablakot még a kattintásban nyitjuk meg, különben a böngésző letiltja.
+    let w=null;
+    try{ w=window.open('','pgvRecipient','width=520,height=620');
+      if(w) w.document.write('<!doctype html><meta charset="utf-8"><title>Kapcsolódás…</title><p style="font:15px sans-serif;padding:24px">Kapcsolódás a bolthoz…</p>'); }catch(e){ w=null; }
+    let j={};
+    try{
+      const r=await fetch('/api/recipient',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({unit:v.unit,serial:v.serial,name})});
+      j=await r.json().catch(()=>({}));
+      if(!r.ok||!j.ok){ if(w)try{w.close();}catch(e){} say('err',j.error||'A módosítás nem sikerült.'); reset(); return; }
+    }catch(e){ if(w)try{w.close();}catch(e2){} say('err','Hálózati hiba.'); reset(); return; }
+
+    if(j.mode==='local'){ if(w)try{w.close();}catch(e){} finish(j,old,name); return; }
+
+    if(w&&!w.closed){ w.location.href=j.applyUrl; say('','A bolt ablakában folyik a mentés…'); }
+    else{
+      msg.className='res-msg';
+      msg.innerHTML='A böngésző letiltotta a felugró ablakot. <a href="'+esc(j.applyUrl)+'" target="_blank">Kattints ide a mentéshez a boltban</a>, utána ez az ablak magától frissül.';
+    }
+
+    // Visszajelzés: a bolt ablaka postMessage-dzsel szól (gyors út, hibánál is), és
+    // közben az állapotot is kérdezzük (akkor is működik, ha az ablak nem tud szólni).
+    let stopped=false, timer=null;
+    const started=Date.now();
+    const onMsg=e=>{
+      if(e.origin!==j.shopOrigin||!e.data||e.data.type!=='pgv-recipient'||e.data.nonce!==j.nonce)return;
+      if(!e.data.ok){ stop(); say('err','A bolt nem mentette: '+(e.data.error||'ismeretlen hiba')); reset(); return; }
+      if(e.data.pushed===false){ say('','A bolt elmentette, de a kasszára küldés elakadt — a bolt hamarosan újrapróbálja, addig várunk…'); }
+      poll();
+    };
+    const stop=()=>{ stopped=true; clearTimeout(timer); window.removeEventListener('message',onMsg); };
+    RENAME_STOP=stop;
+    window.addEventListener('message',onMsg);
+    const poll=async()=>{
+      if(stopped)return;
+      clearTimeout(timer);
+      try{
+        const r=await fetch('/api/recipient?unit='+encodeURIComponent(v.unit)+'&serial='+encodeURIComponent(v.serial)+'&nonce='+encodeURIComponent(j.nonce),{cache:'no-store'});
+        const st=await r.json().catch(()=>({}));
+        if(stopped)return;
+        if(r.ok&&st.state==='done'){ stop(); finish(st,old,name); return; }
+        if(r.status===404){ stop(); say('err','A módosítást közben egy újabb váltotta fel.'); reset(); return; }
+      }catch(e){}
+      if(Date.now()-started>3*60*1000){
+        stop(); reset();
+        say('err','Nem jött visszajelzés a bolttól. Ha a bolt ablakában hibaüzenet látszik, az a teendő; ha az ablak nem nyílt meg, próbáld újra. (A bolti bővítmény legalább 2.1.0 legyen.)');
+        return;
+      }
+      timer=setTimeout(poll,1500);
+    };
+    timer=setTimeout(poll,1500);
+  };
+
+  // Felajánlott újraküldés a frissített PDF-fel.
+  const send=$('#pRenameSend'), skip=$('#pRenameSkip');
+  if(skip) skip.onclick=()=>{ rbox.hidden=true; };
+  if(send) send.onclick=async()=>{
+    const to=$('#pRenameTo').value.trim();
+    send.disabled=true; const o=send.textContent; send.textContent='Küldés…';
+    try{
+      const r=await fetch('/api/resend',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({unit:v.unit,serial:v.serial,to,reason:'rename'})});
+      const j=await r.json().catch(()=>({}));
+      if(r.ok&&j.ok){ rbox.hidden=true; say('ok','Elküldve ide: '+j.to+(j.pdfAttached?' (a frissített PDF mellékelve)':' — PDF nélkül, mert nincs feltöltve')); }
+      else say('err',j.error||'A küldés nem sikerült.');
+    }catch(e){ say('err','Hálózati hiba.'); }
+    send.disabled=false; send.textContent=o;
+  };
+}
+// „Érvényesség meghosszabbítása”: ugyanaz az út, mint a névmódosításnál — aláírt
+// jegy, a bolt egy kis ablakban azonnal elvégzi, mi pedig a felküldésig kérdezzük az
+// állapotot. Utána felajánljuk az újraküldést a „meghosszabbítottuk” levélszöveggel.
+let EXT_STOP=null;
+function ymdLocal(t){const p=n=>(n<10?'0':'')+n;return t.getFullYear()+'-'+p(t.getMonth()+1)+'-'+p(t.getDate());}
+function addMonthsYmd(ymd,n){
+  const t=new Date(ymd+'T00:00:00'), day=t.getDate();
+  t.setDate(1); t.setMonth(t.getMonth()+n);
+  t.setDate(Math.min(day,new Date(t.getFullYear(),t.getMonth()+1,0).getDate()));
+  return ymdLocal(t);
+}
+function bindExtend(v){
+  const btn=$('#pExtend'), box=$('#pExtendBox'), msg=$('#pExtendMsg'), go=$('#pExtendGo');
+  const dateI=$('#pExtendDate'), reasonI=$('#pExtendReason'), rbox=$('#pExtendResend');
+  if(!btn)return;
+  if(EXT_STOP){EXT_STOP();EXT_STOP=null;}
+  const today=ymdLocal(new Date());
+  const cur=String(v.valid_until||'').slice(0,10);
+  const base=cur&&cur>today?cur:today;   // a régi lejárattól, ha már elmúlt, a mai naptól
+  dateI.min=addMonthsYmd(today,0);
+  dateI.value=addMonthsYmd(base,3);
+  box.querySelectorAll('[data-ext-m]').forEach(b=>{ b.onclick=()=>{ dateI.value=addMonthsYmd(base,+b.dataset.extM); }; });
+  btn.onclick=()=>{box.hidden=!box.hidden; msg.textContent=''; if(!box.hidden) reasonI.focus();};
+  reasonI.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();go.click();}};
+  const say=(cls,t)=>{msg.className='res-msg'+(cls?' '+cls:''); msg.textContent=t;};
+  const reset=()=>{go.disabled=false; go.textContent='Hosszabbítás mentése'; dateI.disabled=false; reasonI.disabled=false;};
+  const finish=(j,old,until)=>{
+    if(EXT_STOP){EXT_STOP();EXT_STOP=null;}
+    const parts=['Meghosszabbítva: '+(fdate(old)||'—')+' → '+fdate(until)];
+    if(j.reactivated) parts.push('az utalvány újra aktív');
+    if(j.order==='noted') parts.push('WooCommerce-rendelés: jegyzet');
+    else if(j.order==='no_order') parts.push('nincs hozzá WooCommerce-rendelés');
+    else if(j.mode==='local') parts.push('csak a vezérlőpulton létezik, nincs bolti rendelés');
+    if(j.pdf) parts.push('PDF újragenerálva');
+    say('ok',parts.join(' · ')+' — naplózva.');
+    v.valid_until=until; if(j.reactivated) v.status='active';
+    const cell=$('#pValid'); if(cell){ const dd=daysLeft(until); cell.textContent=fdate(until)+(dd!=null?' ('+dd+' nap)':''); }
+    box.hidden=true; reset();
+    if(rbox) rbox.hidden=false;
+    refresh(true);
+  };
+  go.onclick=async()=>{
+    const until=dateI.value, reason=reasonI.value.replace(/\s+/g,' ').trim(), old=cur;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(until)){say('err','Adj meg egy dátumot.');return;}
+    if(until<=today){say('err','Az új lejáratnak a mai napnál későbbinek kell lennie.');return;}
+    if(cur&&until<=cur){say('err','Az új lejárat legyen későbbi a jelenleginél ('+fdate(cur)+').');return;}
+    if(!reason){say('err','Írd be az indoklást (a naplóba kerül).');reasonI.focus();return;}
+    go.disabled=true; dateI.disabled=true; reasonI.disabled=true; go.textContent='Mentés…'; say('','');
+    if(rbox) rbox.hidden=true;
+    // Az ablakot még a kattintásban nyitjuk meg, különben a böngésző letiltja.
+    let w=null;
+    try{ w=window.open('','pgvValidity','width=520,height=620');
+      if(w) w.document.write('<!doctype html><meta charset="utf-8"><title>Kapcsolódás…</title><p style="font:15px sans-serif;padding:24px">Kapcsolódás a bolthoz…</p>'); }catch(e){ w=null; }
+    let j={};
+    try{
+      const r=await fetch('/api/validity',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({unit:v.unit,serial:v.serial,until,reason})});
+      j=await r.json().catch(()=>({}));
+      if(!r.ok||!j.ok){ if(w)try{w.close();}catch(e){} say('err',j.error||'A hosszabbítás nem sikerült.'); reset(); return; }
+    }catch(e){ if(w)try{w.close();}catch(e2){} say('err','Hálózati hiba.'); reset(); return; }
+
+    if(j.mode==='local'){ if(w)try{w.close();}catch(e){} finish(j,old,until); return; }
+
+    if(w&&!w.closed){ w.location.href=j.applyUrl; say('','A bolt ablakában folyik a mentés…'); }
+    else{
+      msg.className='res-msg';
+      msg.innerHTML='A böngésző letiltotta a felugró ablakot. <a href="'+esc(j.applyUrl)+'" target="_blank">Kattints ide a mentéshez a boltban</a>, utána ez az ablak magától frissül.';
+    }
+
+    let stopped=false, timer=null;
+    const started=Date.now();
+    const onMsg=e=>{
+      if(e.origin!==j.shopOrigin||!e.data||e.data.type!=='pgv-validity'||e.data.nonce!==j.nonce)return;
+      if(!e.data.ok){ stop(); say('err','A bolt nem mentette: '+(e.data.error||'ismeretlen hiba')); reset(); return; }
+      if(e.data.pushed===false){ say('','A bolt elmentette, de a kasszára küldés elakadt — a bolt hamarosan újrapróbálja, addig várunk…'); }
+      poll();
+    };
+    const stop=()=>{ stopped=true; clearTimeout(timer); window.removeEventListener('message',onMsg); };
+    EXT_STOP=stop;
+    window.addEventListener('message',onMsg);
+    const poll=async()=>{
+      if(stopped)return;
+      clearTimeout(timer);
+      try{
+        const r=await fetch('/api/validity?unit='+encodeURIComponent(v.unit)+'&serial='+encodeURIComponent(v.serial)+'&nonce='+encodeURIComponent(j.nonce),{cache:'no-store'});
+        const st=await r.json().catch(()=>({}));
+        if(stopped)return;
+        if(r.ok&&st.state==='done'){ stop(); finish(st,old,until); return; }
+        if(r.status===404){ stop(); say('err','A hosszabbítást közben egy újabb váltotta fel.'); reset(); return; }
+      }catch(e){}
+      if(Date.now()-started>3*60*1000){
+        stop(); reset();
+        say('err','Nem jött visszajelzés a bolttól. Ha a bolt ablakában hibaüzenet látszik, az a teendő; ha az ablak nem nyílt meg, próbáld újra. (A bolti bővítmény legalább 2.2.0 legyen.)');
+        return;
+      }
+      timer=setTimeout(poll,1500);
+    };
+    timer=setTimeout(poll,1500);
+  };
+
+  // Felajánlott újraküldés az új lejáratú PDF-fel.
+  const send=$('#pExtendSend'), skip=$('#pExtendSkip');
+  if(skip) skip.onclick=()=>{ rbox.hidden=true; };
+  if(send) send.onclick=async()=>{
+    const to=$('#pExtendTo').value.trim();
+    send.disabled=true; const o=send.textContent; send.textContent='Küldés…';
+    try{
+      const r=await fetch('/api/resend',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({unit:v.unit,serial:v.serial,to,reason:'extend'})});
+      const j=await r.json().catch(()=>({}));
+      if(r.ok&&j.ok){ rbox.hidden=true; say('ok','Elküldve ide: '+j.to+(j.pdfAttached?' (az új lejáratú PDF mellékelve)':' — PDF nélkül, mert nincs feltöltve')); }
+      else say('err',j.error||'A küldés nem sikerült.');
+    }catch(e){ say('err','Hálózati hiba.'); }
+    send.disabled=false; send.textContent=o;
+  };
+}
+function closeProfile(){$('#profile').classList.remove('show'); if(RENAME_STOP){RENAME_STOP();RENAME_STOP=null;} if(EXT_STOP){EXT_STOP();EXT_STOP=null;}}
+$('#profile').addEventListener('click',e=>{
+  if(e.target.id==='profile'){closeProfile();return;}
+  const cp=e.target.closest('.copy'); if(cp){copyText(cp.dataset.copy,cp);return;}
+  const ph=e.target.closest('.ph[data-serial]'); if(ph){openProfile(ph.dataset.unit,ph.dataset.serial);return;}
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeProfile();});
+['#dashExpiry','#expiryCard','#expiredList','#dashTable','#purchasesTable'].forEach(sel=>{
+  const el=$(sel); if(!el)return;
+  el.addEventListener('click',e=>{
+    const rb=e.target.closest('[data-remind]');
+    if(rb){ sendReminder(rb.dataset.unit,rb.dataset.remind,rb); return; }
+    const it=e.target.closest('[data-serial]'); if(it&&it.dataset.serial)openProfile(it.dataset.unit,it.dataset.serial);
+  });
+});
+
+$('#menuBtn').onclick=e=>{e.stopPropagation();$('#sidebar').classList.toggle('open');};
+// Telefonon a nyitott menü a tartalomra koppintva bezárul.
+document.querySelector('.main').addEventListener('click',()=>$('#sidebar').classList.remove('open'));
+// Telefonos kártyanézethez: minden cella megkapja az oszlop fejlécét címkének (data-label).
+(function labelTables(){
+  const apply=t=>{
+    const heads=[...t.querySelectorAll('thead th')].map(th=>th.textContent.trim());
+    if(!heads.length) return;
+    t.querySelectorAll('tbody tr').forEach(tr=>{
+      let i=0;
+      [...tr.children].forEach(td=>{ if(!td.hasAttribute('data-label')) td.setAttribute('data-label',heads[i]||''); i+=Number(td.getAttribute('colspan'))||1; });
+    });
+  };
+  const all=()=>document.querySelectorAll('.card table').forEach(apply);
+  new MutationObserver(all).observe(document.getElementById('app'),{childList:true,subtree:true});
+  all();
+})();
+$('#themeBtn').onclick=()=>{const r=document.documentElement;const cur=r.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');r.setAttribute('data-theme',cur==='dark'?'light':'dark');};
+
+boot();
+</script>
+</body>
+</html>
