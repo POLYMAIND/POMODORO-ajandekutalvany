@@ -187,6 +187,29 @@ Az utalvány **részletek ablakában** legyen „**Megajándékozott módosítá
 *(A prototípus adminban — `prototype/admin.html` — ez a folyamat kattintható módon
 elkészült, a PDF/WooCommerce/e-mail lépéseket szimulálva, naplóval és újraküldéssel.)*
 
+## 12/c. Érvényesség meghosszabbítása + újraküldés (admin — részletek ablak)
+
+Vendég kérésére egy utalvány lejárata utólag kitolható, és az utalvány újra kiküldhető:
+- A részletek ablak „Érvényes" sorában **„Meghosszabbítás"** gomb (aktív és lejárt utalványnál;
+  beváltottnál / fizetésre várónál nem).
+- Gyorsgombok: **+1 / +3 / +6 / +12 hónap**, vagy tetszőleges dátum. Az alap a régi lejárat,
+  ha az már elmúlt, akkor a mai nap.
+- **Kötelező indoklás** (pl. „vendég kérésére, e-mail 2026-11-24") — a naplóba kerül.
+- Validáció: az új dátum későbbi a mainál és a jelenlegi lejáratnál.
+- **Lejárt utalványnál** a hosszabbítás után az utalvány újra **aktív** lesz (beváltható).
+- Mentéskor: `valid_until` frissítése → **PDF újragenerálása** az új lejárattal →
+  **WooCommerce-rendelés** meta-adatának frissítése (azonnali, `PUT /wp-json/wc/v3/orders/{id}`,
+  mint a 12/b-nél) → **újraküldés** felajánlása (kiemelt gomb).
+- Az **újraküldés** gomb minden aktív utalványnál elérhető, módosítás nélkül is (ha a vendég
+  csak elvesztette az e-mailt); mindig az aktuális adatokkal generált PDF megy ki.
+- Naplózás: ki, mikor, régi → új dátum, indoklás, státuszváltás, PDF, WooCommerce-szinkron,
+  újraküldés. Az adatmodellben ehhez új audit-akció kell (pl. `extended`, `resent`), a régi/új
+  dátum és az indoklás a `voucher_audit.detail` jsonb-be. Figyelem: a meglévő státusz-trigger
+  a `expired → active` váltást `paid`-ként naplózná — ezt hosszabbításnál `extended`-re kell
+  javítani.
+
+*(A prototípus adminban ez is kattintható: pl. Casa → `QWERTY123LEG` (lejárt) → Meghosszabbítás.)*
+
 ## 13. Mi készült el ebben a fázisban (referenciaként átvehető)
 
 A repóban (az eredeti, egyedi-app irányból) — **specifikációként/UX-referenciaként**
